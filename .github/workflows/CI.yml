@@ -1,0 +1,44 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  PIP_CACHE_DIR: ${{ github.workspace }}\pipcache
+
+jobs:
+  build_windows:
+    runs-on: windows-2019
+    steps:
+      - name: check out repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - name: download pip cache
+        uses: actions/cache@v2
+        with:
+          key: pipcache-run-${{ github.run_number}}
+          restore-keys: pipcache-run-
+          path: ${{ env.PIP_CACHE_DIR }}
+      - name: set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: build
+        working-directory: ${{ github.workspace }}
+        run: |
+          pip install setuptools wheel
+          python setup.py sdist bdist_wheel
+          if ((git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | Out-String).Contains("delvewheel/version.py`r`n")) {
+            echo DEPLOY=1 | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+      - name: upload build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: delvewheel
+          path: ${{ github.workspace }}\dist\*
+      - name: deploy
+        if: env.DEPLOY == '1'
+        working-directory: ${{ github.workspace }}
+        run: |
+          pip install twine
+          twine upload --skip-existing -u __token__ -p ${{ secrets.PYPI_TOKEN }} dist\*
