@@ -243,7 +243,7 @@ class WheelRepair:
             # prepend patch
             with open(init_path, 'w') as file:
                 file.write(patch_init_contents)
-                file.write(patch_init_contents)
+                file.write(init_contents)
         else:
             # insert patch after docstring
             children = list(ast.iter_child_nodes(node))
