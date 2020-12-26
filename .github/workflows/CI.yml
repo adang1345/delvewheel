@@ -37,7 +37,7 @@ jobs:
           name: delvewheel
           path: ${{ github.workspace }}\dist\*
       - name: deploy
-        if: env.DEPLOY == '1'
+        if: env.DEPLOY == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master'
         working-directory: ${{ github.workspace }}
         run: |
           pip install twine
