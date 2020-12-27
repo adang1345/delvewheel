@@ -55,7 +55,7 @@ def main():
 
         if not os.environ['PATH'].endswith(os.pathsep):
             os.environ['PATH'] += os.pathsep
-        os.environ['PATH'] += ';'.join(add_paths)
+        os.environ['PATH'] += os.pathsep.join(add_paths)
 
         for wheel in args.wheel:
             wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.v)
