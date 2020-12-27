@@ -109,8 +109,8 @@ def get_all_needed(lib_path: str,
             with PEContext(lib_path) as pe:
                 lib_bitness = 64 if pe.FILE_HEADER.Machine == 34404 else 32
                 if interpreter_bitness != lib_bitness:
-                    # bitness of Python interpreter must match that of the DLL so
-                    # that ctypes.util.find_library() can find it
+                    # bitness of Python interpreter must match that of the DLL
+                    # so that ctypes.util.find_library() can find it
                     raise OSError(f'Dependent library {lib_path} is {lib_bitness}-bit but Python interpreter is {interpreter_bitness}-bit')
 
                 imports = []
@@ -130,7 +130,6 @@ def get_all_needed(lib_path: str,
                             raise FileNotFoundError(f'Unable to find library: {dll_name}')
                         else:
                             not_found.add(dll_name)
-                        # print(f'{lib_path} needs {dll_name}')
                     elif dll_name not in add_dlls:
                         ignored.add(dll_name)
     discovered.remove(first_lib_path)
@@ -164,7 +163,7 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict) -> 
             raise RuntimeError(
                 'Unable to rename the dependencies of '
                 f'{os.path.basename(lib_path)} because this DLL has trailing '
-                'data. If this DLL was created with MinGW, run the strip'
+                'data. If this DLL was created with MinGW, run the strip '
                 'utility. Otherwise, use the --no-mangle flag.')
         raise ex
     with open(lib_path, 'wb') as f:

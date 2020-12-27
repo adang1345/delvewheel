@@ -23,6 +23,9 @@ LOAD_ORDER_FILENAME = '.load_order'
 # DLLs is added to the DLL search path. For Python 3.7 or lower, this function
 # is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
 # it will use the already-loaded DLL instead of searching for it.
+#
+# To use the template, call str.format(), passing in a random number and the
+# name of the directory containing the vendored DLLs.
 _patch_init_template = f"""
 
 ""\"""\"  # start delvewheel patch
@@ -141,8 +144,7 @@ class WheelRepair:
                 if not init_contents.lstrip().startswith('"""'):
                     raise ValueError('Error parsing __init__.py: docstring exists but is not a triple-quoted string at the start of the file')
                 docstring_start_index = init_contents.index('"""')
-                docstring_end_index = init_contents.find('"""',
-                                                         docstring_start_index + 1) + 3
+                docstring_end_index = init_contents.find('"""', docstring_start_index + 1) + 3
                 if docstring_end_index == -1:
                     raise ValueError('Error parsing __init__.py: docstring exists but does not end with triple quotes')
                 docstring_end_line = init_contents.find('\n', docstring_end_index)
@@ -307,7 +309,7 @@ class WheelRepair:
             # initially. More importantly, we may get circular dependencies if
             # were were to consider delay-loaded DLLs as true dependencies.
             # For example, concrt140.dll lists msvcp140.dll in its import table,
-            # while msvcp140.dll lists concrt140.dll on its delay import table.
+            # while msvcp140.dll lists concrt140.dll in its delay import table.
             graph[dll_name] = patch_dll.get_direct_needed(dll_path, False) & dll_names
         rev_dll_load_order = []
         no_incoming_edge = {dll_name for dll_name in dll_names if not any(dll_name in value for value in graph.values())}
