@@ -13,28 +13,35 @@ import zipfile
 from . import patch_dll
 from . import dll_list
 
+LOAD_ORDER_FILENAME = '.load_order'
 
-# Template for patching __init__.py so that the vendored-in DLLs are loaded at
+# Template for patching __init__.py so that the vendored DLLs are loaded at
 # runtime. An empty triple-quoted string is placed at the beginning so that the
 # comment "start delvewheel patch" does not show up when the built-in help
-# system help() is invoked on the package.
-_patch_init_template = """
+# system help() is invoked on the package. For Python >=3.8, we use the
+# os.add_dll_directory() function so that the folder containing the vendored
+# DLLs is added to the DLL search path. For Python 3.7 or lower, this function
+# is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
+# it will use the already-loaded DLL instead of searching for it.
+_patch_init_template = f"""
 
-\"\"\"\"\"\"  # start delvewheel patch
-def _delvewheel_init_patch_{0}():
+""\"""\"  # start delvewheel patch
+def _delvewheel_init_patch_{{0}}():
     import os
     import sys
-    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), {1!r}))
+    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {{1!r}}))
     if sys.version_info[:2] >= (3, 8):
         os.add_dll_directory(libs_dir)
     else:
         from ctypes import WinDLL
-        for lib in os.listdir(libs_dir):
+        with open(os.path.join(libs_dir, {LOAD_ORDER_FILENAME!r})) as file:
+            load_order = file.read().split()
+        for lib in load_order:
             WinDLL(os.path.join(libs_dir, lib))
 
 
-_delvewheel_init_patch_{0}()
-del _delvewheel_init_patch_{0}
+_delvewheel_init_patch_{{0}}()
+del _delvewheel_init_patch_{{0}}
 # end delvewheel patch
 
 """
@@ -100,6 +107,56 @@ class WheelRepair:
             buf = afile.read(blocksize)
         return hasher.hexdigest()[:length]
 
+    def _patch_init(self, init_path: str, libs_dir: str) -> None:
+        """Given the path to __init__.py, create or patch the file so that
+        vendored-in DLLs can be loaded at runtime.
+        libs_dir is the name of the directory where DLLs are stored."""
+        print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
+
+        open(init_path, 'a+').close()
+        with open(init_path) as file:
+            init_contents = file.read()
+        node = ast.parse(init_contents)
+        docstring = ast.get_docstring(node)
+
+        rand_num = random.randint(10 ** 10, 10 ** 11 - 1)
+        patch_init_contents = _patch_init_template.format(rand_num, libs_dir)
+
+        if docstring is None:
+            # prepend patch
+            with open(init_path, 'w') as file:
+                file.write(patch_init_contents)
+                file.write(init_contents)
+        else:
+            # insert patch after docstring
+            children = list(ast.iter_child_nodes(node))
+            if len(children) == 0 or not isinstance(children[0], ast.Expr) or \
+                    not isinstance(children[0].value, ast.Constant) or \
+                    children[0].value.value != docstring:
+                raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
+            elif len(children) == 1:
+                with open(init_path, 'a') as file:
+                    file.write(patch_init_contents)
+            else:
+                if not init_contents.lstrip().startswith('"""'):
+                    raise ValueError('Error parsing __init__.py: docstring exists but is not a triple-quoted string at the start of the file')
+                docstring_start_index = init_contents.index('"""')
+                docstring_end_index = init_contents.find('"""',
+                                                         docstring_start_index + 1) + 3
+                if docstring_end_index == -1:
+                    raise ValueError('Error parsing __init__.py: docstring exists but does not end with triple quotes')
+                docstring_end_line = init_contents.find('\n', docstring_end_index)
+                if docstring_end_line == -1:
+                    docstring_end_line = len(init_contents)
+                extra_text = init_contents[docstring_end_index: docstring_end_line]
+                if extra_text and not extra_text.isspace():
+                    raise ValueError(f'Error parsing __init__.py: extra text {extra_text!r} is on the line where the docstring ends')
+                with open(init_path, 'w') as file:
+                    file.write(init_contents[:docstring_end_index])
+                    file.write('\n')
+                    file.write(patch_init_contents)
+                    file.write(init_contents[docstring_end_index:])
+
     def show(self) -> None:
         """Show the dependencies that the wheel has."""
         print(f'Analyzing {self._whl_name}\n')
@@ -155,7 +212,8 @@ class WheelRepair:
     def repair(self, target: str, no_mangles: set, lib_sdir: str) -> None:
         """Repair the wheel in a manner similar to auditwheel.
         target is the target directory for storing the repaired wheel
-        no_mangles is a set of lowercase DLL names that will not be mangled"""
+        no_mangles is a set of lowercase DLL names that will not be mangled
+        lib_sdir is the suffix for the directory to store the DLLs"""
         print(f'repairing {self._whl_path}')
 
         # extract wheel
@@ -189,11 +247,12 @@ class WheelRepair:
             print(f'External dependencies to copy into the wheel are\n{pp.pformat(set(os.path.basename(p) for p in dependency_paths))}')
             print(f'External dependencies not to copy into the wheel are\n{pp.pformat(ignored_dll_names)}')
         distribution_name = self._whl_name[:self._whl_name.index('-')]
-        libs_dir = os.path.join(self._extract_dir, distribution_name, lib_sdir)
+        libs_dir_name = distribution_name + lib_sdir
+        libs_dir = os.path.join(self._extract_dir, libs_dir_name)
         os.makedirs(libs_dir, exist_ok=True)
         if os.listdir(libs_dir):
-            raise FileExistsError(f'The {os.path.join(distribution_name, lib_sdir)} directory already exists and is nonempty')
-        print(f'copying DLLs into {os.path.join(distribution_name, lib_sdir)}')
+            raise FileExistsError(f'The {os.path.relpath(libs_dir, self._extract_dir)} directory already exists and is nonempty')
+        print(f'copying DLLs into {os.path.relpath(libs_dir, self._extract_dir)}')
         for dependency_path in dependency_paths:
             if self._verbose >= 1:
                 print(f'copying {dependency_path} -> {os.path.join(libs_dir, os.path.basename(dependency_path))}')
@@ -227,51 +286,53 @@ class WheelRepair:
             if lib_name in name_mangler:
                 os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name]))
 
-        # create or patch __init__.py to load dependent DLLs
-        print(f'patching {os.path.join(distribution_name, "__init__.py")}')
-        init_path = os.path.join(self._extract_dir, distribution_name, '__init__.py')
-        open(init_path, 'a+').close()
-        with open(init_path) as file:
-            init_contents = file.read()
-        node = ast.parse(init_contents)
-        docstring = ast.get_docstring(node)
+        # Perform topological sort to determine the order that DLLs must be
+        # loaded at runtime. We first construct a directed graph where the
+        # vertices are the vendored DLLs and an edge represents a "depends-on"
+        # relationship. We perform a topological sort of this graph. The reverse
+        # of this topological sort then tells us what order we need to load the
+        # DLLs so that all dependencies of a DLL are loaded before that DLL is
+        # loaded.
+        print('calculating DLL load order')
+        graph = {}  # map each DLL to a set of its vendored direct dependencies
+        dll_names = set(os.listdir(libs_dir))
+        for dll_name in dll_names:
+            dll_path = os.path.join(libs_dir, dll_name)
+            # In this context, delay-loaded DLL dependencies are not true
+            # dependencies because they are not necessary to get the DLL to load
+            # initially. More importantly, we may get circular dependencies if
+            # were were to consider delay-loaded DLLs as true dependencies.
+            # For example, concrt140.dll lists msvcp140.dll in its import table,
+            # while msvcp140.dll lists concrt140.dll on its delay import table.
+            graph[dll_name] = patch_dll.get_direct_needed(dll_path, False) & dll_names
+        rev_dll_load_order = []
+        no_incoming_edge = {dll_name for dll_name in dll_names if not any(dll_name in value for value in graph.values())}
+        while no_incoming_edge:
+            dll_name = no_incoming_edge.pop()
+            rev_dll_load_order.append(dll_name)
+            while graph[dll_name]:
+                dependent_dll_name = graph[dll_name].pop()
+                if not any(dependent_dll_name in value for value in graph.values()):
+                    no_incoming_edge.add(dependent_dll_name)
+        if any(graph.values()):
+            graph_leftover = {k: v for k, v in graph.items() if v}
+            raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
+        load_order_filepath = os.path.join(libs_dir, LOAD_ORDER_FILENAME)
+        if os.path.exists(load_order_filepath):
+            raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
+        with open(os.path.join(libs_dir, LOAD_ORDER_FILENAME), 'w') as file:
+            file.write('\n'.join(reversed(rev_dll_load_order)))
+            file.write('\n')
 
-        rand_num = random.randint(10**10, 10**11-1)
-        patch_init_contents = _patch_init_template.format(rand_num, lib_sdir)
-
-        if docstring is None:
-            # prepend patch
-            with open(init_path, 'w') as file:
-                file.write(patch_init_contents)
-                file.write(init_contents)
-        else:
-            # insert patch after docstring
-            children = list(ast.iter_child_nodes(node))
-            if len(children) == 0 or not isinstance(children[0], ast.Expr) or \
-                    not isinstance(children[0].value, ast.Constant) or \
-                    children[0].value.value != docstring:
-                raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
-            elif len(children) == 1:
-                with open(init_path, 'a') as file:
-                    file.write(patch_init_contents)
-            else:
-                if not init_contents.lstrip().startswith('"""'):
-                    raise ValueError('Error parsing __init__.py: docstring exists but is not a triple-quoted string at the start of the file')
-                docstring_start_index = init_contents.index('"""')
-                docstring_end_index = init_contents.find('"""', docstring_start_index + 1) + 3
-                if docstring_end_index == -1:
-                    raise ValueError('Error parsing __init__.py: docstring exists but does not end with triple quotes')
-                docstring_end_line = init_contents.find('\n', docstring_end_index)
-                if docstring_end_line == -1:
-                    docstring_end_line = len(init_contents)
-                extra_text = init_contents[docstring_end_index: docstring_end_line]
-                if extra_text and not extra_text.isspace():
-                    raise ValueError(f'Error parsing __init__.py: extra text {extra_text!r} is on the line where the docstring ends')
-                with open(init_path, 'w') as file:
-                    file.write(init_contents[:docstring_end_index])
-                    file.write('\n')
-                    file.write(patch_init_contents)
-                    file.write(init_contents[docstring_end_index:])
+        # create or patch top-level __init__.py in each package to load
+        # dependent DLLs from correct location at runtime
+        version = self._whl_name.split('-')[1]
+        for item in os.listdir(self._extract_dir):
+            if os.path.isdir(os.path.join(self._extract_dir, item)) and \
+                    item != f'{distribution_name}-{version}.dist-info' and \
+                    item != f'{distribution_name}-{version}.data' and \
+                    item != libs_dir_name:
+                self._patch_init(os.path.join(self._extract_dir, item, '__init__.py'), libs_dir_name)
 
         # update record file, which tracks wheel contents and their checksums
         dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'

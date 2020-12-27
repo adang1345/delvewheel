@@ -5,13 +5,12 @@ from .wheel_repair import WheelRepair
 from . import patch_dll
 
 
-def subdirectory(s):
-    """Helper for argument parser for validating and normalizing a subdirectory
-    name."""
-    normalized = os.path.normpath(s)
-    if normalized == '.' or normalized == '..' or normalized.startswith('..\\'):
-        raise ValueError(f'invalid subdirectory {s!r}')
-    return normalized
+def subdir_suffix(s: str) -> str:
+    """Helper for argument parser for validating a subdirectory suffix."""
+    if not s or any(c in r'<>:"/\|?*' or ord(c) < 32 for c in s) or \
+            any(s.endswith(x) for x in ('.dist-info', '.data', ' ', '.')):
+        raise argparse.ArgumentTypeError(f'Invalid subdirectory suffix {s!r}')
+    return s
 
 
 def main():
@@ -37,7 +36,7 @@ def main():
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
     parser_repair.add_argument('--no-mangle', default='', help='DLL names(s) not to mangle, semicolon-delimited')
-    parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=subdirectory, help='subdirectory in package to store vendored DLLs (default .libs)')
+    parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
     parser_needed.add_argument('file', help='path to a DLL file')
     args = parser.parse_args()
     if args.command is None:

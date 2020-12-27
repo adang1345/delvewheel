@@ -21,12 +21,18 @@ class PEContext:
         self._pe.close()
 
 
-def get_direct_needed(lib_path: str) -> set:
+def get_direct_needed(lib_path: str, include_delay_imports: bool = True) -> set:
     """Given the path to a shared library, return a set containing the lowercase
-    DLL names of all its direct dependencies."""
+    DLL names of all its direct dependencies.
+    If include_delay_imports is True, delay-loaded dependencies are included.
+    Otherwise, they are not included"""
     with PEContext(lib_path) as pe:
         imports = []
-        for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
+        if include_delay_imports:
+            attrs = ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT')
+        else:
+            attrs = ('DIRECTORY_ENTRY_IMPORT',)
+        for attr in attrs:
             if hasattr(pe, attr):
                 imports = itertools.chain(imports, getattr(pe, attr))
         needed = set()

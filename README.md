@@ -45,7 +45,7 @@ For a summary of additional command-line options, use the `-h` option (`delvewhe
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 - `-w`,`--wheel-dir`: directory to write the repaired wheel (default is `wheelhouse` relative to current working directory)
 - `--no-mangle`: name(s) of DLL(s) not to mangle, semicolon-delimited
-- `-L`,`--lib-sdir`: subdirectory in package to store vendored DLLs (default `.libs`)
+- `-L`,`--lib-sdir`: subdirectory suffix in package to store vendored DLLs (default `.libs`)
 
 ## Limitations
 
