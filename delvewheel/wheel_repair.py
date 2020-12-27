@@ -209,10 +209,11 @@ class WheelRepair:
         if not_found_dll_names:
             print('\nWarning: At least one dependent DLL needs to be copied into the wheel but was not found.\n\n')
 
-    def repair(self, target: str, no_mangles: set, lib_sdir: str) -> None:
+    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, lib_sdir: str) -> None:
         """Repair the wheel in a manner similar to auditwheel.
         target is the target directory for storing the repaired wheel
         no_mangles is a set of lowercase DLL names that will not be mangled
+        no_mangle_all is True if no DLL name mangling should happen at all
         lib_sdir is the suffix for the directory to store the DLLs"""
         print(f'repairing {self._whl_path}')
 
@@ -259,32 +260,35 @@ class WheelRepair:
             shutil.copy2(dependency_path, libs_dir)
 
         # mangle library names
-        print('mangling DLL names')
-        name_mangler = {}  # dict from old name to new name
-        for lib_name in os.listdir(libs_dir):
-            if not any(lib_name.startswith(prefix) for prefix in dll_list.no_mangle_prefixes) and \
-                    lib_name not in no_mangles:
-                root, ext = os.path.splitext(lib_name)
-                with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
-                    root = f'{root}-{self._hashfile(lib_file)}'
-                name_mangler[lib_name] = root + ext
-        for extension_module_path in extension_module_paths:
-            extension_module_name = os.path.basename(extension_module_path)
-            if self._verbose >= 1:
-                print(f'repairing {extension_module_name} -> {extension_module_name}')
-            needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles)
-            patch_dll.replace_needed(extension_module_path, needed, name_mangler)
-        for lib_name in os.listdir(libs_dir):
-            if self._verbose >= 1:
+        if no_mangle_all:
+            print('skip mangling DLL names')
+        else:
+            print('mangling DLL names')
+            name_mangler = {}  # dict from old name to new name
+            for lib_name in os.listdir(libs_dir):
+                if not any(lib_name.startswith(prefix) for prefix in dll_list.no_mangle_prefixes) and \
+                        lib_name not in no_mangles:
+                    root, ext = os.path.splitext(lib_name)
+                    with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
+                        root = f'{root}-{self._hashfile(lib_file)}'
+                    name_mangler[lib_name] = root + ext
+            for extension_module_path in extension_module_paths:
+                extension_module_name = os.path.basename(extension_module_path)
+                if self._verbose >= 1:
+                    print(f'repairing {extension_module_name} -> {extension_module_name}')
+                needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles)
+                patch_dll.replace_needed(extension_module_path, needed, name_mangler)
+            for lib_name in os.listdir(libs_dir):
+                if self._verbose >= 1:
+                    if lib_name in name_mangler:
+                        print(f'repairing {lib_name} -> {name_mangler[lib_name]}')
+                    else:
+                        print(f'repairing {lib_name} -> {lib_name}')
+                lib_path = os.path.join(libs_dir, lib_name)
+                needed = patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles)
+                patch_dll.replace_needed(lib_path, needed, name_mangler)
                 if lib_name in name_mangler:
-                    print(f'repairing {lib_name} -> {name_mangler[lib_name]}')
-                else:
-                    print(f'repairing {lib_name} -> {lib_name}')
-            lib_path = os.path.join(libs_dir, lib_name)
-            needed = patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles)
-            patch_dll.replace_needed(lib_path, needed, name_mangler)
-            if lib_name in name_mangler:
-                os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name]))
+                    os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name]))
 
         # Perform topological sort to determine the order that DLLs must be
         # loaded at runtime. We first construct a directed graph where the
