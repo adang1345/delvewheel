@@ -53,6 +53,8 @@ def main():
         if intersection:
             raise ValueError(f'Cannot force both inclusion and exclusion of {intersection}')
 
+        if not os.environ['PATH'].endswith(os.pathsep):
+            os.environ['PATH'] += os.pathsep
         os.environ['PATH'] += ';'.join(add_paths)
 
         for wheel in args.wheel:
