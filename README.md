@@ -27,12 +27,12 @@ Python 3.6+ on Windows is required.
 
 `delvewheel` searches for the location of DLL dependencies using the default Python search order for shared libraries. To specify an additional directory to search for DLLs, add the location of the DLL to the `PATH` environment variable or use the `--add-path` option.
 
-For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`).
+For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`, `delvewheel needed -h`).
 
 ## Additional Options
 `delvewheel show`
 - `--add-path`: additional path(s) to search for DLLs, semicolon delimited
-- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for or vendor in dependencies of these DLLs, nor do we mangle the names of these DLLs.
+- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for dependencies of these DLLs.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, semicolon delimited
 - `-v`: verbose mode
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
@@ -49,6 +49,6 @@ For a summary of additional command-line options, use the `-h` option (`delvewhe
 
 ## Limitations
 
-- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using `ctypes`/`cffi` (from Python) or `LoadLibrary` (from C/C++) will be missed. You can, however, specify additional DLLs to vendor into the wheel using the `--add-dll` option. You may also need to edit your dynamic loading calls so that they know where to find this additional DLL.
+- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using `ctypes`/`cffi` (from Python) or `LoadLibrary` (from C/C++) will be missed. You can, however, specify additional DLLs to vendor into the wheel using the `--add-dll` option.
 - Wheels created using `delvewheel` are not guaranteed to work on systems older than Windows 7. If you intend to create a wheel for an old Windows system, you should test the resultant wheel thoroughly. If it turns out that getting the wheel to work on an older system simply requires an extra DLL, you can use the `--add-dll` flag to vendor additional DLLs into the wheel.
 - To avoid DLL hell, we mangle the file names of most DLLs that are vendored into the wheel. This way, a Python process that tries loading a vendored DLL does not end up using a different DLL with the same name. Due to a limitation in the [`machomachomangler`](https://github.com/njsmith/machomachomangler) dependency, `delvewheel` is unable to name-mangle DLLs containing extra data at the end of the binary. If your DLL was created with MinGW, you can use the `strip` utility to remove the extra data. Otherwise, use the `--no-mangle` flag.
