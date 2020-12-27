@@ -1,6 +1,7 @@
 """DLL file patching functions."""
 
 import itertools
+import os
 import platform
 import ctypes.util
 import typing
@@ -156,7 +157,16 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict) -> 
         return
     with open(lib_path, 'rb') as f:
         buf = f.read()
-    buf = machomachomangler.pe.redll(buf, used_name_map)
+    try:
+        buf = machomachomangler.pe.redll(buf, used_name_map)
+    except ValueError as ex:
+        if "Can't add new section" in str(ex):
+            raise RuntimeError(
+                'Unable to rename the dependencies of '
+                f'{os.path.basename(lib_path)} because this DLL has trailing '
+                'data. If this DLL was created with MinGW, run the strip'
+                'utility. Otherwise, use the --no-mangle flag.')
+        raise ex
     with open(lib_path, 'wb') as f:
         f.write(buf)
     with PEContext(lib_path) as pe:
