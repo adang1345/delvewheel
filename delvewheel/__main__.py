@@ -53,9 +53,8 @@ def main():
         if intersection:
             raise ValueError(f'Cannot force both inclusion and exclusion of {intersection}')
 
-        if not os.environ['PATH'].endswith(os.pathsep):
-            os.environ['PATH'] += os.pathsep
-        os.environ['PATH'] += os.pathsep.join(add_paths)
+        if add_paths:
+            os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
 
         for wheel in args.wheel:
             wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.v)
