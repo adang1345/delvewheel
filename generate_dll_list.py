@@ -41,13 +41,15 @@ ignore_regexes = {
 """)
 
 f.write(r"""
-# Prefixes of DLLs whose names should not be mangled. These either have extra
-# data after the PE file proper (and thus cannot be modified by
-# machomachomangler) or already have the version in the filename.
+# Prefixes of DLLs whose names should not be mangled. These either are
+# dependencies of DLLs that contain data after the PE file proper (and thus
+# cannot be modified by machomachomangler) or already have the version in the
+# filename.
 no_mangle_prefixes = {
     'vcruntime',
     'vccorlib',
     'msvcp',
+    'msvcr',
     'concrt',
     'mfc',
     'vcamp',
