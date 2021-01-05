@@ -15,6 +15,10 @@ def subdir_suffix(s: str) -> str:
 
 def main():
     """Main function"""
+    # disallow usage on non-Windows platforms
+    if sys.platform != 'win32':
+        raise EnvironmentError('delvewheel is supported on Windows only')
+
     # parse arguments
     parser = argparse.ArgumentParser(description='Self-contained wheels for Windows')
     kwargs = {'dest': 'command'}
