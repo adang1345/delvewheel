@@ -73,7 +73,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set) -
 def get_all_needed(lib_path: str,
                    add_dlls: set,
                    no_dlls: set,
-                   on_error: str = 'raise') -> tuple[set[str], set[str], set[str]]:
+                   on_error: str = 'raise') -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str]]:
     """Given the path to a shared library, return a 3-tuple of sets
     (discovered, ignored, not_found).
 

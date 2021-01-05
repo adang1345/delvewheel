@@ -58,8 +58,8 @@ class WheelRepair:
     def __init__(self,
                  whl_path: str,
                  extract_dir: typing.Optional[str] = None,
-                 add_dlls: typing.Optional[set[str]] = None,
-                 no_dlls: typing.Optional[set[str]] = None,
+                 add_dlls: typing.Optional[typing.Set[str]] = None,
+                 no_dlls: typing.Optional[typing.Set[str]] = None,
                  verbose: int = 0) -> None:
         """Initialize a wheel repair object.
         whl_path: Path to the wheel to repair
@@ -90,7 +90,7 @@ class WheelRepair:
         self._verbose = verbose
 
     @staticmethod
-    def _rehash(file_path: str) -> tuple[str, int]:
+    def _rehash(file_path: str) -> typing.Tuple[str, int]:
         """Return (hash, size) for a file with path file_path. The hash and size
         are used by pip to verify the integrity of the contents of a wheel."""
         with open(file_path, 'rb') as file:
