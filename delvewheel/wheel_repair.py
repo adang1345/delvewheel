@@ -339,6 +339,11 @@ class WheelRepair:
                     item != f'{distribution_name}-{version}.data' and \
                     item != libs_dir_name:
                 self._patch_init(os.path.join(self._extract_dir, item, '__init__.py'), libs_dir_name)
+        purelib_dir = os.path.join(self._extract_dir, f'{distribution_name}-{version}.data', 'purelib')
+        if os.path.isdir(purelib_dir):
+            for item in os.listdir(purelib_dir):
+                if os.path.isdir(os.path.join(purelib_dir, item)):
+                    self._patch_init(os.path.join(purelib_dir, item, '__init__.py'), libs_dir_name)
 
         # update record file, which tracks wheel contents and their checksums
         dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'
