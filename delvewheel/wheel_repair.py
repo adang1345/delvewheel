@@ -120,7 +120,7 @@ class WheelRepair:
         with open(init_path) as file:
             init_contents = file.read()
         node = ast.parse(init_contents)
-        docstring = ast.get_docstring(node)
+        docstring = ast.get_docstring(node, False)
 
         rand_num = random.randint(10 ** 10, 10 ** 11 - 1)
         patch_init_contents = _patch_init_template.format(rand_num, libs_dir)
