@@ -12,6 +12,7 @@ import typing
 import zipfile
 from . import patch_dll
 from . import dll_list
+from . import version
 
 LOAD_ORDER_FILENAME = '.load_order'
 
@@ -24,8 +25,8 @@ LOAD_ORDER_FILENAME = '.load_order'
 # is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
 # it will use the already-loaded DLL instead of searching for it.
 #
-# To use the template, call str.format(), passing in a random number and the
-# name of the directory containing the vendored DLLs.
+# To use the template, call str.format(), passing in an identifying string and
+# the name of the directory containing the vendored DLLs.
 _patch_init_template = f"""
 
 ""\"""\"  # start delvewheel patch
@@ -118,8 +119,7 @@ class WheelRepair:
         libs_dir is the name of the directory where DLLs are stored."""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
 
-        rand_num = random.randint(10 ** 10, 10 ** 11 - 1)
-        patch_init_contents = _patch_init_template.format(rand_num, libs_dir)
+        patch_init_contents = _patch_init_template.format(version.__version__.replace('.', '_'), libs_dir)
 
         open(init_path, 'a+').close()
         with open(init_path) as file:
