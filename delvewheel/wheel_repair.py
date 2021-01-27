@@ -112,27 +112,42 @@ class WheelRepair:
 
     def _patch_init(self, init_path: str, libs_dir: str) -> None:
         """Given the path to __init__.py, create or patch the file so that
-        vendored-in DLLs can be loaded at runtime.
+        vendored-in DLLs can be loaded at runtime. The patch is placed at the
+        topmost location after the docstring (if any) and any
+        "from __future__ import" statements.
         libs_dir is the name of the directory where DLLs are stored."""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
+
+        rand_num = random.randint(10 ** 10, 10 ** 11 - 1)
+        patch_init_contents = _patch_init_template.format(rand_num, libs_dir)
 
         open(init_path, 'a+').close()
         with open(init_path) as file:
             init_contents = file.read()
         node = ast.parse(init_contents)
         docstring = ast.get_docstring(node, False)
+        children = list(ast.iter_child_nodes(node))
+        for child in reversed(children):
+            if isinstance(child, ast.ImportFrom) and child.module == '__future__':
+                future_import_lineno = child.lineno
+                break
+        else:
+            future_import_lineno = 0  # no "from __future__ import" statement found
 
-        rand_num = random.randint(10 ** 10, 10 ** 11 - 1)
-        patch_init_contents = _patch_init_template.format(rand_num, libs_dir)
-
-        if docstring is None:
+        if future_import_lineno > 0:
+            init_contents_split = init_contents.splitlines(True)
+            with open(init_path, 'w') as file:
+                file.write(''.join(init_contents_split[:future_import_lineno]))
+                file.write('\n')
+                file.write(patch_init_contents)
+                file.write(''.join(init_contents_split[future_import_lineno:]))
+        elif docstring is None:
             # prepend patch
             with open(init_path, 'w') as file:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
             # insert patch after docstring
-            children = list(ast.iter_child_nodes(node))
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or \
                     not isinstance(children[0].value, ast.Constant) or \
                     children[0].value.value != docstring:
@@ -158,6 +173,13 @@ class WheelRepair:
                     file.write('\n')
                     file.write(patch_init_contents)
                     file.write(init_contents[docstring_end_index:])
+
+        # verify that __init__.py can be parsed properly
+        with open(init_path) as file:
+            try:
+                ast.parse(file.read())
+            except SyntaxError:
+                raise ValueError('Error parsing __init__.py: Patch failed. This might occur if a node is split across multiple lines.')
 
     def show(self) -> None:
         """Show the dependencies that the wheel has."""
