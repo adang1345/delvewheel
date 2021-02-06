@@ -5,7 +5,6 @@ import base64
 import hashlib
 import os
 import pprint
-import random
 import shutil
 import tempfile
 import typing
@@ -14,7 +13,6 @@ from . import patch_dll
 from . import dll_list
 from . import version
 
-LOAD_ORDER_FILENAME = '.load_order'
 
 # Template for patching __init__.py so that the vendored DLLs are loaded at
 # runtime. An empty triple-quoted string is placed at the beginning so that the
@@ -25,27 +23,28 @@ LOAD_ORDER_FILENAME = '.load_order'
 # is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
 # it will use the already-loaded DLL instead of searching for it.
 #
-# To use the template, call str.format(), passing in an identifying string and
-# the name of the directory containing the vendored DLLs.
-_patch_init_template = f"""
+# To use the template, call str.format(), passing in an identifying string, the
+# name of the directory containing the vendored DLLs, and the name of the file
+# containing the DLL load order.
+_patch_init_template = """
 
 ""\"""\"  # start delvewheel patch
-def _delvewheel_init_patch_{{0}}():
+def _delvewheel_init_patch_{0}():
     import os
     import sys
-    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {{1!r}}))
+    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {1!r}))
     if sys.version_info[:2] >= (3, 8):
         os.add_dll_directory(libs_dir)
     else:
         from ctypes import WinDLL
-        with open(os.path.join(libs_dir, {LOAD_ORDER_FILENAME!r})) as file:
+        with open(os.path.join(libs_dir, {2!r})) as file:
             load_order = file.read().split()
         for lib in load_order:
             WinDLL(os.path.join(libs_dir, lib))
 
 
-_delvewheel_init_patch_{{0}}()
-del _delvewheel_init_patch_{{0}}
+_delvewheel_init_patch_{0}()
+del _delvewheel_init_patch_{0}
 # end delvewheel patch
 
 """
@@ -78,6 +77,8 @@ class WheelRepair:
             raise FileNotFoundError(f'{whl_path} not found')
         self._whl_path = whl_path
         self._whl_name = os.path.basename(whl_path)
+        self._distribution_name = self._whl_name[:self._whl_name.index('-')]
+        self._version = self._whl_name.split('-')[1]
         if extract_dir is None:
             # need to assign temp directory object to an attribute to prevent it
             # from being destructed
@@ -111,7 +112,7 @@ class WheelRepair:
             buf = afile.read(blocksize)
         return hasher.hexdigest()[:length]
 
-    def _patch_init(self, init_path: str, libs_dir: str) -> None:
+    def _patch_init(self, init_path: str, libs_dir: str, load_order_filename: str) -> None:
         """Given the path to __init__.py, create or patch the file so that
         vendored-in DLLs can be loaded at runtime. The patch is placed at the
         topmost location after the docstring (if any) and any
@@ -119,7 +120,7 @@ class WheelRepair:
         libs_dir is the name of the directory where DLLs are stored."""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
 
-        patch_init_contents = _patch_init_template.format(version.__version__.replace('.', '_'), libs_dir)
+        patch_init_contents = _patch_init_template.format(version.__version__.replace('.', '_'), libs_dir, load_order_filename)
 
         open(init_path, 'a+').close()
         with open(init_path) as file:
@@ -180,6 +181,20 @@ class WheelRepair:
                 ast.parse(file.read())
             except SyntaxError:
                 raise ValueError('Error parsing __init__.py: Patch failed. This might occur if a node is split across multiple lines.')
+
+    def _is_top_level_ext_module(self, path: str) -> bool:
+        """Return True if `path` refers to a top-level extension module. That
+        is, when the wheel is installed, the module is placed directly into the
+        site-packages directory and not inside a package. Otherwise, return
+        False.
+
+        Precondition: path must end with .pyd"""
+        top_level_dirs = [
+            self._extract_dir,
+            os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', 'purelib'),
+            os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', 'platlib'),
+        ]
+        return any(os.path.samefile(os.path.dirname(path), p) for p in top_level_dirs if os.path.isdir(p))
 
     def show(self) -> None:
         """Show the dependencies that the wheel has."""
@@ -257,10 +272,17 @@ class WheelRepair:
         dependency_paths = set()
         ignored_dll_names = set()
         extension_module_paths = []
+        has_top_level_ext_module = False
         for root, _, filenames in os.walk(self._extract_dir):
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
+                    if self._is_top_level_ext_module(extension_module_path):
+                        if self._verbose >= 1:
+                            print(f'analyzing top-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
+                        has_top_level_ext_module = True
+                    elif self._verbose >= 1:
+                        print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
                     discovered, ignored = patch_dll.get_all_needed(extension_module_path, self._add_dlls, self._no_dlls)[:2]
                     dependency_paths |= discovered
@@ -271,12 +293,17 @@ class WheelRepair:
         if self._verbose >= 1:
             print(f'External dependencies to copy into the wheel are\n{pp.pformat(set(os.path.basename(p) for p in dependency_paths))}')
             print(f'External dependencies not to copy into the wheel are\n{pp.pformat(ignored_dll_names)}')
-        distribution_name = self._whl_name[:self._whl_name.index('-')]
-        libs_dir_name = distribution_name + lib_sdir
-        libs_dir = os.path.join(self._extract_dir, libs_dir_name)
+        if has_top_level_ext_module:
+            # Extension module is top-level, so we cannot use __init__.py to
+            # insert the DLL search path at runtime. In this case, DLLs are
+            # instead copied into the platlib folder, whose contents are
+            # installed directly into site-packages during installation.
+            libs_dir_name = '.'
+            libs_dir = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', 'platlib')
+        else:
+            libs_dir_name = self._distribution_name + lib_sdir
+            libs_dir = os.path.join(self._extract_dir, libs_dir_name)
         os.makedirs(libs_dir, exist_ok=True)
-        if os.listdir(libs_dir):
-            raise FileExistsError(f'The {os.path.relpath(libs_dir, self._extract_dir)} directory already exists and is nonempty')
         print(f'copying DLLs into {os.path.relpath(libs_dir, self._extract_dir)}')
         for dependency_path in dependency_paths:
             if self._verbose >= 1:
@@ -284,12 +311,13 @@ class WheelRepair:
             shutil.copy2(dependency_path, libs_dir)
 
         # mangle library names
+        dependency_names = {os.path.basename(p) for p in dependency_paths}
+        name_mangler = {}  # dict from old name to new name
         if no_mangle_all:
             print('skip mangling DLL names')
         else:
             print('mangling DLL names')
-            name_mangler = {}  # dict from old name to new name
-            for lib_name in os.listdir(libs_dir):
+            for lib_name in dependency_names:
                 if not any(lib_name.startswith(prefix) for prefix in dll_list.no_mangle_prefixes) and \
                         lib_name not in no_mangles:
                     root, ext = os.path.splitext(lib_name)
@@ -302,7 +330,7 @@ class WheelRepair:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
                 needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles)
                 patch_dll.replace_needed(extension_module_path, needed, name_mangler)
-            for lib_name in os.listdir(libs_dir):
+            for lib_name in dependency_names:
                 if self._verbose >= 1:
                     if lib_name in name_mangler:
                         print(f'repairing {lib_name} -> {name_mangler[lib_name]}')
@@ -322,9 +350,12 @@ class WheelRepair:
         # DLLs so that all dependencies of a DLL are loaded before that DLL is
         # loaded.
         print('calculating DLL load order')
+        for dependency_name in dependency_names.copy():
+            if dependency_name in name_mangler:
+                dependency_names.remove(dependency_name)
+                dependency_names.add(name_mangler[dependency_name])
         graph = {}  # map each DLL to a set of its vendored direct dependencies
-        dll_names = set(os.listdir(libs_dir))
-        for dll_name in dll_names:
+        for dll_name in dependency_names:
             dll_path = os.path.join(libs_dir, dll_name)
             # In this context, delay-loaded DLL dependencies are not true
             # dependencies because they are not necessary to get the DLL to load
@@ -332,9 +363,9 @@ class WheelRepair:
             # were were to consider delay-loaded DLLs as true dependencies.
             # For example, concrt140.dll lists msvcp140.dll in its import table,
             # while msvcp140.dll lists concrt140.dll in its delay import table.
-            graph[dll_name] = patch_dll.get_direct_needed(dll_path, False) & dll_names
+            graph[dll_name] = patch_dll.get_direct_needed(dll_path, False) & dependency_names
         rev_dll_load_order = []
-        no_incoming_edge = {dll_name for dll_name in dll_names if not any(dll_name in value for value in graph.values())}
+        no_incoming_edge = {dll_name for dll_name in dependency_names if not any(dll_name in value for value in graph.values())}
         while no_incoming_edge:
             dll_name = no_incoming_edge.pop()
             rev_dll_load_order.append(dll_name)
@@ -345,28 +376,28 @@ class WheelRepair:
         if any(graph.values()):
             graph_leftover = {k: v for k, v in graph.items() if v}
             raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
-        load_order_filepath = os.path.join(libs_dir, LOAD_ORDER_FILENAME)
+        load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
+        load_order_filepath = os.path.join(libs_dir, load_order_filename)
         if os.path.exists(load_order_filepath):
             raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
-        with open(os.path.join(libs_dir, LOAD_ORDER_FILENAME), 'w') as file:
+        with open(os.path.join(libs_dir, load_order_filename), 'w') as file:
             file.write('\n'.join(reversed(rev_dll_load_order)))
             file.write('\n')
 
         # create or patch top-level __init__.py in each package to load
         # dependent DLLs from correct location at runtime
-        version = self._whl_name.split('-')[1]
         for item in os.listdir(self._extract_dir):
             if os.path.isdir(os.path.join(self._extract_dir, item)) and \
-                    item != f'{distribution_name}-{version}.dist-info' and \
-                    item != f'{distribution_name}-{version}.data' and \
+                    item != f'{self._distribution_name}-{self._version}.dist-info' and \
+                    item != f'{self._distribution_name}-{self._version}.data' and \
                     item != libs_dir_name:
-                self._patch_init(os.path.join(self._extract_dir, item, '__init__.py'), libs_dir_name)
+                self._patch_init(os.path.join(self._extract_dir, item, '__init__.py'), libs_dir_name, load_order_filename)
         for extra_dir_name in ('purelib', 'platlib'):
-            extra_dir = os.path.join(self._extract_dir, f'{distribution_name}-{version}.data', extra_dir_name)
+            extra_dir = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', extra_dir_name)
             if os.path.isdir(extra_dir):
                 for item in os.listdir(extra_dir):
                     if os.path.isdir(os.path.join(extra_dir, item)):
-                        self._patch_init(os.path.join(extra_dir, item, '__init__.py'), libs_dir_name)
+                        self._patch_init(os.path.join(extra_dir, item, '__init__.py'), libs_dir_name, load_order_filename)
 
         # update record file, which tracks wheel contents and their checksums
         dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'
