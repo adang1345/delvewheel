@@ -37,7 +37,7 @@ For a summary of additional command-line options, use the `-h` option (`delvewhe
 - `-v`: verbose mode
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 
-`delvewheel repair`<br />
+`delvewheel repair`
 - `--add-path`: additional path(s) to search for DLLs, semicolon delimited. These paths are searched before those in the `PATH` environment variable.
 - `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for or vendor in dependencies of these DLLs, nor do we mangle the names of these DLLs.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, semicolon delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
