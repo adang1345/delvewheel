@@ -5,6 +5,8 @@ import os
 import platform
 import ctypes.util
 import typing
+import setuptools.msvc
+import distutils.util
 import pefile
 import machomachomangler.pe
 from . import dll_list
@@ -20,6 +22,26 @@ class PEContext:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self._pe.close()
+
+
+def find_library(name: str) -> typing.Optional[str]:
+    """Given the name of a DLL, return the path to the DLL, or None if the DLL
+    cannot be found. The search goes in the following order.
+    1. The system search path via ctypes.util.find_library().
+    2. The compiler's runtime redistributable directory, if it exists."""
+    path = ctypes.util.find_library(name)
+    if path is not None:
+        return path
+    try:
+        vcvars = setuptools.msvc.msvc14_get_vc_env(distutils.util.get_platform())
+        vcruntime = vcvars['py_vcruntime_redist']
+        redist_dir = os.path.dirname(vcruntime)
+        path = os.path.normpath(os.path.join(redist_dir, name))
+        if os.path.isfile(path):
+            return path
+        return None
+    except:
+        return None
 
 
 def get_direct_needed(lib_path: str, include_delay_imports: bool = True) -> set:
@@ -110,7 +132,7 @@ def get_all_needed(lib_path: str,
                 lib_bitness = 64 if pe.FILE_HEADER.Machine == 34404 else 32
                 if interpreter_bitness != lib_bitness:
                     # bitness of Python interpreter must match that of the DLL
-                    # so that ctypes.util.find_library() can find it
+                    # so that find_library() can find it
                     raise OSError(f'Dependent library {lib_path} is {lib_bitness}-bit but Python interpreter is {interpreter_bitness}-bit')
 
                 imports = []
@@ -123,7 +145,7 @@ def get_all_needed(lib_path: str,
                     if dll_name not in ignore_names and \
                             not any(r.search(dll_name) for r in dll_list.ignore_regexes) and \
                             dll_name not in no_dlls:
-                        dll_path = ctypes.util.find_library(dll_name)
+                        dll_path = find_library(dll_name)
                         if dll_path:
                             stack.append(dll_path)
                         elif on_error == 'raise':
@@ -134,7 +156,7 @@ def get_all_needed(lib_path: str,
                         ignored.add(dll_name)
     discovered.remove(first_lib_path)
     for add_dll_name in add_dlls:
-        add_dll_path = ctypes.util.find_library(add_dll_name)
+        add_dll_path = find_library(add_dll_name)
         if add_dll_path:
             discovered.add(add_dll_path)
         elif on_error == 'raise':
