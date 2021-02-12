@@ -3178,8 +3178,31 @@ ignore_names_64 = {
 
 # set of regular expressions for additional DLLs to ignore
 ignore_regexes = {
-    re.compile(r'^python[0-9]+\.dll$'),  # included in Python distribution
+    re.compile(r'^python[0-9]+\.dll$'),  # included in CPython distribution
+    re.compile(r'^libpypy[0-9]+-c\.dll$'),  # included in PyPy distribution
     re.compile(r'^api-'),  # let Windows handle API sets
+}
+
+# DLLs to ignore based on Python ABI tag and platform tag. For CPython, these
+# are included in their respective Python distributions. For PyPy, these are
+# prerequisites for PyPy to run in the first place.
+ignore_by_distribution = {
+    'cp27m-win32': {'msvcr90.dll'},
+    'cp27m-win_amd64': {'msvcr90.dll'},
+    'cp34m-win32': {'msvcr100.dll'},
+    'cp34m-win_amd64': {'msvcr100.dll'},
+    'cp35m-win32': {'vcruntime140.dll'},
+    'cp35m-win_amd64': {'vcruntime140.dll'},
+    'cp36m-win32': {'vcruntime140.dll'},
+    'cp36m-win_amd64': {'vcruntime140.dll'},
+    'pypy36_pp73-win32': {'vcruntime140.dll'},
+    'cp37m-win32': {'vcruntime140.dll'},
+    'cp37m-win_amd64': {'vcruntime140.dll'},
+    'pypy37_pp73-win32': {'vcruntime140.dll'},
+    'cp38-win32': {'vcruntime140.dll'},
+    'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp39-win32': {'vcruntime140.dll'},
+    'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
 # Prefixes of DLLs whose names should not be mangled. These either are

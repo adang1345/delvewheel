@@ -3,6 +3,7 @@
 import ast
 import base64
 import hashlib
+import itertools
 import os
 import pprint
 import shutil
@@ -75,10 +76,17 @@ class WheelRepair:
         verbose: verbosity level, 0 to 3"""
         if not os.path.isfile(whl_path):
             raise FileNotFoundError(f'{whl_path} not found')
+
         self._whl_path = whl_path
         self._whl_name = os.path.basename(whl_path)
-        self._distribution_name = self._whl_name[:self._whl_name.index('-')]
-        self._version = self._whl_name.split('-')[1]
+        if not self._whl_name.endswith('.whl'):
+            raise ValueError(f'{self._whl_name} is not a valid wheel name')
+        whl_name_split = os.path.splitext(self._whl_name)[0].split('-')
+        if len(whl_name_split) not in (5, 6):
+            raise ValueError(f'{self._whl_name} is not a valid wheel name')
+        self._distribution_name = whl_name_split[0]
+        self._version = whl_name_split[1]
+
         if extract_dir is None:
             # need to assign temp directory object to an attribute to prevent it
             # from being destructed
@@ -89,6 +97,21 @@ class WheelRepair:
             self._extract_dir = extract_dir
         self._add_dlls = set() if add_dlls is None else add_dlls
         self._no_dlls = set() if no_dlls is None else no_dlls
+
+        # Modify self._no_dlls to include those that are already part of every
+        # Python distribution the wheel targets.
+        abi_tags = whl_name_split[-2].split('.')
+        platform_tags = whl_name_split[-1].split('.')
+        ignore_by_distribution = set().union(*dll_list.ignore_by_distribution.values())
+        for abi_platform in itertools.product(abi_tags, platform_tags):
+            abi_platform = '-'.join(abi_platform)
+            if abi_platform in dll_list.ignore_by_distribution:
+                ignore_by_distribution &= dll_list.ignore_by_distribution[abi_platform]
+            else:
+                ignore_by_distribution = set()
+                break
+        self._no_dlls |= ignore_by_distribution
+
         self._verbose = verbose
 
     @staticmethod
