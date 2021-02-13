@@ -229,11 +229,8 @@ class WheelRepair:
                 return file.read().strip()
         return ''
 
-    def show(self) -> None:
-        """Show the dependencies that the wheel has."""
-        print(f'Analyzing {self._whl_name}\n')
-
-        # extract wheel
+    def _extract(self) -> None:
+        """Extract the wheel."""
         try:
             shutil.rmtree(self._extract_dir)
         except FileNotFoundError:
@@ -243,6 +240,13 @@ class WheelRepair:
             print(f'extracting {self._whl_name} to {self._extract_dir}')
         with zipfile.ZipFile(self._whl_path) as whl_file:
             whl_file.extractall(self._extract_dir)
+
+    def show(self) -> None:
+        """Show the dependencies that the wheel has."""
+        print(f'Analyzing {self._whl_name}\n')
+
+        # extract wheel
+        self._extract()
 
         # check whether wheel has already been repaired
         repair_version = self._get_repair_version()
@@ -296,15 +300,7 @@ class WheelRepair:
         print(f'repairing {self._whl_path}')
 
         # extract wheel
-        try:
-            shutil.rmtree(self._extract_dir)
-        except FileNotFoundError:
-            pass
-        os.makedirs(self._extract_dir)
-        if self._verbose >= 1:
-            print(f'extracting {self._whl_name} to {self._extract_dir}')
-        with zipfile.ZipFile(self._whl_path) as whl_file:
-            whl_file.extractall(self._extract_dir)
+        self._extract()
 
         # check whether wheel has already been repaired
         repair_version = self._get_repair_version()
