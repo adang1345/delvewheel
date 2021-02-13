@@ -219,6 +219,16 @@ class WheelRepair:
         ]
         return any(os.path.samefile(os.path.dirname(path), p) for p in top_level_dirs if os.path.isdir(p))
 
+    def _get_repair_version(self) -> str:
+        """If this wheel has already been repaired, return the delvewheel
+        version that performed the repair. Otherwise, return the empty
+        string."""
+        filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
+        if os.path.isfile(filename):
+            with open(filename) as file:
+                return file.read().strip()
+        return ''
+
     def show(self) -> None:
         """Show the dependencies that the wheel has."""
         print(f'Analyzing {self._whl_name}\n')
@@ -233,6 +243,12 @@ class WheelRepair:
             print(f'extracting {self._whl_name} to {self._extract_dir}')
         with zipfile.ZipFile(self._whl_path) as whl_file:
             whl_file.extractall(self._extract_dir)
+
+        # check whether wheel has already been repaired
+        repair_version = self._get_repair_version()
+        if repair_version:
+            print(f'Delvewheel {repair_version} has already repaired this wheel.')
+            return
 
         # find dependencies
         dependency_paths = set()
@@ -289,6 +305,12 @@ class WheelRepair:
             print(f'extracting {self._whl_name} to {self._extract_dir}')
         with zipfile.ZipFile(self._whl_path) as whl_file:
             whl_file.extractall(self._extract_dir)
+
+        # check whether wheel has already been repaired
+        repair_version = self._get_repair_version()
+        if repair_version:
+            print(f'Delvewheel {repair_version} has already repaired this wheel.')
+            return
 
         # find dependencies and copy them into wheel
         print('finding DLL dependencies')
@@ -421,6 +443,12 @@ class WheelRepair:
                 for item in os.listdir(extra_dir):
                     if os.path.isdir(os.path.join(extra_dir, item)):
                         self._patch_init(os.path.join(extra_dir, item, '__init__.py'), libs_dir_name, load_order_filename)
+
+        # create .dist-info/DELVEWHEEL file to indicate that the wheel has been
+        # repaired
+        filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
+        with open(filename, 'w') as file:
+            file.write(f'{version.__version__}\n')
 
         # update record file, which tracks wheel contents and their checksums
         dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'
