@@ -36,6 +36,7 @@ def main():
         subparser.add_argument('--add-path', default='', metavar='PATHS', help='extra paths(s) to search for DLLs, semicolon-delimited')
         subparser.add_argument('--add-dll', default='', metavar='DLLS', help='force inclusion of DLL name(s), semicolon-delimited')
         subparser.add_argument('--no-dll', default='', metavar='DLLS', help='force exclusion of DLL name(s), semicolon-delimited')
+        subparser.add_argument('--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('-v', action='count', default=0, help='verbose mode')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
@@ -61,7 +62,7 @@ def main():
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
 
         for wheel in args.wheel:
-            wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.v)
+            wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.ignore_in_wheel, args.v)
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'

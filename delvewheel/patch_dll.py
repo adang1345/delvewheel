@@ -24,11 +24,17 @@ class PEContext:
         self._pe.close()
 
 
-def find_library(name: str) -> typing.Optional[str]:
+def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable]) -> typing.Optional[str]:
     """Given the name of a DLL, return the path to the DLL, or None if the DLL
     cannot be found. The search goes in the following order.
-    1. The system search path via ctypes.util.find_library().
-    2. The compiler's runtime redistributable directory, if it exists."""
+    1. If not None, the directories in wheel_dirs.
+    2. The system search path via ctypes.util.find_library().
+    3. The compiler's runtime redistributable directory, if it exists."""
+    if wheel_dirs is not None:
+        for wheel_dir in wheel_dirs:
+            path = os.path.join(wheel_dir, name)
+            if os.path.isfile(path):
+                return path
     path = ctypes.util.find_library(name)
     if path is not None:
         return path
@@ -95,6 +101,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set) -
 def get_all_needed(lib_path: str,
                    add_dlls: set,
                    no_dlls: set,
+                   wheel_dirs: typing.Optional[typing.Iterable],
                    on_error: str = 'raise') -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str]]:
     """Given the path to a shared library, return a 3-tuple of sets
     (discovered, ignored, not_found).
@@ -117,7 +124,9 @@ def get_all_needed(lib_path: str,
 
     no_dlls is a set of DLL names to force exclusion from the wheel. We do not
     search for dependencies of these DLLs. Cannot overlap with add_dlls.
-    """
+
+    If wheel_dirs is not None, it is an iterable of directories in the wheel
+    where dependencies are searched first."""
     first_lib_path = lib_path.lower()
     stack = [first_lib_path]
     discovered = set()
@@ -145,7 +154,7 @@ def get_all_needed(lib_path: str,
                     if dll_name not in ignore_names and \
                             not any(r.search(dll_name) for r in dll_list.ignore_regexes) and \
                             dll_name not in no_dlls:
-                        dll_path = find_library(dll_name)
+                        dll_path = find_library(dll_name, wheel_dirs)
                         if dll_path:
                             stack.append(dll_path)
                         elif on_error == 'raise':
@@ -156,7 +165,7 @@ def get_all_needed(lib_path: str,
                         ignored.add(dll_name)
     discovered.remove(first_lib_path)
     for add_dll_name in add_dlls:
-        add_dll_path = find_library(add_dll_name)
+        add_dll_path = find_library(add_dll_name, wheel_dirs)
         if add_dll_path:
             discovered.add(add_dll_path)
         elif on_error == 'raise':
