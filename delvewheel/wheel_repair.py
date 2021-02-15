@@ -236,11 +236,11 @@ class WheelRepair:
 
         Precondition: path must end with .pyd"""
         top_level_dirs = [
-            self._extract_dir,
-            os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', 'purelib'),
-            os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', 'platlib'),
+            pathlib.Path(self._extract_dir),
+            pathlib.Path(self._extract_dir) / f'{self._distribution_name}-{self._version}.data' / 'purelib',
+            pathlib.Path(self._extract_dir) / f'{self._distribution_name}-{self._version}.data' / 'platlib',
         ]
-        return any(os.path.samefile(os.path.dirname(path), p) for p in top_level_dirs if os.path.isdir(p))
+        return pathlib.Path(os.path.dirname(path)) in top_level_dirs
 
     def _get_repair_version(self) -> str:
         """If this wheel has already been repaired, return the delvewheel
