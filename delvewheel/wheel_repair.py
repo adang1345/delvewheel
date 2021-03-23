@@ -196,8 +196,8 @@ class WheelRepair:
         else:
             # insert patch after docstring
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or \
-                    not isinstance(children[0].value, ast.Constant) or \
-                    children[0].value.value != docstring:
+                    not isinstance(children[0].value, ast.Str) or \
+                    children[0].value.s != docstring:
                 raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
             elif len(children) == 1:
                 with open(init_path, 'a') as file:
