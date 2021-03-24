@@ -182,6 +182,7 @@ class WheelRepair:
             future_import_lineno = 0  # no "from __future__ import" statement found
 
         if future_import_lineno > 0:
+            # insert patch after the last __future__ import
             init_contents_split = init_contents.splitlines(True)
             with open(init_path, 'w') as file:
                 file.write(''.join(init_contents_split[:future_import_lineno]))
@@ -194,15 +195,15 @@ class WheelRepair:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
-            # insert patch after docstring
-            if len(children) == 0 or not isinstance(children[0], ast.Expr) or \
-                    not isinstance(children[0].value, ast.Constant) or \
-                    children[0].value.value != docstring:
+            # verify that the first child node is the docstring
+            if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
                 raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
-            elif len(children) == 1:
+            if len(children) == 1:
+                # append patch
                 with open(init_path, 'a') as file:
                     file.write(patch_init_contents)
             else:
+                # insert patch after docstring
                 if not init_contents.lstrip().startswith('"""'):
                     raise ValueError('Error parsing __init__.py: docstring exists but is not a triple-quoted string at the start of the file')
                 docstring_start_index = init_contents.index('"""')
