@@ -204,9 +204,17 @@ class WheelRepair:
                     file.write(patch_init_contents)
             else:
                 # insert patch after docstring
-                if not init_contents.lstrip().startswith('"""'):
-                    raise ValueError('Error parsing __init__.py: docstring exists but is not a triple-quoted string at the start of the file')
-                docstring_start_index = init_contents.index('"""')
+                init_contents = '\n'.join(init_contents.splitlines())  # normalize line endings
+                docstring_search_start_index = 0
+                for line in init_contents.splitlines(True):
+                    if line.lstrip().startswith('#'):
+                        # ignore comments at start of file
+                        docstring_search_start_index += len(line)
+                    else:
+                        break
+                docstring_start_index = init_contents.find('"""', docstring_search_start_index)
+                if docstring_start_index == -1:
+                    raise ValueError('Error parsing __init__.py: docstring exists but does not start with triple quotes')
                 docstring_end_index = init_contents.find('"""', docstring_start_index + 1) + 3
                 if docstring_end_index == -1:
                     raise ValueError('Error parsing __init__.py: docstring exists but does not end with triple quotes')
