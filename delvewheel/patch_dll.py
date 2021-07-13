@@ -48,7 +48,7 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitnes
     the DLLs with the given bitness.
     1. If not None, the directories in wheel_dirs.
     2. The PATH environment variable.
-    3. The compiler's runtime redistributable directory, if it exists."""
+    3. The Visual C++ 14.x runtime redistributable directory, if it exists."""
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
             path = os.path.join(wheel_dir, name)
