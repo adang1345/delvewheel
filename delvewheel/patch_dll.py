@@ -3,7 +3,6 @@
 import itertools
 import os
 import platform
-import ctypes.util
 import typing
 import setuptools.msvc
 import distutils.util
@@ -24,26 +23,47 @@ class PEContext:
         self._pe.close()
 
 
-def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable]) -> typing.Optional[str]:
+def _get_bitness(path: str) -> int:
+    """Return the bitness (32 or 64) of an x86 PE file. Return 0 if PE file is
+    not for x86.
+
+    Implementation is based on the PE file specification at
+    https://docs.microsoft.com/en-us/windows/win32/debug/pe-format."""
+    with open(path, 'rb') as file:
+        file.seek(0x3c)
+        pe_signature_offset = int.from_bytes(file.read(4), 'little')
+        file.seek(pe_signature_offset + 4)
+        machine = file.read(2)
+    if machine == b'd\x86':
+        return 64
+    elif machine == b'L\x01':
+        return 32
+    else:
+        return 0
+
+
+def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitness: int) -> typing.Optional[str]:
     """Given the name of a DLL, return the path to the DLL, or None if the DLL
-    cannot be found. The search goes in the following order.
+    cannot be found. The search goes in the following order and considers only
+    the DLLs with the given bitness.
     1. If not None, the directories in wheel_dirs.
-    2. The system search path via ctypes.util.find_library().
+    2. The PATH environment variable.
     3. The compiler's runtime redistributable directory, if it exists."""
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
             path = os.path.join(wheel_dir, name)
-            if os.path.isfile(path):
+            if os.path.isfile(path) and _get_bitness(path) == bitness:
                 return path
-    path = ctypes.util.find_library(name)
-    if path is not None:
-        return path
+    for folder in os.environ['PATH'].split(';'):
+        path = os.path.join(folder, name)
+        if os.path.isfile(path) and _get_bitness(path) == bitness:
+            return path
     try:
         vcvars = setuptools.msvc.msvc14_get_vc_env(distutils.util.get_platform())
         vcruntime = vcvars['py_vcruntime_redist']
         redist_dir = os.path.dirname(vcruntime)
         path = os.path.normpath(os.path.join(redist_dir, name))
-        if os.path.isfile(path):
+        if os.path.isfile(path) and _get_bitness(path) == bitness:
             return path
         return None
     except:
@@ -127,6 +147,7 @@ def get_all_needed(lib_path: str,
 
     If wheel_dirs is not None, it is an iterable of directories in the wheel
     where dependencies are searched first."""
+    interpreter_bitness = 64 if platform.architecture()[0] == '64bit' else 32
     first_lib_path = lib_path.lower()
     stack = [first_lib_path]
     discovered = set()
@@ -136,7 +157,6 @@ def get_all_needed(lib_path: str,
         lib_path = stack.pop()
         if lib_path not in discovered:
             discovered.add(lib_path)
-            interpreter_bitness = 64 if platform.architecture()[0] == '64bit' else 32
             with PEContext(lib_path) as pe:
                 lib_bitness = 64 if pe.FILE_HEADER.Machine == 34404 else 32
                 if interpreter_bitness != lib_bitness:
@@ -154,7 +174,7 @@ def get_all_needed(lib_path: str,
                     if dll_name not in ignore_names and \
                             not any(r.search(dll_name) for r in dll_list.ignore_regexes) and \
                             dll_name not in no_dlls:
-                        dll_path = find_library(dll_name, wheel_dirs)
+                        dll_path = find_library(dll_name, wheel_dirs, interpreter_bitness)
                         if dll_path:
                             stack.append(dll_path)
                         elif on_error == 'raise':
@@ -165,7 +185,7 @@ def get_all_needed(lib_path: str,
                         ignored.add(dll_name)
     discovered.remove(first_lib_path)
     for add_dll_name in add_dlls:
-        add_dll_path = find_library(add_dll_name, wheel_dirs)
+        add_dll_path = find_library(add_dll_name, wheel_dirs, interpreter_bitness)
         if add_dll_path:
             discovered.add(add_dll_path)
         elif on_error == 'raise':
