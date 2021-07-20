@@ -3201,6 +3201,8 @@ ignore_by_distribution = {
     'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp39-win32': {'vcruntime140.dll'},
     'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp310-win32': {'vcruntime140.dll'},
+    'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
 # Prefixes of DLLs whose names should not be mangled. These either are
