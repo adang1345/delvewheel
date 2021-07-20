@@ -3,10 +3,9 @@
 import re
 
 # ignore_names_32 is a set containing the lowercase names of all DLLs that can
-# be assumed to be present on 32-bit Windows 7 or later. The set is generated
-# from the file SysWOW64.txt, which is a list of all files with extension .dll
-# or .drv found in C:\Windows\SysWOW64 on a vanilla Windows 7 Ultimate SP1
-# 64-bit installation.
+# be assumed to be present on 32-bit Windows 7 or later. These are all the files
+# with extension .dll or .drv found in C:\Windows\SysWOW64 on a vanilla Windows
+# 7 Ultimate SP1 64-bit installation.
 ignore_names_32 = {
     'aaclient.dll',
     'accessibilitycpl.dll',
@@ -1590,10 +1589,9 @@ ignore_names_32 = {
 }
 
 # ignore_names_64 is a set containing the lowercase names of all DLLs that can
-# be assumed to be present on 64-bit Windows 7 or later. The set is generated
-# from the file System32.txt, which is a list of all files with extension .dll
-# or .drv found in C:\Windows\System32 on a vanilla Windows 7 Ultimate SP1
-# 64-bit installation.
+# be assumed to be present on 64-bit Windows 7 or later. These are all the files
+# with extension .dll or .drv found in C:\Windows\System32 on a vanilla Windows
+# 7 Ultimate SP1 64-bit installation.
 ignore_names_64 = {
     'aaclient.dll',
     'accessibilitycpl.dll',
