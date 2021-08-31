@@ -219,7 +219,7 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict) -> 
                 'flag. In addition, if you believe that delvewheel should '
                 'avoid name-mangling a specific DLL by default, open an issue '
                 'at https://github.com/adang1345/delvewheel/issues and include '
-                'this error message.')
+                'this error message.') from None
         raise ex
     with open(lib_path, 'wb') as f:
         f.write(buf)
