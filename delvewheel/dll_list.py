@@ -3218,4 +3218,5 @@ no_mangle_prefixes = {
     'mfc',
     'vcamp',
     'vcomp',
+    'libwinpthread',
 }
