@@ -369,7 +369,7 @@ class WheelRepair:
         dependency_paths = set()
         ignored_dll_names = set()
         extension_module_paths = []
-        has_top_level_ext_module = False
+        top_level_ext_module_names = set()
         for root, _, filenames in os.walk(self._extract_dir):
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
@@ -377,7 +377,7 @@ class WheelRepair:
                     if self._is_top_level_ext_module(extension_module_path):
                         if self._verbose >= 1:
                             print(f'analyzing top-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
-                        has_top_level_ext_module = True
+                        top_level_ext_module_names.add(filename[:filename.index('.')])
                     elif self._verbose >= 1:
                         print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
@@ -390,11 +390,12 @@ class WheelRepair:
         if self._verbose >= 1:
             print(f'External dependencies to copy into the wheel are\n{pp.pformat(set(os.path.basename(p) for p in dependency_paths))}')
             print(f'External dependencies not to copy into the wheel are\n{pp.pformat(ignored_dll_names)}')
-        if has_top_level_ext_module:
-            # Extension module is top-level, so we cannot use __init__.py to
-            # insert the DLL search path at runtime. In this case, DLLs are
-            # instead copied into the platlib folder, whose contents are
-            # installed directly into site-packages during installation.
+        if top_level_ext_module_names:
+            # At least 1 extension module is top-level, so we cannot use
+            # __init__.py to insert the DLL search path at runtime. In this
+            # case, DLLs are instead copied into the platlib folder, whose
+            # contents are installed directly into site-packages during
+            # installation.
             libs_dir_name = '.'
             libs_dir = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', 'platlib')
         else:
@@ -481,20 +482,34 @@ class WheelRepair:
             file.write('\n'.join(reversed(rev_dll_load_order)))
             file.write('\n')
 
-        # create or patch top-level __init__.py in each package to load
-        # dependent DLLs from correct location at runtime
+        # Create or patch top-level __init__.py in each package to load
+        # dependent DLLs from correct location at runtime.
+        #
+        # This may cause problems for namespace packages where __init__.py must
+        # be absent for proper functionality. However, without __init__.py, we
+        # cannot load the dependent DLLs. For now, we do not handle this edge
+        # case and create __init__.py anyway.
+        #
+        # An exception is that if a top-level module and a top-level namespace
+        # package have the same name, do not create __init__.py in the package.
+        # Otherwise, the import resolution order of the module and the package
+        # would be swapped.
         for item in os.listdir(self._extract_dir):
+            init_path = os.path.join(self._extract_dir, item, '__init__.py')
             if os.path.isdir(os.path.join(self._extract_dir, item)) and \
                     item != f'{self._distribution_name}-{self._version}.dist-info' and \
                     item != f'{self._distribution_name}-{self._version}.data' and \
-                    item != libs_dir_name:
-                self._patch_init(os.path.join(self._extract_dir, item, '__init__.py'), libs_dir_name, load_order_filename)
+                    item != libs_dir_name and \
+                    (item not in top_level_ext_module_names or os.path.isfile(init_path)):
+                self._patch_init(init_path, libs_dir_name, load_order_filename)
         for extra_dir_name in ('purelib', 'platlib'):
             extra_dir = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', extra_dir_name)
             if os.path.isdir(extra_dir):
                 for item in os.listdir(extra_dir):
-                    if os.path.isdir(os.path.join(extra_dir, item)):
-                        self._patch_init(os.path.join(extra_dir, item, '__init__.py'), libs_dir_name, load_order_filename)
+                    init_path = os.path.join(extra_dir, item, '__init__.py')
+                    if os.path.isdir(os.path.join(extra_dir, item)) and \
+                            (item not in top_level_ext_module_names or os.path.isfile(init_path)):
+                        self._patch_init(init_path, libs_dir_name, load_order_filename)
 
         # create .dist-info/DELVEWHEEL file to indicate that the wheel has been
         # repaired
