@@ -3199,10 +3199,13 @@ ignore_by_distribution = {
     'pypy37_pp73-win32': {'vcruntime140.dll'},
     'cp38-win32': {'vcruntime140.dll'},
     'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'pypy38_pp73-win_amd64': {'vcruntime140.dll'},
     'cp39-win32': {'vcruntime140.dll'},
     'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp310-win32': {'vcruntime140.dll'},
     'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp311-win32': {'vcruntime140.dll'},
+    'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
 # Prefixes of DLLs whose names should not be mangled. These either are
