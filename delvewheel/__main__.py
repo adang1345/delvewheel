@@ -29,7 +29,7 @@ def main():
     parser_show = subparsers.add_parser('show', help=parser_show_description, description=parser_show_description)
     parser_repair_description = 'Vendor in external DLL dependencies of a wheel'
     parser_repair = subparsers.add_parser('repair', help=parser_repair_description, description=parser_repair_description)
-    parser_needed_description = 'Show the direct DLL dependencies of a file'
+    parser_needed_description = 'List the direct DLL dependencies of a single executable'
     parser_needed = subparsers.add_parser('needed', help=parser_needed_description, description=parser_needed_description)
     for subparser in (parser_show, parser_repair):
         subparser.add_argument('wheel', nargs='+', help='wheel(s) to show or repair')
@@ -43,7 +43,7 @@ def main():
     parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', help='DLL names(s) not to mangle, semicolon-delimited')
     parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
-    parser_needed.add_argument('file', help='path to a DLL file')
+    parser_needed.add_argument('file', help='path to a DLL or PYD file')
     args = parser.parse_args()
     if args.command is None:
         raise ValueError('No command provided. Use -h for help.')
