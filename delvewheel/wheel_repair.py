@@ -224,12 +224,20 @@ class WheelRepair:
                         docstring_search_start_index += len(line)
                     else:
                         break
-                docstring_start_index = init_contents.find('"""', docstring_search_start_index)
-                if docstring_start_index == -1:
+                double_quotes_index = init_contents.find('"""', docstring_search_start_index)
+                single_quotes_index = init_contents.find("'''", docstring_search_start_index)
+                if double_quotes_index == -1 and single_quotes_index == -1:
                     raise ValueError('Error parsing __init__.py: docstring exists but does not start with triple quotes')
-                docstring_end_index = init_contents.find('"""', docstring_start_index + 1) + 3
+                elif double_quotes_index == -1 or single_quotes_index != -1 and single_quotes_index < double_quotes_index:
+                    docstring_start_index = single_quotes_index
+                    quotes = "'''"
+                else:
+                    docstring_start_index = double_quotes_index
+                    quotes = '"""'
+                docstring_end_index = init_contents.find(quotes, docstring_start_index + 3)
                 if docstring_end_index == -1:
                     raise ValueError('Error parsing __init__.py: docstring exists but does not end with triple quotes')
+                docstring_end_index += 3
                 docstring_end_line = init_contents.find('\n', docstring_end_index)
                 if docstring_end_line == -1:
                     docstring_end_line = len(init_contents)
