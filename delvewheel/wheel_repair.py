@@ -243,7 +243,7 @@ class WheelRepair:
                     docstring_end_line = len(init_contents)
                 extra_text = init_contents[docstring_end_index: docstring_end_line]
                 if extra_text and not extra_text.isspace():
-                    raise ValueError(f'Error parsing __init__.py: extra text {extra_text!r} is on the line where the docstring ends')
+                    raise ValueError(f'Error parsing __init__.py: extra text {extra_text!r} is on the line where the docstring ends. Move the extra text to a new line and try again.')
                 with open(init_path, 'w') as file:
                     file.write(init_contents[:docstring_end_index])
                     file.write('\n')
