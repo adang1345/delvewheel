@@ -38,7 +38,7 @@ For a summary of additional command-line options, use the `-h` option (`delvewhe
 - `--add-path`: additional path(s) to search for DLLs, semicolon delimited. These paths are searched before those in the `PATH` environment variable.
 - `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for dependencies of these DLLs.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, semicolon delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
-- `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques.
+- `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `-v`: verbose mode
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 
@@ -46,7 +46,7 @@ For a summary of additional command-line options, use the `-h` option (`delvewhe
 - `--add-path`: additional path(s) to search for DLLs, semicolon delimited. These paths are searched before those in the `PATH` environment variable.
 - `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for or vendor in dependencies of these DLLs, nor do we mangle the names of these DLLs.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, semicolon delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
-- `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques.
+- `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `-v`: verbose mode
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 - `-w`,`--wheel-dir`: directory to write the repaired wheel (default is `wheelhouse` relative to current working directory)
