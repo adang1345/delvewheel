@@ -17,24 +17,27 @@ from . import version
 
 
 # Template for patching __init__.py so that the vendored DLLs are loaded at
-# runtime. An empty triple-quoted string is placed at the beginning so that the
-# comment "start delvewheel patch" does not show up when the built-in help
-# system help() is invoked on the package. For Python >=3.8, we use the
-# os.add_dll_directory() function so that the folder containing the vendored
-# DLLs is added to the DLL search path. For Python 3.7 or lower, this function
-# is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
-# it will use the already-loaded DLL instead of searching for it.
+# runtime. If the patch would be placed at the beginning of the file, an empty
+# triple-quoted string is placed at the beginning so that the comment
+# "start delvewheel patch" does not show up when the built-in help system help()
+# is invoked on the package. For Python >=3.8, we use the os.add_dll_directory()
+# function so that the folder containing the vendored DLLs is added to the DLL
+# search path. For Python 3.7 or lower, this function is unavailable, so we
+# preload the DLLs. Whenever Python needs a vendored DLL, it will use the
+# already-loaded DLL instead of searching for it.
 #
-# To use the template, call str.format(), passing in an identifying string, the
-# name of the directory containing the vendored DLLs, and the name of the file
-# containing the DLL load order.
+# To use the template, call str.format(), passing in
+# 0. '""""""' if the patch would be at the start of the file else ''
+# 1. an identifying string such as the delvewheel version
+# 2. the name of the directory containing the vendored DLLs
+# 3. the name of the file containing the DLL load order.
 _patch_init_template = """
 
-""\"""\"  # start delvewheel patch
-def _delvewheel_init_patch_{0}():
+{0}# start delvewheel patch
+def _delvewheel_init_patch_{1}():
     import os
     import sys
-    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {1!r}))
+    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {2!r}))
     if sys.version_info[:2] >= (3, 8):
         if os.path.exists(os.path.join(sys.base_prefix, 'conda-meta')):
             # backup the state of the environment variable CONDA_DLL_SEARCH_MODIFICATION_ENABLE
@@ -51,14 +54,14 @@ def _delvewheel_init_patch_{0}():
                 os.environ['CONDA_DLL_SEARCH_MODIFICATION_ENABLE'] = conda_dll_search_modification_enable
     else:
         from ctypes import WinDLL
-        with open(os.path.join(libs_dir, {2!r})) as file:
+        with open(os.path.join(libs_dir, {3!r})) as file:
             load_order = file.read().split()
         for lib in load_order:
             WinDLL(os.path.join(libs_dir, lib))
 
 
-_delvewheel_init_patch_{0}()
-del _delvewheel_init_patch_{0}
+_delvewheel_init_patch_{1}()
+del _delvewheel_init_patch_{1}
 # end delvewheel patch
 
 """
@@ -178,8 +181,6 @@ class WheelRepair:
         libs_dir is the name of the directory where DLLs are stored."""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
 
-        patch_init_contents = _patch_init_template.format(version.__version__.replace('.', '_'), libs_dir, load_order_filename)
-
         open(init_path, 'a+').close()
         with open(init_path) as file:
             init_contents = file.read()
@@ -195,6 +196,7 @@ class WheelRepair:
 
         if future_import_lineno > 0:
             # insert patch after the last __future__ import
+            patch_init_contents = _patch_init_template.format('', version.__version__.replace('.', '_'), libs_dir, load_order_filename)
             init_contents_split = init_contents.splitlines(True)
             with open(init_path, 'w') as file:
                 file.write(''.join(init_contents_split[:future_import_lineno]))
@@ -203,12 +205,15 @@ class WheelRepair:
                 file.write(''.join(init_contents_split[future_import_lineno:]))
         elif docstring is None:
             # prepend patch
+            patch_init_contents = _patch_init_template.format('""""""', version.__version__.replace('.', '_'), libs_dir, load_order_filename)
             with open(init_path, 'w') as file:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
-            # verify that the first child node is the docstring
+            # place patch just after docstring
+            patch_init_contents = _patch_init_template.format('', version.__version__.replace('.', '_'), libs_dir, load_order_filename)
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
+                # verify that the first child node is the docstring
                 raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
             if len(children) == 1:
                 # append patch
