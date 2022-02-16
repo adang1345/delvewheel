@@ -39,14 +39,13 @@ def _delvewheel_init_patch_{1}():
     import sys
     libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {2!r}))
     if sys.version_info[:2] >= (3, 8):
-        if os.path.exists(os.path.join(sys.base_prefix, 'conda-meta')):
+        conda_workaround = sys.version_info[:3] < (3, 9, 9) and os.path.exists(os.path.join(sys.base_prefix, 'conda-meta'))
+        if conda_workaround:
             # backup the state of the environment variable CONDA_DLL_SEARCH_MODIFICATION_ENABLE
             conda_dll_search_modification_enable = os.environ.get('CONDA_DLL_SEARCH_MODIFICATION_ENABLE')
             os.environ['CONDA_DLL_SEARCH_MODIFICATION_ENABLE'] = '1'
-
         os.add_dll_directory(libs_dir)
-
-        if os.path.exists(os.path.join(sys.base_prefix, 'conda-meta')):
+        if conda_workaround:
             # restore the state of the environment variable CONDA_DLL_SEARCH_MODIFICATION_ENABLE
             if conda_dll_search_modification_enable is None:
                 os.environ.pop('CONDA_DLL_SEARCH_MODIFICATION_ENABLE', None)
