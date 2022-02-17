@@ -3,6 +3,7 @@
 import itertools
 import os
 import platform
+import sys
 import typing
 import setuptools.msvc
 import distutils.util
@@ -44,30 +45,50 @@ def _get_bitness(path: str) -> int:
 
 def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitness: int) -> typing.Optional[str]:
     """Given the name of a DLL, return the path to the DLL, or None if the DLL
-    cannot be found. The search goes in the following order and considers only
-    the DLLs with the given bitness.
+    cannot be found. DLL names are searched in a case-insensitive fashion.
+    The search goes in the following order and considers only the DLLs with the
+    given bitness.
+
     1. If not None, the directories in wheel_dirs.
-    2. The PATH environment variable.
-    3. The Visual C++ 14.x runtime redistributable directory, if it exists."""
+    2. The PATH environment variable. (If we are on a case-sensitive file system
+       and a directory contains more than one DLL with the correct bitness that
+       differs by case only, then choose one arbitrarily.)
+    3. On Windows, the Visual C++ 14.x runtime redistributable directory, if it
+       exists."""
+    name = name.lower()
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
-            path = os.path.join(wheel_dir, name)
+            try:
+                contents = os.listdir(wheel_dir)
+            except FileNotFoundError:
+                continue
+            for item in contents:
+                if name == item.lower():
+                    path = os.path.join(wheel_dir, item)
+                    if os.path.isfile(path) and _get_bitness(path) == bitness:
+                        return path
+    for directory in os.environ['PATH'].split(os.pathsep):
+        try:
+            contents = os.listdir(directory)
+        except FileNotFoundError:
+            continue
+        for item in contents:
+            if name == item.lower():
+                path = os.path.join(directory, item)
+                if os.path.isfile(path) and _get_bitness(path) == bitness:
+                    return path
+    if sys.platform == 'win32':
+        try:
+            vcvars = setuptools.msvc.msvc14_get_vc_env(distutils.util.get_platform())
+            vcruntime = vcvars['py_vcruntime_redist']
+            redist_dir = os.path.dirname(vcruntime)
+            path = os.path.normpath(os.path.join(redist_dir, name))
             if os.path.isfile(path) and _get_bitness(path) == bitness:
                 return path
-    for folder in os.environ['PATH'].split(';'):
-        path = os.path.join(folder, name)
-        if os.path.isfile(path) and _get_bitness(path) == bitness:
-            return path
-    try:
-        vcvars = setuptools.msvc.msvc14_get_vc_env(distutils.util.get_platform())
-        vcruntime = vcvars['py_vcruntime_redist']
-        redist_dir = os.path.dirname(vcruntime)
-        path = os.path.normpath(os.path.join(redist_dir, name))
-        if os.path.isfile(path) and _get_bitness(path) == bitness:
-            return path
-        return None
-    except:
-        return None
+            return None
+        except:
+            return None
+    return None
 
 
 def get_direct_needed(lib_path: str, include_delay_imports: bool = True) -> set:
@@ -126,18 +147,16 @@ def get_all_needed(lib_path: str,
     """Given the path to a shared library, return a 3-tuple of sets
     (discovered, ignored, not_found).
 
-    discovered contains the DLL paths of all direct and indirect dependencies of
-    that shared library that should be bundled into the wheel. ignored contains
-    the DLL names of all direct and indirect dependencies of that shared library
-    that will not be bundled into the wheel because they are assumed to be on
-    the target system.
+    discovered contains the original-case DLL paths of all direct and indirect
+    dependencies of that shared library that should be bundled into the wheel.
+    ignored contains the lowercased DLL names of all direct and indirect
+    dependencies of that shared library that will not be bundled into the wheel
+    because they are assumed to be on the target system.
 
     If on_error is 'raise', FileNotFoundError is raised if a dependent library
     cannot be found, and not_found is the empty set. If on_error is 'ignore',
-    not_found contains the DLL names of all dependent DLLs that cannot be
-    found.
-
-    All DLL names in the returned sets are lowercase.
+    not_found contains the lowercased DLL names of all dependent DLLs that
+    cannot be found.
 
     add_dlls is a set of DLL names to force inclusion into the wheel. We do not
     search for dependencies of these DLLs.

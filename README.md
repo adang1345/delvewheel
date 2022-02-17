@@ -15,7 +15,7 @@ You can also install from the source code by opening a command-line shell at the
 ```Shell
 pip install .
 ```
-Python 3.6+ on Windows is required.
+Python 3.6+ is required. Although the wheels that `delvewheel` repairs are for Windows, `delvewheel` itself can be run on other platforms.
 
 ## Usage
 
@@ -34,18 +34,21 @@ To specify an additional directory to search for DLLs, add the location of the D
 For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`, `delvewheel needed -h`).
 
 ## Additional Options
+
+The path separator to use in the following options is ';' on Windows and ':' on Unix-like platforms.
+
 `delvewheel show`
-- `--add-path`: additional path(s) to search for DLLs, semicolon delimited. These paths are searched before those in the `PATH` environment variable.
-- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for dependencies of these DLLs.
-- `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, semicolon delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
+- `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
+- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs.
+- `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `-v`: verbose mode
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 
 `delvewheel repair`
-- `--add-path`: additional path(s) to search for DLLs, semicolon delimited. These paths are searched before those in the `PATH` environment variable.
-- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, semicolon delimited. We do not automatically search for or vendor in dependencies of these DLLs, nor do we mangle the names of these DLLs.
-- `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, semicolon delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
+- `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
+- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs, nor do we mangle the names of these DLLs.
+- `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `-v`: verbose mode
 - `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)

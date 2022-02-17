@@ -421,19 +421,20 @@ class WheelRepair:
             shutil.copy2(dependency_path, libs_dir)
 
         # mangle library names
-        dependency_names = {os.path.basename(p) for p in dependency_paths}
-        name_mangler = {}  # dict from old name to new name
+        dependency_names = {os.path.basename(p) for p in dependency_paths}  # this is NOT lowercased
+        name_mangler = {}  # dict from lowercased old name to new name
         if no_mangle_all:
             print('skip mangling DLL names')
         else:
             print('mangling DLL names')
             for lib_name in dependency_names:
-                if not any(lib_name.startswith(prefix) for prefix in dll_list.no_mangle_prefixes) and \
-                        lib_name not in no_mangles:
+                # lib_name is NOT lowercased
+                if not any(lib_name.lower().startswith(prefix) for prefix in dll_list.no_mangle_prefixes) and \
+                        lib_name.lower() not in no_mangles:
                     root, ext = os.path.splitext(lib_name)
                     with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
                         root = f'{root}-{self._hashfile(lib_file)}'
-                    name_mangler[lib_name] = root + ext
+                    name_mangler[lib_name.lower()] = root + ext
             for extension_module_path in extension_module_paths:
                 extension_module_name = os.path.basename(extension_module_path)
                 if self._verbose >= 1:
@@ -441,16 +442,17 @@ class WheelRepair:
                 needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles)
                 patch_dll.replace_needed(extension_module_path, needed, name_mangler)
             for lib_name in dependency_names:
+                # lib_name is NOT lowercased
                 if self._verbose >= 1:
-                    if lib_name in name_mangler:
-                        print(f'repairing {lib_name} -> {name_mangler[lib_name]}')
+                    if lib_name.lower() in name_mangler:
+                        print(f'repairing {lib_name} -> {name_mangler[lib_name.lower()]}')
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
                 lib_path = os.path.join(libs_dir, lib_name)
                 needed = patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles)
                 patch_dll.replace_needed(lib_path, needed, name_mangler)
-                if lib_name in name_mangler:
-                    os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name]))
+                if lib_name.lower() in name_mangler:
+                    os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
         # Perform topological sort to determine the order that DLLs must be
         # loaded at runtime. We first construct a directed graph where the
@@ -461,11 +463,17 @@ class WheelRepair:
         # loaded.
         print('calculating DLL load order')
         for dependency_name in dependency_names.copy():
-            if dependency_name in name_mangler:
+            # dependency_name is NOT lowercased
+            if dependency_name.lower() in name_mangler:
                 dependency_names.remove(dependency_name)
-                dependency_names.add(name_mangler[dependency_name])
-        graph = {}  # map each DLL to a set of its vendored direct dependencies
+                dependency_names.add(name_mangler[dependency_name.lower()])
+
+        # map from lowercased DLL name to its original case
+        dependency_name_casemap = {dependency_name.lower(): dependency_name for dependency_name in dependency_names}
+
+        graph = {}  # map each lowercased DLL name to a lowercased set of its vendored direct dependencies
         for dll_name in dependency_names:
+            # dll_name is NOT lowercased
             dll_path = os.path.join(libs_dir, dll_name)
             # In this context, delay-loaded DLL dependencies are not true
             # dependencies because they are not necessary to get the DLL to load
@@ -473,14 +481,14 @@ class WheelRepair:
             # were were to consider delay-loaded DLLs as true dependencies.
             # For example, concrt140.dll lists msvcp140.dll in its import table,
             # while msvcp140.dll lists concrt140.dll in its delay import table.
-            graph[dll_name] = patch_dll.get_direct_needed(dll_path, False) & dependency_names
+            graph[dll_name.lower()] = patch_dll.get_direct_needed(dll_path, False) & set(dependency_name_casemap.keys())
         rev_dll_load_order = []
-        no_incoming_edge = {dll_name for dll_name in dependency_names if not any(dll_name in value for value in graph.values())}
+        no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
         while no_incoming_edge:
-            dll_name = no_incoming_edge.pop()
-            rev_dll_load_order.append(dll_name)
-            while graph[dll_name]:
-                dependent_dll_name = graph[dll_name].pop()
+            dll_name_lower = no_incoming_edge.pop()
+            rev_dll_load_order.append(dependency_name_casemap[dll_name_lower])
+            while graph[dll_name_lower]:
+                dependent_dll_name = graph[dll_name_lower].pop()
                 if not any(dependent_dll_name in value for value in graph.values()):
                     no_incoming_edge.add(dependent_dll_name)
         if any(graph.values()):
