@@ -140,7 +140,6 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set) -
 
 
 def get_all_needed(lib_path: str,
-                   add_dlls: set,
                    no_dlls: set,
                    wheel_dirs: typing.Optional[typing.Iterable],
                    on_error: str = 'raise') -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str]]:
@@ -154,12 +153,8 @@ def get_all_needed(lib_path: str,
     because they are assumed to be on the target system.
 
     If on_error is 'raise', FileNotFoundError is raised if a dependent library
-    cannot be found, and not_found is the empty set. If on_error is 'ignore',
-    not_found contains the lowercased DLL names of all dependent DLLs that
-    cannot be found.
-
-    add_dlls is a set of DLL names to force inclusion into the wheel. We do not
-    search for dependencies of these DLLs.
+    cannot be found. If on_error is 'ignore', not_found contains the lowercased
+    DLL names of all dependent DLLs that cannot be found.
 
     no_dlls is a set of DLL names to force exclusion from the wheel. We do not
     search for dependencies of these DLLs. Cannot overlap with add_dlls.
@@ -200,17 +195,9 @@ def get_all_needed(lib_path: str,
                             raise FileNotFoundError(f'Unable to find library: {dll_name}')
                         else:
                             not_found.add(dll_name)
-                    elif dll_name not in add_dlls:
+                    else:
                         ignored.add(dll_name)
     discovered.remove(first_lib_path)
-    for add_dll_name in add_dlls:
-        add_dll_path = find_library(add_dll_name, wheel_dirs, interpreter_bitness)
-        if add_dll_path:
-            discovered.add(add_dll_path)
-        elif on_error == 'raise':
-            raise FileNotFoundError(f'Unable to find library: {add_dll_name}')
-        else:
-            not_found.add(add_dll_name)
     return discovered, ignored, not_found
 
 
