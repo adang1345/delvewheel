@@ -221,10 +221,11 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict) -> 
                 'Unable to rename the dependencies of '
                 f'{os.path.basename(lib_path)} because this DLL has trailing '
                 'data. If this DLL was created with MinGW, run the strip '
-                f'utility. Otherwise, include {old_deps} in the --no-mangle '
-                'flag. In addition, if you believe that delvewheel should '
-                'avoid name-mangling a specific DLL by default, open an issue '
-                'at https://github.com/adang1345/delvewheel/issues and include '
+                f'utility. Otherwise, include {os.pathsep.join(old_deps)} in '
+                'the --no-mangle flag. In addition, if you believe that '
+                'delvewheel should avoid name-mangling a specific DLL by '
+                'default, open an issue at '
+                'https://github.com/adang1345/delvewheel/issues and include '
                 'this error message.') from None
         raise ex
     with open(lib_path, 'wb') as f:
