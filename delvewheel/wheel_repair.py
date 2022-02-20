@@ -319,7 +319,7 @@ class WheelRepair:
         extension_module_paths = []
         for root, _, filenames in os.walk(self._extract_dir):
             for filename in filenames:
-                if filename.endswith('.pyd'):
+                if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
                     discovered, ignored, not_found = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore')
