@@ -1,10 +1,13 @@
 """DLL file patching functions."""
 
+import ctypes
 import itertools
 import os
+import pathlib
 import platform
 import sys
 import typing
+import warnings
 import setuptools.msvc
 import distutils.util
 import pefile
@@ -24,7 +27,7 @@ class PEContext:
         self._pe.close()
 
 
-def _get_bitness(path: str) -> int:
+def get_bitness(path: str) -> int:
     """Return the bitness (32 or 64) of an x86 PE file. Return 0 if PE file is
     not for x86.
 
@@ -43,10 +46,93 @@ def _get_bitness(path: str) -> int:
         return 0
 
 
+def _translate_directory() -> typing.Callable[[str, int], str]:
+    """Closure that computes certain values once only for determining how to
+    translate a directory when searching for DLLs on Windows.
+
+    Returns a function translate_directory(directory: int, bitness: str) -> str
+    that performs directory translations. Given a directory to search for a DLL
+    of the given bitness, translate the directory, taking the Windows file
+    system redirector into account.
+
+    See https://docs.microsoft.com/en-us/windows/win32/winprog64/file-system-redirector
+    for more information about the Windows file system redirector."""
+    if sys.platform != 'win32':
+        # no file system redirection on non-Windows systems
+        return lambda directory, bitness: directory
+
+    # determine bitness of interpreter and OS
+    interpreter_bitness = 64 if platform.architecture()[0] == '64bit' else 32
+    if interpreter_bitness == 64:
+        os_bitness = 64
+    else:
+        kernel32 = ctypes.windll.kernel32
+        wow64_process = ctypes.c_int()
+        if not kernel32.IsWow64Process(ctypes.c_void_p(kernel32.GetCurrentProcess()), ctypes.byref(wow64_process)):
+            raise OSError(f'Unable to determine whether WOW64 is active, GetLastError()={kernel32.GetLastError()}')
+        os_bitness = 64 if wow64_process.value else 32
+
+    # file system redirection map
+    windir = os.environ.get('windir', r'C:\Windows')
+    redirect_map_64_32 = {
+        fr'{windir}\System32': fr'{windir}\SysWOW64',
+        fr'{windir}\lastgood\System32': fr'{windir}\lastgood\SysWOW64',
+    }
+    redirect_exceptions = [
+        pathlib.Path(fr'{windir}\System32\catroot'),
+        pathlib.Path(fr'{windir}\System32\catroot2'),
+        pathlib.Path(fr'{windir}\System32\driverstore'),
+        pathlib.Path(fr'{windir}\System32\drivers\etc'),
+        pathlib.Path(fr'{windir}\System32\logfiles'),
+        pathlib.Path(fr'{windir}\System32\spool'),
+    ]
+    redirect_map_32_64 = {
+        fr'{windir}\System32': fr'{windir}\Sysnative',
+    }
+
+    lastgood_system32 = fr'{windir}\lastgood\System32'
+    warned = False
+
+    if interpreter_bitness == os_bitness == 64:
+        def translate_directory(directory: int, bitness: str) -> str:
+            if bitness == 64:
+                return directory
+            # perform file system redirection manually
+            if any(redirect_exception == pathlib.Path(directory) or redirect_exception in pathlib.Path(directory).parents for redirect_exception in redirect_exceptions):
+                return directory
+            directory = os.path.normpath(directory)
+            for start_dir in redirect_map_64_32:
+                if directory.lower().startswith(start_dir.lower()):
+                    end_dir = redirect_map_64_32[start_dir] + directory[len(start_dir):]
+                    return end_dir
+            return directory
+        return translate_directory
+    elif interpreter_bitness == 32 and os_bitness == 64:
+        def translate_directory(directory: int, bitness: str) -> str:
+            if bitness == 32:
+                return directory
+            # disable file system redirection
+            directory = os.path.normpath(directory)
+            for start_dir in redirect_map_32_64:
+                if directory.lower().startswith(start_dir.lower()):
+                    end_dir = redirect_map_32_64[start_dir] + directory[len(start_dir):]
+                    return end_dir
+            nonlocal warned
+            if directory.lower().startswith(lastgood_system32.lower()) and not warned:
+                warnings.warn(f'{lastgood_system32} is ignored in DLL search path due to technical limitations', RuntimeWarning)
+                warned = True
+            return directory
+        return translate_directory
+    return lambda directory, bitness: directory
+
+
+_translate_directory = _translate_directory()
+
+
 def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitness: int) -> typing.Optional[str]:
     """Given the name of a DLL, return the path to the DLL, or None if the DLL
-    cannot be found. DLL names are searched in a case-insensitive fashion.
-    The search goes in the following order and considers only the DLLs with the
+    cannot be found. DLL names are searched in a case-insensitive fashion. The
+    search goes in the following order and considers only the DLLs with the
     given bitness.
 
     1. If not None, the directories in wheel_dirs.
@@ -65,9 +151,10 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitnes
             for item in contents:
                 if name == item.lower():
                     path = os.path.join(wheel_dir, item)
-                    if os.path.isfile(path) and _get_bitness(path) == bitness:
+                    if os.path.isfile(path) and get_bitness(path) == bitness:
                         return path
     for directory in os.environ['PATH'].split(os.pathsep):
+        directory = _translate_directory(directory, bitness)
         try:
             contents = os.listdir(directory)
         except FileNotFoundError:
@@ -75,15 +162,15 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitnes
         for item in contents:
             if name == item.lower():
                 path = os.path.join(directory, item)
-                if os.path.isfile(path) and _get_bitness(path) == bitness:
+                if os.path.isfile(path) and get_bitness(path) == bitness:
                     return path
     if sys.platform == 'win32':
         try:
-            vcvars = setuptools.msvc.msvc14_get_vc_env(distutils.util.get_platform())
+            vcvars = setuptools.msvc.msvc14_get_vc_env('win_amd64' if bitness == 64 else 'win32')
             vcruntime = vcvars['py_vcruntime_redist']
             redist_dir = os.path.dirname(vcruntime)
             path = os.path.normpath(os.path.join(redist_dir, name))
-            if os.path.isfile(path) and _get_bitness(path) == bitness:
+            if os.path.isfile(path) and get_bitness(path) == bitness:
                 return path
             return None
         except:
@@ -161,7 +248,6 @@ def get_all_needed(lib_path: str,
 
     If wheel_dirs is not None, it is an iterable of directories in the wheel
     where dependencies are searched first."""
-    interpreter_bitness = 64 if platform.architecture()[0] == '64bit' else 32
     first_lib_path = lib_path.lower()
     stack = [first_lib_path]
     discovered = set()
@@ -172,23 +258,18 @@ def get_all_needed(lib_path: str,
         if lib_path not in discovered:
             discovered.add(lib_path)
             with PEContext(lib_path) as pe:
-                lib_bitness = 64 if pe.FILE_HEADER.Machine == 34404 else 32
-                if interpreter_bitness != lib_bitness:
-                    # bitness of Python interpreter must match that of the DLL
-                    # so that find_library() can find it
-                    raise OSError(f'Dependent library {lib_path} is {lib_bitness}-bit but Python interpreter is {interpreter_bitness}-bit')
-
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
                         imports = itertools.chain(imports, getattr(pe, attr))
+                lib_bitness = 64 if pe.FILE_HEADER.Machine == 34404 else 32
                 ignore_names = dll_list.ignore_names_32 if lib_bitness == 32 else dll_list.ignore_names_64
                 for entry in imports:
                     dll_name = entry.dll.decode('utf-8').lower()
                     if dll_name not in ignore_names and \
                             not any(r.search(dll_name) for r in dll_list.ignore_regexes) and \
                             dll_name not in no_dlls:
-                        dll_path = find_library(dll_name, wheel_dirs, interpreter_bitness)
+                        dll_path = find_library(dll_name, wheel_dirs, lib_bitness)
                         if dll_path:
                             stack.append(dll_path)
                         elif on_error == 'raise':
