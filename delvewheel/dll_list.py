@@ -3202,6 +3202,7 @@ ignore_by_distribution = {
     'pypy38_pp73-win_amd64': {'vcruntime140.dll'},
     'cp39-win32': {'vcruntime140.dll'},
     'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'pypy39_pp73-win_amd64.dll': {'vcruntime140.dll'},
     'cp310-win32': {'vcruntime140.dll'},
     'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp311-win32': {'vcruntime140.dll'},
