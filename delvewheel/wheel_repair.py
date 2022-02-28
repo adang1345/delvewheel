@@ -8,6 +8,7 @@ import os
 import pathlib
 import pprint
 import shutil
+import sys
 import tempfile
 import typing
 import zipfile
@@ -302,7 +303,7 @@ class WheelRepair:
         filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
         if os.path.isfile(filename):
             with open(filename) as file:
-                return file.read().strip()
+                return file.readline().strip()
         return ''
 
     def _split_dependency_paths(self, dependency_paths: typing.Iterable) -> typing.Tuple[typing.Set, typing.Set]:
@@ -602,7 +603,7 @@ class WheelRepair:
         # repaired
         filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
         with open(filename, 'w') as file:
-            file.write(f'{version.__version__}\n')
+            file.write(f'{version.__version__}\n\n{sys.argv}')
 
         # update record file, which tracks wheel contents and their checksums
         dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'
