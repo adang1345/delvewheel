@@ -1,3 +1,7 @@
+# 0.0.21
+- Record command-line arguments in `DELVEWHEEL` file to aid in diagnosing issues.
+- Don't vendor DLLs that are included with PyPy3.7 64-bit or PyPy2.7.
+
 # 0.0.20
 - Remove the limitation where the bitness of Python interpreter must match the bitness of the wheel.
 - Ensure that the search for `.pyd` files is case-insensitive. Previously, extension modules would be missed if the `.pyd` extension was not all lowercase.
