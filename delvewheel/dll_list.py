@@ -3187,6 +3187,9 @@ ignore_regexes = {
 ignore_by_distribution = {
     'cp27m-win32': {'msvcr90.dll'},
     'cp27m-win_amd64': {'msvcr90.dll'},
+    'pypy_41-win32': {'msvcr90.dll'},
+    'pypy_73-win32': {'vcruntime140.dll'},
+    'pypy_73-win_amd64': {'vcruntime140.dll'},
     'cp34m-win32': {'msvcr100.dll'},
     'cp34m-win_amd64': {'msvcr100.dll'},
     'cp35m-win32': {'vcruntime140.dll'},
@@ -3197,6 +3200,7 @@ ignore_by_distribution = {
     'cp37m-win32': {'vcruntime140.dll'},
     'cp37m-win_amd64': {'vcruntime140.dll'},
     'pypy37_pp73-win32': {'vcruntime140.dll'},
+    'pypy37_pp73-win_amd64': {'vcruntime140.dll'},
     'cp38-win32': {'vcruntime140.dll'},
     'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'pypy38_pp73-win_amd64': {'vcruntime140.dll'},
