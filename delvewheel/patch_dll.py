@@ -50,7 +50,7 @@ def _translate_directory() -> typing.Callable[[str, int], str]:
     """Closure that computes certain values once only for determining how to
     translate a directory when searching for DLLs on Windows.
 
-    Returns a function translate_directory(directory: int, bitness: str) -> str
+    Returns a function translate_directory(directory: str, bitness: int) -> str
     that performs directory translations. Given a directory to search for a DLL
     of the given bitness, translate the directory, taking the Windows file
     system redirector into account.
@@ -94,7 +94,7 @@ def _translate_directory() -> typing.Callable[[str, int], str]:
     warned = False
 
     if interpreter_bitness == os_bitness == 64:
-        def translate_directory(directory: int, bitness: str) -> str:
+        def translate_directory(directory: str, bitness: int) -> str:
             if bitness == 64:
                 return directory
             # perform file system redirection manually
@@ -108,7 +108,7 @@ def _translate_directory() -> typing.Callable[[str, int], str]:
             return directory
         return translate_directory
     elif interpreter_bitness == 32 and os_bitness == 64:
-        def translate_directory(directory: int, bitness: str) -> str:
+        def translate_directory(directory: str, bitness: int) -> str:
             if bitness == 32:
                 return directory
             # disable file system redirection
