@@ -9,7 +9,6 @@ import sys
 import typing
 import warnings
 import setuptools.msvc
-import distutils.util
 import pefile
 import machomachomangler.pe
 from . import dll_list
