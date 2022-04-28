@@ -1,3 +1,8 @@
+# 0.0.22
+- Improve performance of reading PE files.
+- Print warnings from `pefile` at verbosity level 2.
+- Disable the Anaconda workaround for Python 3.8.13.
+
 # 0.0.21
 - Record command-line arguments in `DELVEWHEEL` file to aid in diagnosing issues.
 - Don't vendor DLLs that are included with PyPy3.7 64-bit or PyPy2.7.
