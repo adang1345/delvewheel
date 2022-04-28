@@ -342,7 +342,7 @@ class WheelRepair:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored, not_found = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore')
+                    discovered, ignored, not_found = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', self._verbose)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -433,7 +433,7 @@ class WheelRepair:
                     elif self._verbose >= 1:
                         print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs)[:2]
+                    discovered, ignored = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', self._verbose)[:2]
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
 
@@ -444,7 +444,7 @@ class WheelRepair:
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
                 no_mangles.add(name_lower)
-                no_mangles.update(patch_dll.get_direct_mangleable_needed(p, self._no_dlls, no_mangles))
+                no_mangles.update(patch_dll.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
                 if name_lower not in self._add_dlls:
                     ignored_dll_names.add(name_lower)
             dependency_paths = dependency_paths_outside_wheel
@@ -507,8 +507,8 @@ class WheelRepair:
                 extension_module_name = os.path.basename(extension_module_path)
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
-                needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles)
-                patch_dll.replace_needed(extension_module_path, needed, name_mangler)
+                needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
+                patch_dll.replace_needed(extension_module_path, needed, name_mangler, self._verbose)
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
@@ -517,8 +517,8 @@ class WheelRepair:
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
                 lib_path = os.path.join(libs_dir, lib_name)
-                needed = patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles)
-                patch_dll.replace_needed(lib_path, needed, name_mangler)
+                needed = patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
+                patch_dll.replace_needed(lib_path, needed, name_mangler, self._verbose)
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
@@ -549,7 +549,7 @@ class WheelRepair:
             # were were to consider delay-loaded DLLs as true dependencies.
             # For example, concrt140.dll lists msvcp140.dll in its import table,
             # while msvcp140.dll lists concrt140.dll in its delay import table.
-            graph[dll_name.lower()] = patch_dll.get_direct_needed(dll_path, False) & set(dependency_name_casemap.keys())
+            graph[dll_name.lower()] = patch_dll.get_direct_needed(dll_path, False, self._verbose) & set(dependency_name_casemap.keys())
         rev_dll_load_order = []
         no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
         while no_incoming_edge:

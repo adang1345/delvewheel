@@ -16,13 +16,18 @@ from . import dll_list
 
 class PEContext:
     """Context manager for PE file."""
-    def __init__(self, name: str) -> None:
-        self._pe = pefile.PE(name)
+    def __init__(self, path: str, verbose: int) -> None:
+        self._pe = pefile.PE(path)
+        self._name = os.path.basename(path)
+        self._verbose = verbose
 
     def __enter__(self) -> pefile.PE:
         return self._pe
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if self._verbose >= 2:
+            for w in self._pe.get_warnings():
+                print(f'{self._name}: {w}')
         self._pe.close()
 
 
@@ -177,12 +182,12 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitnes
     return None
 
 
-def get_direct_needed(lib_path: str, include_delay_imports: bool = True) -> set:
+def get_direct_needed(lib_path: str, include_delay_imports: bool, verbose: int) -> set:
     """Given the path to a shared library, return a set containing the lowercase
     DLL names of all its direct dependencies.
     If include_delay_imports is True, delay-loaded dependencies are included.
     Otherwise, they are not included"""
-    with PEContext(lib_path) as pe:
+    with PEContext(lib_path, verbose) as pe:
         imports = []
         if include_delay_imports:
             attrs = ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT')
@@ -197,7 +202,7 @@ def get_direct_needed(lib_path: str, include_delay_imports: bool = True) -> set:
     return needed
 
 
-def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set) -> set:
+def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, verbose: int) -> set:
     """Given the path to a shared library, return a set containing the lowercase
     DLL names of all direct dependencies that belong in the wheel and should be
     name-mangled.
@@ -206,7 +211,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set) -
     wheel.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
-    with PEContext(lib_path) as pe:
+    with PEContext(lib_path, verbose) as pe:
         imports = []
         for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             if hasattr(pe, attr):
@@ -228,7 +233,8 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set) -
 def get_all_needed(lib_path: str,
                    no_dlls: set,
                    wheel_dirs: typing.Optional[typing.Iterable],
-                   on_error: str = 'raise') -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str]]:
+                   on_error: str,
+                   verbose: int) -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str]]:
     """Given the path to a shared library, return a 3-tuple of sets
     (discovered, ignored, not_found).
 
@@ -256,7 +262,7 @@ def get_all_needed(lib_path: str,
         lib_path = stack.pop()
         if lib_path not in discovered:
             discovered.add(lib_path)
-            with PEContext(lib_path) as pe:
+            with PEContext(lib_path, verbose) as pe:
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
@@ -281,7 +287,7 @@ def get_all_needed(lib_path: str,
     return discovered, ignored, not_found
 
 
-def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict) -> None:
+def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, verbose: int) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map.
     old_deps: a subset of the dependencies that lib_path has
@@ -310,6 +316,6 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict) -> 
         raise ex
     with open(lib_path, 'wb') as f:
         f.write(buf)
-    with PEContext(lib_path) as pe:
+    with PEContext(lib_path, verbose) as pe:
         pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
         pe.write(lib_path)
