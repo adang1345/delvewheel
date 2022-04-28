@@ -14,6 +14,9 @@ import machomachomangler.pe
 from . import dll_list
 
 
+pefile.MAX_IMPORT_SYMBOLS = 2**64-1
+
+
 class PEContext:
     """Context manager for PE file."""
     def __init__(self, path: str, verbose: int) -> None:
