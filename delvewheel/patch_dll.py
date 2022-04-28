@@ -14,13 +14,23 @@ import machomachomangler.pe
 from . import dll_list
 
 
-pefile.MAX_IMPORT_SYMBOLS = 2**64-1
+pefile.fast_load = True
 
 
 class PEContext:
     """Context manager for PE file."""
-    def __init__(self, path: str, verbose: int) -> None:
+    def __init__(self, path: str, parse_imports: bool, verbose: int) -> None:
+        """
+        path: path to PE file
+        parse_imports: whether to parse the import table and delay import table
+        verbose: verbosity level
+        """
         self._pe = pefile.PE(path)
+        if parse_imports:
+            self._pe.parse_data_directories([
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT'],
+            ], import_dllnames_only=True)
         self._name = os.path.basename(path)
         self._verbose = verbose
 
@@ -190,7 +200,7 @@ def get_direct_needed(lib_path: str, include_delay_imports: bool, verbose: int) 
     DLL names of all its direct dependencies.
     If include_delay_imports is True, delay-loaded dependencies are included.
     Otherwise, they are not included"""
-    with PEContext(lib_path, verbose) as pe:
+    with PEContext(lib_path, True, verbose) as pe:
         imports = []
         if include_delay_imports:
             attrs = ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT')
@@ -214,7 +224,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
     wheel.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
-    with PEContext(lib_path, verbose) as pe:
+    with PEContext(lib_path, True, verbose) as pe:
         imports = []
         for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             if hasattr(pe, attr):
@@ -265,7 +275,7 @@ def get_all_needed(lib_path: str,
         lib_path = stack.pop()
         if lib_path not in discovered:
             discovered.add(lib_path)
-            with PEContext(lib_path, verbose) as pe:
+            with PEContext(lib_path, True, verbose) as pe:
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
@@ -319,6 +329,6 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, ver
         raise ex
     with open(lib_path, 'wb') as f:
         f.write(buf)
-    with PEContext(lib_path, verbose) as pe:
+    with PEContext(lib_path, False, verbose) as pe:
         pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
         pe.write(lib_path)
