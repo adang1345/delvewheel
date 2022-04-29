@@ -632,4 +632,4 @@ class WheelRepair:
                 if self._verbose >= 1:
                     print(f'adding {relpath}')
                 whl_file.write(file_path, relpath)
-        print(f'fixed wheel written to {os.path.abspath(whl_dest_path)}\n')
+        print(f'fixed wheel written to {os.path.abspath(whl_dest_path)}')
