@@ -1,3 +1,10 @@
+# 0.0.23
+- Increase hash length when name-mangling DLLs.
+- Remove extra newline from output end.
+- Document CPU architecture limitations.
+- Document warning regarding `--add-dll`.
+- Deprecate `--no-mangle-all`.
+
 # 0.0.22
 - Improve performance of reading PE files.
 - Print warnings from `pefile` at verbosity level 2.
