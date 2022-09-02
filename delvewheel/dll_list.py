@@ -3227,4 +3227,5 @@ no_mangle_prefixes = {
     'vcamp',
     'vcomp',
     'libwinpthread',
+    'ucrtbase',
 }
