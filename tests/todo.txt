@@ -1,7 +1,0 @@
-can install and run on Python 3.6+
-different __init__ files are patched correctly and some are rejected
-purelib wheel
-platlib wheel
-normal wheel
-wheel with top-level module only
-wheel with top-level and package-level modules

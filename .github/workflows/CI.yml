@@ -7,7 +7,7 @@ env:
 
 jobs:
   build_windows:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
       - name: check out repository
         uses: actions/checkout@v2
@@ -22,12 +22,13 @@ jobs:
       - name: set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.9'
-      - name: build
+          python-version: '3.10'
+      - name: build and install
         working-directory: ${{ github.workspace }}
         run: |
           pip install setuptools wheel
           python setup.py sdist bdist_wheel
+          pip install $(Get-ChildItem dist\delvewheel-*.whl)
           if ((git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | Out-String).Contains("delvewheel/version.py`r`n")) {
             echo VERSION_CHANGED=1 | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           }
@@ -36,6 +37,9 @@ jobs:
         with:
           name: delvewheel
           path: ${{ github.workspace }}\dist\*
+      - name: run tests
+        working-directory: ${{ github.workspace }}\tests
+        run: python run_tests.py -v
       - name: deploy
         if: env.VERSION_CHANGED == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'adang1345'
         working-directory: ${{ github.workspace }}
