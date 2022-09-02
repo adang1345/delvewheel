@@ -1,3 +1,7 @@
+# 0.0.24
+- Don't mangle `ucrtbased.dll`.
+- Fix DLL load error for Anaconda Python 3.8 and 3.9.
+
 # 0.0.23
 - Increase hash length when name-mangling DLLs.
 - Remove extra newline from output end.
