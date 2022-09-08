@@ -1,7 +1,6 @@
 import argparse
 import os
 import sys
-import warnings
 from .wheel_repair import WheelRepair
 from . import patch_dll
 
@@ -37,8 +36,8 @@ def main():
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
-    parser_repair.add_argument('--no-mangle', nargs='?', const='', metavar='DLLS', help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited; leave blank to avoid mangling all DLLs')
-    parser_repair.add_argument('--no-mangle-all', action='store_true', help=argparse.SUPPRESS)  # deprecated
+    parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
+    parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
     parser_needed.add_argument('file', help='path to a DLL or PYD file')
     parser_needed.add_argument('-v', action='count', default=0, help='verbosity')
@@ -64,19 +63,8 @@ def main():
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
-                if args.no_mangle_all:  # remove this block when --no-mangle-all is deleted
-                    warnings.warn('--no-mangle-all is deprecated and will be removed in version 1.0, as its functionality has been merged into --no-mangle. Replace it with --no-mangle.')
-                    args.no_mangle = ''
-                if args.no_mangle is None:
-                    no_mangles = set()
-                    no_mangle_all = False
-                elif args.no_mangle == '':
-                    no_mangles = set()
-                    no_mangle_all = True
-                else:
-                    no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
-                    no_mangle_all = False
-                wr.repair(args.target, no_mangles, no_mangle_all, args.lib_sdir)
+                no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
+                wr.repair(args.target, no_mangles, args.no_mangle_all, args.lib_sdir)
     else:  # args.command == 'needed'
         for dll_name in patch_dll.get_direct_needed(args.file, True, args.v):
             print(dll_name)
