@@ -1,3 +1,6 @@
+# 0.0.25
+- Undo deprecation of `--no-mangle-all`. It will stay.
+
 # 0.0.24
 - Don't mangle `ucrtbased.dll`.
 - Fix DLL load error for Anaconda Python 3.8 and 3.9.
