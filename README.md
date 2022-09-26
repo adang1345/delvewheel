@@ -59,7 +59,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `-w`,`--wheel-dir`: directory to write the repaired wheel (default is `wheelhouse` relative to current working directory)
 - `--no-mangle`: name(s) of DLL(s) not to mangle, path-separator-delimited
 - `--no-mangle-all`: don't mangle any DLL names
-- `-L`,`--lib-sdir`: subdirectory suffix in package to store vendored DLLs (default `.libs`)
+- `-L`,`--lib-sdir`: subdirectory suffix to store vendored DLLs (default `.libs`). For example, if your wheel is named `mywheel-0.0.1-cp310-cp310-win_amd64.whl`, then the vendored DLLs are stored in `mywheel.libs` by default. If your wheel contains a top-level extension module that is not in any package, then this setting is ignored, and vendored DLLs are instead placed directly into `site-packages` when the wheel is installed.
 
 ## Limitations
 
