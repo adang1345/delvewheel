@@ -1,3 +1,9 @@
+# 1.0.0
+- Label project as production/stable.
+- Fix "relative import outside package" warning.
+- Add unit tests.
+- Make `delvewheel needed` output prettier.
+
 # 0.0.25
 - Undo deprecation of `--no-mangle-all`. It will stay.
 
