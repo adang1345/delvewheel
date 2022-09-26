@@ -195,11 +195,15 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitnes
     return None
 
 
-def get_direct_needed(lib_path: str, include_delay_imports: bool, verbose: int) -> set:
-    """Given the path to a shared library, return a set containing the lowercase
-    DLL names of all its direct dependencies.
+def get_direct_needed(lib_path: str, include_delay_imports: bool, lower: bool, verbose: int) -> set:
+    """Given the path to a shared library, return a set containing the DLL
+    names of all its direct dependencies.
+
     If include_delay_imports is True, delay-loaded dependencies are included.
-    Otherwise, they are not included"""
+    Otherwise, they are not included.
+
+    If lower is True, the DLL names are all lowercase. Otherwise, they are in
+    the original case."""
     with PEContext(lib_path, True, verbose) as pe:
         imports = []
         if include_delay_imports:
@@ -211,7 +215,10 @@ def get_direct_needed(lib_path: str, include_delay_imports: bool, verbose: int) 
                 imports = itertools.chain(imports, getattr(pe, attr))
         needed = set()
         for entry in imports:
-            needed.add(entry.dll.decode('utf-8').lower())
+            name = entry.dll.decode('utf-8')
+            if lower:
+                name = name.lower()
+            needed.add(name)
     return needed
 
 

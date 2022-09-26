@@ -540,7 +540,7 @@ class WheelRepair:
             # were were to consider delay-loaded DLLs as true dependencies.
             # For example, concrt140.dll lists msvcp140.dll in its import table,
             # while msvcp140.dll lists concrt140.dll in its delay import table.
-            graph[dll_name.lower()] = patch_dll.get_direct_needed(dll_path, False, self._verbose) & set(dependency_name_casemap.keys())
+            graph[dll_name.lower()] = patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
         rev_dll_load_order = []
         no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
         while no_incoming_edge:

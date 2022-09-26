@@ -66,7 +66,7 @@ def main():
                 no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.lib_sdir)
     else:  # args.command == 'needed'
-        for dll_name in patch_dll.get_direct_needed(args.file, True, args.v):
+        for dll_name in sorted(list(patch_dll.get_direct_needed(args.file, True, False, args.v)), key=str.lower):
             print(dll_name)
 
 
