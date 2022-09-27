@@ -410,6 +410,26 @@ class RepairTestCase(unittest.TestCase):
         """Repair a 32-bit wheel using 64-bit Python"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x86', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp310-cp310-win32.whl'])
 
+    def test_cross_version(self):
+        """Repair a Python 3.6 wheel using Python 3.10"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
+
+    def test_multiple_versions(self):
+        """Repair a wheel targeting multiple Python versions"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
+        try:
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
+            check_call(['python', '-c', 'import simpleext'])
+        finally:
+            try:
+                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+            except subprocess.CalledProcessError:
+                pass
+            try:
+                os.remove('wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl')
+            except FileNotFoundError:
+                pass
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
