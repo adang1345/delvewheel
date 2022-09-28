@@ -3177,7 +3177,7 @@ ignore_names_64 = {
 # set of regular expressions for additional DLLs to ignore
 ignore_regexes = {
     re.compile(r'^python[0-9]+\.dll$'),  # included in CPython distribution
-    re.compile(r'^libpypy[0-9]+-c\.dll$'),  # included in PyPy distribution
+    re.compile(r'^libpypy([0-9]+\.)*[0-9]+-c\.dll$'),  # included in PyPy distribution
     re.compile(r'^api-'),  # let Windows handle API sets
 }
 
@@ -3206,7 +3206,7 @@ ignore_by_distribution = {
     'pypy38_pp73-win_amd64': {'vcruntime140.dll'},
     'cp39-win32': {'vcruntime140.dll'},
     'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
-    'pypy39_pp73-win_amd64.dll': {'vcruntime140.dll'},
+    'pypy39_pp73-win_amd64': {'vcruntime140.dll'},
     'cp310-win32': {'vcruntime140.dll'},
     'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp311-win32': {'vcruntime140.dll'},

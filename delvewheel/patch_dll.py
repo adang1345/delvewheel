@@ -19,19 +19,24 @@ pefile.fast_load = True
 
 class PEContext:
     """Context manager for PE file."""
-    def __init__(self, path: str, parse_imports: bool, verbose: int) -> None:
+    def __init__(self, path: typing.Optional[str], data: typing.Optional[bytes], parse_imports: bool, verbose: int) -> None:
         """
         path: path to PE file
+        data: byte string containing PE file data
         parse_imports: whether to parse the import table and delay import table
         verbose: verbosity level
+
+        Exactly one of path and data must be non-None.
         """
-        self._pe = pefile.PE(path)
+        if path is data is None or path is not None and data is not None:
+            raise ValueError('Exactly one of path and data must be provided')
+        self._pe = pefile.PE(path, data)
         if parse_imports:
             self._pe.parse_data_directories([
                 pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
                 pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT'],
             ], import_dllnames_only=True)
-        self._name = os.path.basename(path)
+        self._name = 'None' if path is None else os.path.basename(path)
         self._verbose = verbose
 
     def __enter__(self) -> pefile.PE:
@@ -204,7 +209,7 @@ def get_direct_needed(lib_path: str, include_delay_imports: bool, lower: bool, v
 
     If lower is True, the DLL names are all lowercase. Otherwise, they are in
     the original case."""
-    with PEContext(lib_path, True, verbose) as pe:
+    with PEContext(lib_path, None, True, verbose) as pe:
         imports = []
         if include_delay_imports:
             attrs = ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT')
@@ -231,7 +236,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
     wheel.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
-    with PEContext(lib_path, True, verbose) as pe:
+    with PEContext(lib_path, None, True, verbose) as pe:
         imports = []
         for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             if hasattr(pe, attr):
@@ -282,7 +287,7 @@ def get_all_needed(lib_path: str,
         lib_path = stack.pop()
         if lib_path not in discovered:
             discovered.add(lib_path)
-            with PEContext(lib_path, True, verbose) as pe:
+            with PEContext(lib_path, None, True, verbose) as pe:
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
@@ -320,7 +325,7 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, ver
     with open(lib_path, 'rb') as f:
         buf = f.read()
     try:
-        buf = machomachomangler.pe.redll(buf, used_name_map)
+        buf = bytes(machomachomangler.pe.redll(buf, used_name_map))
     except ValueError as ex:
         if "Can't add new section" in str(ex):
             raise RuntimeError(
@@ -334,8 +339,8 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, ver
                 'https://github.com/adang1345/delvewheel/issues and include '
                 'this error message.') from None
         raise ex
+    with PEContext(None, buf, False, verbose) as pe:
+        pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
+        buf = pe.write()
     with open(lib_path, 'wb') as f:
         f.write(buf)
-    with PEContext(lib_path, False, verbose) as pe:
-        pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
-        pe.write(lib_path)
