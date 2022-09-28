@@ -19,7 +19,7 @@ jobs:
           key: pipcache-run-${{ github.run_number}}
           restore-keys: pipcache-run-
           path: ${{ env.PIP_CACHE_DIR }}
-      - name: set up Python
+      - name: set up Python 3.10
         uses: actions/setup-python@v2
         with:
           python-version: '3.10'
@@ -37,9 +37,18 @@ jobs:
         with:
           name: delvewheel
           path: ${{ github.workspace }}\dist\*
-      - name: run tests
+      - name: run tests with Python 3.10
         working-directory: ${{ github.workspace }}\tests
         run: python run_tests.py -v
+      - name: set up Python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
+      - name: run tests with Python 3.6
+        working-directory: ${{ github.workspace }}\tests
+        run: |
+          pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
+          python run_tests.py -v RepairTestCase.test_python36
       - name: deploy
         if: env.VERSION_CHANGED == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'adang1345'
         working-directory: ${{ github.workspace }}

@@ -2,6 +2,8 @@ import os
 import re
 import shutil
 import subprocess
+import sys
+import typing
 import unittest
 import zipfile
 
@@ -19,7 +21,7 @@ def is_mangled(filename: str) -> bool:
     return re.match(r'^[^-]+-[0-9a-f]{32}\.dll$', filename.lower()) is not None
 
 
-def import_iknowpy_successful(build_tag: str = '', modules: list | None = None) -> bool:
+def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
     """Return True iff wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl
     can be installed successfully, imported, uninstalled, and deleted.
 
@@ -52,7 +54,7 @@ def import_iknowpy_successful(build_tag: str = '', modules: list | None = None) 
             pass
 
 
-def import_simpleext_successful(build_tag: str = '', modules: list | None = None) -> bool:
+def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
     """Return True iff wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl
     can be installed successfully, imported, uninstalled, and deleted.
 
@@ -427,6 +429,24 @@ class RepairTestCase(unittest.TestCase):
                 pass
             try:
                 os.remove('wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl')
+            except FileNotFoundError:
+                pass
+
+    @unittest.skipUnless(sys.version_info[:2] == (3, 6), 'Python version is not 3.6')
+    def test_python36(self):
+        """delvewheel can be run on Python 3.6"""
+        check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
+        try:
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
+            check_call(['python', '-c', 'import simpleext'])
+        finally:
+            try:
+                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+            except subprocess.CalledProcessError:
+                pass
+            try:
+                os.remove('wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl')
             except FileNotFoundError:
                 pass
 
