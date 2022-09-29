@@ -195,7 +195,7 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], bitnes
             if os.path.isfile(path) and get_bitness(path) == bitness:
                 return path
             return None
-        except:
+        except Exception:
             return None
     return None
 
