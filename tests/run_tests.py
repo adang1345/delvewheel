@@ -436,10 +436,14 @@ class RepairTestCase(unittest.TestCase):
             except FileNotFoundError:
                 pass
 
-    @unittest.skipUnless(sys.version_info[:2] == (3, 6), 'Python version is not 3.6')
-    def test_python36(self):
-        """delvewheel can be run on Python 3.6"""
+
+@unittest.skipUnless(sys.version_info[:2] == (3, 6), 'Python version is not 3.6')
+class Python36TestCase(unittest.TestCase):
+    """delvewheel can be run on Python 3.6, the oldest supported version"""
+    def test_show(self):
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
+
+    def test_repair(self):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
         try:
             check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
@@ -454,10 +458,18 @@ class RepairTestCase(unittest.TestCase):
             except FileNotFoundError:
                 pass
 
-    @unittest.skipUnless(sys.implementation.name == 'pypy', 'Python implementation is not PyPy')
-    def test_pypy(self):
-        """delvewheel can be run on PyPy and can repair a PyPy wheel"""
+    def test_needed(self):
+        check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
+
+
+@unittest.skipUnless(sys.implementation.name == 'pypy', 'Python implementation is not PyPy')
+class PyPyTestCase(unittest.TestCase):
+    """delvewheel can be run on PyPy"""
+    def test_show(self):
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl'])
+
+    def test_repair(self):
+        """delvewheel can be run on PyPy and can repair a PyPy wheel"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl'])
         try:
             check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl'])
@@ -471,6 +483,9 @@ class RepairTestCase(unittest.TestCase):
                 os.remove('wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl')
             except FileNotFoundError:
                 pass
+
+    def test_needed(self):
+        check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
 
 
 class NeededTestCase(unittest.TestCase):

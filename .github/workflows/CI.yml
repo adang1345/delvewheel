@@ -47,8 +47,9 @@ jobs:
       - name: run tests with Python 3.6
         working-directory: ${{ github.workspace }}\tests
         run: |
+          pip install wheel
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
-          python run_tests.py -v RepairTestCase.test_python36
+          python run_tests.py -v Python36TestCase
       - name: set up PyPy3.9
         uses: actions/setup-python@v4
         with:
@@ -58,7 +59,7 @@ jobs:
         run: |
           pip install wheel
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
-          python run_tests.py -v RepairTestCase.test_pypy
+          python run_tests.py -v PyPyTestCase
       - name: deploy
         if: env.VERSION_CHANGED == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'adang1345'
         working-directory: ${{ github.workspace }}
