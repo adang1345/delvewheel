@@ -21,6 +21,14 @@ def is_mangled(filename: str) -> bool:
     return re.match(r'^[^-]+-[0-9a-f]{32}\.dll$', filename.lower()) is not None
 
 
+def remove(path: str) -> None:
+    """Version of os.remove() that ignores FileNotFoundError"""
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
 def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
     """Return True iff wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl
     can be installed successfully, imported, uninstalled, and deleted.
@@ -48,10 +56,7 @@ def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list
             check_call(['pip', 'uninstall', '-y', 'iknowpy'])
         except subprocess.CalledProcessError:
             pass
-        try:
-            os.remove(whl_path)
-        except FileNotFoundError:
-            pass
+        remove(whl_path)
 
 
 def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
@@ -81,10 +86,7 @@ def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[li
             check_call(['pip', 'uninstall', '-y', 'simpleext'])
         except subprocess.CalledProcessError:
             pass
-        try:
-            os.remove(whl_path)
-        except FileNotFoundError:
-            pass
+        remove(whl_path)
 
 
 class ShowTestCase(unittest.TestCase):
@@ -244,10 +246,7 @@ class RepairTestCase(unittest.TestCase):
                 check_call(['pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
-            try:
-                os.remove('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl')
-            except FileNotFoundError:
-                pass
+            remove('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl')
 
     def test_no_dll_all(self):
         """--no-dll that removes all DLLs"""
@@ -442,10 +441,23 @@ class RepairTestCase(unittest.TestCase):
                 check_call(['pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
+            remove('wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl')
+
+    def test_multiple_wheels(self):
+        """Repair multiple wheels in a single command"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl', 'simpleext/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
+        try:
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+            check_call(['python', '-c', 'import simpleext'])
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
+            check_call(['python', '-c', 'import simpleext'])
+        finally:
             try:
-                os.remove('wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl')
-            except FileNotFoundError:
+                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+            except subprocess.CalledProcessError:
                 pass
+            remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
+            remove('wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl')
 
     def test_v(self):
         """-v"""
@@ -496,10 +508,7 @@ class Python36TestCase(unittest.TestCase):
                 check_call(['pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            try:
-                os.remove('wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl')
-            except FileNotFoundError:
-                pass
+            remove('wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
@@ -522,10 +531,7 @@ class PyPyTestCase(unittest.TestCase):
                 check_call(['pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            try:
-                os.remove('wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl')
-            except FileNotFoundError:
-                pass
+            remove('wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
