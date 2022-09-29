@@ -150,8 +150,8 @@ class RepairTestCase(unittest.TestCase):
         self.assertTrue(import_iknowpy_successful())
 
     def test_add_dll_1(self):
-        """--add-dll for 1 DLL"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernel32.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        """--add-dll for 1 DLL, case-insensitive"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
@@ -526,6 +526,64 @@ class PyPyTestCase(unittest.TestCase):
                 os.remove('wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl')
             except FileNotFoundError:
                 pass
+
+    def test_needed(self):
+        check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
+
+
+@unittest.skipUnless(sys.platform == 'linux', 'platform is not Linux')
+class LinuxTestCase(unittest.TestCase):
+    """delvewheel can be run on Linux"""
+    def test_show(self):
+        check_call(['delvewheel', 'show', '--add-path', 'iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+
+    def test_repair_basic(self):
+        """Basic repair for the iknowpy package"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                    continue
+                self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+
+    def test_repair_no_mangle_1(self):
+        """--no-mangle for a single DLL, case-insensitive"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnOwEnGiNe.dLl', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                    continue
+                if path.name.startswith('iKnowEngine'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+
+    def test_repair_no_mangle_2(self):
+        """--no-mangle for 2 DLLs"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll:iKnowBase.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                    continue
+                if path.name.startswith('iKnowEngine') or path.name.startswith('iKnowBase'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+
+    def test_add_dll_1(self):
+        """--add-dll for 1 DLL, case-insensitive"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
+            kernel32_found = False
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                    continue
+                if path.name.startswith('kernel32'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                    kernel32_found = True
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(kernel32_found, 'kernel32.dll found')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
