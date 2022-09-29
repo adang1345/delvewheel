@@ -1,3 +1,8 @@
+# 1.0.1
+- Add unit tests for more Python versions and platforms.
+- Avoid including `libpypy3.9-c.dll` when repairing a PyPy3.9 wheel.
+- Avoid `OSError: [Errno 22] Invalid argument` during name-mangling step when running `delvewheel` in PyPy.
+
 # 1.0.0
 - Label project as production/stable.
 - Fix "relative import outside package" warning.
