@@ -492,7 +492,7 @@ class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
     def test_iknowengine(self):
         p = subprocess.run(['delvewheel', 'needed', 'iknowpy/iKnowEngine.dll'], capture_output=True, text=True, check=True)
-        self.assertEquals(
+        self.assertEqual(
             'api-ms-win-crt-convert-l1-1-0.dll\napi-ms-win-crt-heap-l1-1-0.dll\napi-ms-win-crt-locale-l1-1-0.dll\n'
             'api-ms-win-crt-math-l1-1-0.dll\napi-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\n'
             'iKnowALI.dll\niKnowBase.dll\niKnowCore.dll\niKnowShell.dll\nKERNEL32.dll\nMSVCP140.dll\n'
@@ -501,13 +501,13 @@ class NeededTestCase(unittest.TestCase):
 
     def test_simpleext(self):
         p = subprocess.run(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'], capture_output=True, text=True, check=True)
-        self.assertEquals('api-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\nKERNEL32.dll\n'
+        self.assertEqual('api-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\nKERNEL32.dll\n'
                           'VCRUNTIME140.dll\n', p.stdout)
         self.assertFalse(p.stderr)
 
     def test_simpleext_32bit(self):
         p = subprocess.run(['delvewheel', 'needed', 'simpleext/x86/simpledll.dll'], capture_output=True, text=True, check=True)
-        self.assertEquals('api-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\nKERNEL32.dll\n'
+        self.assertEqual('api-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\nKERNEL32.dll\n'
                           'VCRUNTIME140.dll\n', p.stdout)
         self.assertFalse(p.stderr)
 
