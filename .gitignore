@@ -13,3 +13,4 @@ __pycache__/
 /tests/simpleext/build/build
 /tests/simpleext/build/simpleext.egg-info
 /tests/simpleext/build/dist
+/dll_lists/ignore_names_*
