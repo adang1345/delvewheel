@@ -121,7 +121,7 @@ class WheelRepair:
         # Python distribution the wheel targets.
         abi_tags = whl_name_split[-2].split('.')
         platform_tags = whl_name_split[-1].split('.')
-        if 'win32' in platform_tags and 'win_amd64' in platform_tags:
+        if len(set(platform_tags) & {'win32', 'win_amd64', 'win_arm64'}) > 1:
             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
         ignore_by_distribution = set().union(*dll_list.ignore_by_distribution.values())
         for abi_platform in itertools.product(abi_tags, platform_tags):
@@ -145,23 +145,25 @@ class WheelRepair:
             self._wheel_dirs = None
         self._ignore_in_wheel = ignore_in_wheel
 
-        # determine whether wheel is 32-bit or 64-bit
-        self._bitness = None
+        # determine the CPU architecture of the wheel
+        self._arch = None
         if 'win32' in platform_tags:
-            self._bitness = 32
+            self._arch = 'x86'
         elif 'win_amd64' in platform_tags:
-            self._bitness = 64
+            self._arch = 'x64'
+        elif 'win_arm64' in platform_tags:
+            self._arch = 'arm64'
         else:
             for root, _, filenames in os.walk(self._extract_dir):
                 for filename in filenames:
                     if filename.lower().endswith('.pyd'):
-                        bitness = patch_dll.get_bitness(os.path.join(root, filename))
-                        if not bitness:
-                            raise NotImplementedError('Wheels for non-x86 architectures are not supported')
-                        elif self._bitness is not None and self._bitness != bitness:
+                        arch = patch_dll.get_arch(os.path.join(root, filename))
+                        if not arch:
+                            raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
+                        elif self._arch is not None and self._arch != arch:
                             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
-                        self._bitness = bitness
-            self._bitness = 64  # set default value for safety; this shouldn't be used
+                        self._arch = arch
+            self._arch = 'x64'  # set default value for safety; this shouldn't be used
 
     @staticmethod
     def _rehash(file_path: str) -> typing.Tuple[str, int]:
@@ -341,7 +343,7 @@ class WheelRepair:
         # find extra dependencies specified with --add-dll
         extra_dependency_paths = set()
         for dll_name in self._add_dlls:
-            path = patch_dll.find_library(dll_name, None, self._bitness)
+            path = patch_dll.find_library(dll_name, None, self._arch)
             if path:
                 extra_dependency_paths.add(path)
             else:
@@ -414,9 +416,9 @@ class WheelRepair:
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
-                    dll_bitness = patch_dll.get_bitness(extension_module_path)
-                    if dll_bitness != self._bitness:
-                        raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} is {dll_bitness}-bit, which is not allowed in a {self._bitness}-bit wheel')
+                    dll_arch = patch_dll.get_arch(extension_module_path)
+                    if dll_arch != self._arch:
+                        raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} is {dll_arch}, which is not allowed in a {self._arch} wheel')
                     if self._is_top_level_ext_module(extension_module_path):
                         if self._verbose >= 1:
                             print(f'analyzing top-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
@@ -448,7 +450,7 @@ class WheelRepair:
         for dll_name in self._add_dlls:
             if dll_name in dependency_names_lower:
                 continue
-            path = patch_dll.find_library(dll_name, None, self._bitness)
+            path = patch_dll.find_library(dll_name, None, self._arch)
             if path:
                 extra_dependency_paths.add(path)
             else:
