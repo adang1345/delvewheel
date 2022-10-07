@@ -113,7 +113,6 @@ def _translate_directory() -> typing.Callable[[str, int], str]:
     }
 
     lastgood_system32 = fr'{windir}\lastgood\System32'
-    warned = False
 
     if interpreter_bitness == os_bitness == 64:
         def translate_directory(directory: str, bitness: int) -> str:
@@ -139,10 +138,8 @@ def _translate_directory() -> typing.Callable[[str, int], str]:
                 if directory.lower().startswith(start_dir.lower()):
                     end_dir = redirect_map_32_64[start_dir] + directory[len(start_dir):]
                     return end_dir
-            nonlocal warned
-            if directory.lower().startswith(lastgood_system32.lower()) and not warned:
+            if directory.lower().startswith(lastgood_system32.lower()):
                 warnings.warn(f'{lastgood_system32} is ignored in DLL search path due to technical limitations', RuntimeWarning)
-                warned = True
             return directory
         return translate_directory
     return lambda directory, bitness: directory
