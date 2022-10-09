@@ -15,7 +15,11 @@ You can also install from the source code by opening a command-line shell at the
 ```Shell
 pip install .
 ```
-Python 3.6+ is required. Although the wheels that `delvewheel` repairs are for Windows, `delvewheel` itself can be run on other platforms.
+
+## Supported Platforms
+Python 3.6+ is required to run `delvewheel`.
+
+The environment used to run `delvewheel` does _not_ need to match the target environment of the wheel being repaired. For example, you can run `delvewheel` using 32-bit Python 3.6 to repair a wheel for 64-bit Python 3.10. You can even run `delvewheel` with PyPy3.6 on 32-bit x86 Linux to repair a wheel whose target environment is CPython 3.11 on Windows arm64.
 
 ## Usage
 
@@ -39,7 +43,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 
 `delvewheel show`
 - `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
-- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs unless another included DLL depends on them.
+- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs unless another included DLL depends on them. If you use this option, it is your responsibility to ensure that the extra DLL is found at load time.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `-v`: verbosity
@@ -49,7 +53,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 
 `delvewheel repair`
 - `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
-- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs unless another included DLL depends on them. We do not mangle the names of these DLLs or their direct dependencies.
+- `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs unless another included DLL depends on them. We do not mangle the names of these DLLs or their direct dependencies. If you use this option, it is your responsibility to ensure that the extra DLL is found at load time.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-in-wheel`: don't search for or vendor in DLLs that are already in the wheel. Don't mangle the names of these DLLs or their direct dependencies. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `-v`: verbosity
@@ -65,5 +69,5 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 
 - `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using `ctypes`/`cffi` (from Python) or `LoadLibrary` (from C/C++) will be missed. You can, however, specify additional DLLs to vendor into the wheel using the `--add-dll` option. If you elect to do this, it is your responsibility to ensure that the DLL is found at load time.
 - Wheels created using `delvewheel` are not guaranteed to work on systems older than Windows 7 SP1. If you intend to create a wheel for an old Windows system, you should test the resultant wheel thoroughly. If it turns out that getting the wheel to work on an older system simply requires an extra DLL, you can use the `--add-dll` flag to vendor additional DLLs into the wheel.
-- To avoid DLL hell, we mangle the file names of most DLLs that are vendored into the wheel. This way, a Python process that tries loading a vendored DLL does not end up using a different DLL with the same name. Due to a limitation in the [`machomachomangler`](https://github.com/njsmith/machomachomangler) dependency, `delvewheel` is unable to name-mangle DLLs containing extra data at the end of the binary. If your DLL was created with MinGW, you can use the `strip` utility to remove the extra data. Otherwise, use the `--no-mangle` flag.
-- `delvewheel` cannot repair a wheel that contains extension modules targeting more than one CPU architecture (e.g. both 32-bit x86 and 64-bit x86). You should create a separate wheel for each CPU architecture and repair each individually.
+- To avoid DLL hell, we mangle the file names of most DLLs that are vendored into the wheel. This way, a Python process that tries loading a vendored DLL does not end up using a different DLL with the same name. Due to a limitation in the [`machomachomangler`](https://github.com/njsmith/machomachomangler) dependency, `delvewheel` is unable to name-mangle DLLs whose dependents contain extra data at the end of the binary. If your DLL was created with MinGW, you can use the `strip` utility to remove the extra data. Otherwise, use the `--no-mangle` flag.
+- `delvewheel` cannot repair a wheel that contains extension modules targeting more than one CPU architecture (e.g. both `win32` and `win_amd64`). You should create a separate wheel for each CPU architecture and repair each individually.
