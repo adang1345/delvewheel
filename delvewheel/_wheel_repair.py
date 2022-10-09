@@ -12,9 +12,9 @@ import sys
 import tempfile
 import typing
 import zipfile
-from . import patch_dll
-from . import dll_list
-from . import version
+from . import _patch_dll
+from . import _dll_list
+from . import _version
 
 
 # Template for patching __init__.py so that the vendored DLLs are loaded at
@@ -123,11 +123,11 @@ class WheelRepair:
         platform_tags = whl_name_split[-1].split('.')
         if len(set(platform_tags) & {'win32', 'win_amd64', 'win_arm64'}) > 1:
             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
-        ignore_by_distribution = set().union(*dll_list.ignore_by_distribution.values())
+        ignore_by_distribution = set().union(*_dll_list.ignore_by_distribution.values())
         for abi_platform in itertools.product(abi_tags, platform_tags):
             abi_platform = '-'.join(abi_platform)
-            if abi_platform in dll_list.ignore_by_distribution:
-                ignore_by_distribution &= dll_list.ignore_by_distribution[abi_platform]
+            if abi_platform in _dll_list.ignore_by_distribution:
+                ignore_by_distribution &= _dll_list.ignore_by_distribution[abi_platform]
             else:
                 ignore_by_distribution = set()
                 break
@@ -157,7 +157,7 @@ class WheelRepair:
             for root, _, filenames in os.walk(self._extract_dir):
                 for filename in filenames:
                     if filename.lower().endswith('.pyd'):
-                        arch = patch_dll.get_arch(os.path.join(root, filename))
+                        arch = _patch_dll.get_arch(os.path.join(root, filename))
                         if not arch:
                             raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
                         elif self._arch is not None and self._arch != arch:
@@ -209,7 +209,7 @@ class WheelRepair:
 
         if future_import_lineno > 0:
             # insert patch after the last __future__ import
-            patch_init_contents = _patch_init_template.format('', version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+            patch_init_contents = _patch_init_template.format('', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
             init_contents_split = init_contents.splitlines(True)
             with open(init_path, 'w') as file:
                 file.write(''.join(init_contents_split[:future_import_lineno]))
@@ -218,13 +218,13 @@ class WheelRepair:
                 file.write(''.join(init_contents_split[future_import_lineno:]))
         elif docstring is None:
             # prepend patch
-            patch_init_contents = _patch_init_template.format('""""""', version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+            patch_init_contents = _patch_init_template.format('""""""', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
             with open(init_path, 'w') as file:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
             # place patch just after docstring
-            patch_init_contents = _patch_init_template.format('', version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+            patch_init_contents = _patch_init_template.format('', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
                 # verify that the first child node is the docstring
                 raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
@@ -335,7 +335,7 @@ class WheelRepair:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored, not_found = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', self._verbose)
+                    discovered, ignored, not_found = _patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', self._verbose)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -343,7 +343,7 @@ class WheelRepair:
         # find extra dependencies specified with --add-dll
         extra_dependency_paths = set()
         for dll_name in self._add_dlls:
-            path = patch_dll.find_library(dll_name, None, self._arch)
+            path = _patch_dll.find_library(dll_name, None, self._arch)
             if path:
                 extra_dependency_paths.add(path)
             else:
@@ -416,7 +416,7 @@ class WheelRepair:
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
-                    dll_arch = patch_dll.get_arch(extension_module_path)
+                    dll_arch = _patch_dll.get_arch(extension_module_path)
                     if dll_arch != self._arch:
                         raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} is {dll_arch}, which is not allowed in a {self._arch} wheel')
                     if self._is_top_level_ext_module(extension_module_path):
@@ -426,7 +426,7 @@ class WheelRepair:
                     elif self._verbose >= 1:
                         print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored = patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', self._verbose)[:2]
+                    discovered, ignored = _patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', self._verbose)[:2]
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
 
@@ -437,7 +437,7 @@ class WheelRepair:
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
                 no_mangles.add(name_lower)
-                no_mangles.update(patch_dll.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
+                no_mangles.update(_patch_dll.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
                 if name_lower not in self._add_dlls:
                     ignored_dll_names.add(name_lower)
             dependency_paths = dependency_paths_outside_wheel
@@ -450,7 +450,7 @@ class WheelRepair:
         for dll_name in self._add_dlls:
             if dll_name in dependency_names_lower:
                 continue
-            path = patch_dll.find_library(dll_name, None, self._arch)
+            path = _patch_dll.find_library(dll_name, None, self._arch)
             if path:
                 extra_dependency_paths.add(path)
             else:
@@ -490,7 +490,7 @@ class WheelRepair:
             print('mangling DLL names')
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
-                if not any(lib_name.lower().startswith(prefix) for prefix in dll_list.no_mangle_prefixes) and \
+                if not any(lib_name.lower().startswith(prefix) for prefix in _dll_list.no_mangle_prefixes) and \
                         lib_name.lower() not in no_mangles:
                     root, ext = os.path.splitext(lib_name)
                     with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
@@ -500,8 +500,8 @@ class WheelRepair:
                 extension_module_name = os.path.basename(extension_module_path)
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
-                needed = patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
-                patch_dll.replace_needed(extension_module_path, needed, name_mangler, self._verbose)
+                needed = _patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
+                _patch_dll.replace_needed(extension_module_path, needed, name_mangler, self._verbose)
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
@@ -510,8 +510,8 @@ class WheelRepair:
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
                 lib_path = os.path.join(libs_dir, lib_name)
-                needed = patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
-                patch_dll.replace_needed(lib_path, needed, name_mangler, self._verbose)
+                needed = _patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
+                _patch_dll.replace_needed(lib_path, needed, name_mangler, self._verbose)
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
@@ -542,7 +542,7 @@ class WheelRepair:
             # were were to consider delay-loaded DLLs as true dependencies.
             # For example, concrt140.dll lists msvcp140.dll in its import table,
             # while msvcp140.dll lists concrt140.dll in its delay import table.
-            graph[dll_name.lower()] = patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
+            graph[dll_name.lower()] = _patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
         rev_dll_load_order = []
         no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
         while no_incoming_edge:
@@ -596,7 +596,7 @@ class WheelRepair:
         # repaired
         filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
         with open(filename, 'w') as file:
-            file.write(f'{version.__version__}\n\n{sys.argv}')
+            file.write(f'{_version.__version__}\n\n{sys.argv}')
 
         # update record file, which tracks wheel contents and their checksums
         dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'

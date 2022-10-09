@@ -1,11 +1,11 @@
 import argparse
 import os
 import sys
-from .wheel_repair import WheelRepair
-from . import patch_dll
+from ._wheel_repair import WheelRepair
+from . import _patch_dll
 
 
-def subdir_suffix(s: str) -> str:
+def _subdir_suffix(s: str) -> str:
     """Helper for argument parser for validating a subdirectory suffix."""
     if not s or any(c in r'<>:"/\|?*' or ord(c) < 32 for c in s) or \
             any(s.endswith(x) for x in ('.dist-info', '.data', ' ', '.')):
@@ -38,7 +38,7 @@ def main():
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
     parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
-    parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
+    parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
     parser_needed.add_argument('file', help='path to a DLL or PYD file')
     parser_needed.add_argument('-v', action='count', default=0, help='verbosity')
     args = parser.parse_args()
@@ -66,7 +66,7 @@ def main():
                 no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.lib_sdir)
     else:  # args.command == 'needed'
-        for dll_name in sorted(patch_dll.get_direct_needed(args.file, True, False, args.v), key=str.lower):
+        for dll_name in sorted(_patch_dll.get_direct_needed(args.file, True, False, args.v), key=str.lower):
             print(dll_name)
 
 
