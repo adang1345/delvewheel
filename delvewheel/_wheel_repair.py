@@ -552,8 +552,9 @@ class WheelRepair:
             # In this context, delay-loaded DLL dependencies are not true
             # dependencies because they are not necessary to get the DLL to load
             # initially. More importantly, we may get circular dependencies if
-            # were were to consider delay-loaded DLLs as true dependencies.
-            # For example, concrt140.dll lists msvcp140.dll in its import table,
+            # we were to consider delay-loaded DLLs as true dependencies. For
+            # example, there exist versions of concrt140.dll and msvcp140.dll
+            # such that concrt140.dll lists msvcp140.dll in its import table,
             # while msvcp140.dll lists concrt140.dll in its delay import table.
             graph[dll_name.lower()] = _patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
         rev_dll_load_order = []
