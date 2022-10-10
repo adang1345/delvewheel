@@ -498,7 +498,7 @@ class Python36TestCase(unittest.TestCase):
     def test_show(self):
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
 
-    def test_repair(self):
+    def test_repair_simpleext(self):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
         try:
             check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
@@ -509,6 +509,18 @@ class Python36TestCase(unittest.TestCase):
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl')
+
+    def test_repair_iknowpy(self):
+        try:
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.0-cp36-cp36m-win_amd64.whl'])
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.0-cp36-cp36m-win_amd64.whl'])
+            check_call(['python', '-c', 'import iknowpy'])
+        finally:
+            try:
+                check_call(['pip', 'uninstall', '-y', 'iknowpy'])
+            except subprocess.CalledProcessError:
+                pass
+            remove('wheelhouse/iknowpy-1.5.0-cp36-cp36m-win_amd64.whl')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])

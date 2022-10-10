@@ -7,6 +7,7 @@ import itertools
 import os
 import pathlib
 import pprint
+import re
 import shutil
 import sys
 import tempfile
@@ -57,6 +58,28 @@ del _delvewheel_init_patch_{1}
 
 """
 
+# Template for patching __init__.py for Python 3.10 and above. For these Python
+# versions, os.add_dll_directory() is used as the exclusive strategy.
+#
+# To use the template, call str.format(), passing in
+# 0. '""""""' if the patch would be at the start of the file else ''
+# 1. an identifying string such as the delvewheel version
+# 2. the name of the directory containing the vendored DLLs
+_patch_init_template_v2 = """
+
+{0}# start delvewheel patch
+def _delvewheel_init_patch_{1}():
+    import os
+    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {2!r}))
+    os.add_dll_directory(libs_dir)
+
+
+_delvewheel_init_patch_{1}()
+del _delvewheel_init_patch_{1}
+# end delvewheel patch
+
+"""
+
 pp = pprint.PrettyPrinter(indent=4)
 
 
@@ -75,6 +98,9 @@ class WheelRepair:
     _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
     _ignore_in_wheel: bool  # whether to ignore DLLs that are already inside wheel
     _arch: str  # CPU architecture of wheel: 'x86', 'x64', 'arm64'
+    _min_supported_python: typing.Optional[typing.Tuple[int, int]]
+        # minimum supported Python version based on Python tags (ignoring the
+        # Python-Requires metadatum), None if unknown
 
     def __init__(self,
                  whl_path: str,
@@ -178,6 +204,21 @@ class WheelRepair:
                         self._arch = arch
             self._arch = 'x64'  # set default value for safety; this shouldn't be used
 
+        # get minimum supported Python version
+        python_tags = whl_name_split[-3].split('.')
+        if python_tags:
+            unknown = False
+            python_versions = []
+            for python_tag in python_tags:
+                match = re.fullmatch(r'^[A-Za-z]+([0-9])([0-9]*)$', python_tag)
+                if not match:
+                    unknown = True
+                    break
+                python_versions.append((int(match[1]), int(match[2]) if match[2] else 0))
+            self._min_supported_python = None if unknown else min(python_versions)
+        else:
+            self._min_supported_python = None
+
     @staticmethod
     def _rehash(file_path: str) -> typing.Tuple[str, int]:
         """Return (hash, size) for a file with path file_path. The hash and size
@@ -199,12 +240,31 @@ class WheelRepair:
             buf = afile.read(blocksize)
         return hasher.hexdigest()[:length]
 
-    def _patch_init(self, init_path: str, libs_dir: str, load_order_filename: str) -> None:
+    def _patch_init_contents(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str]) -> str:
+        """Return the contents of the patch to place in __init__.py.
+
+        at_start is whether the contents are placed at the beginning of
+            __init__.py
+        libs_dir is the name of the directory where DLLs are stored.
+        load_order_filename is the name of the .load-order file, or None if the
+            file is not used"""
+        if self._min_supported_python is None or self._min_supported_python < (3, 10):
+            if load_order_filename is None:
+                raise ValueError('load_order_filename cannot be None')
+            return _patch_init_template.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+        else:
+            return _patch_init_template_v2.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), libs_dir)
+
+    def _patch_init(self, init_path: str, libs_dir: str, load_order_filename: typing.Optional[str]) -> None:
         """Given the path to __init__.py, create or patch the file so that
         vendored-in DLLs can be loaded at runtime. The patch is placed at the
         topmost location after the docstring (if any) and any
         "from __future__ import" statements.
-        libs_dir is the name of the directory where DLLs are stored."""
+
+        init_path is the path to the __init__.py file to patch
+        libs_dir is the name of the directory where DLLs are stored.
+        load_order_filename is the name of the .load-order file, or None if the
+            file is not used"""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
 
         open(init_path, 'a+').close()
@@ -222,7 +282,7 @@ class WheelRepair:
 
         if future_import_lineno > 0:
             # insert patch after the last __future__ import
-            patch_init_contents = _patch_init_template.format('', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+            patch_init_contents = self._patch_init_contents(False, libs_dir, load_order_filename)
             init_contents_split = init_contents.splitlines(True)
             with open(init_path, 'w') as file:
                 file.write(''.join(init_contents_split[:future_import_lineno]))
@@ -231,13 +291,13 @@ class WheelRepair:
                 file.write(''.join(init_contents_split[future_import_lineno:]))
         elif docstring is None:
             # prepend patch
-            patch_init_contents = _patch_init_template.format('""""""', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+            patch_init_contents = self._patch_init_contents(True, libs_dir, load_order_filename)
             with open(init_path, 'w') as file:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
             # place patch just after docstring
-            patch_init_contents = _patch_init_template.format('', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
+            patch_init_contents = self._patch_init_contents(False, libs_dir, load_order_filename)
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
                 # verify that the first child node is the docstring
                 raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
@@ -528,54 +588,57 @@ class WheelRepair:
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
-        # Perform topological sort to determine the order that DLLs must be
-        # loaded at runtime. We first construct a directed graph where the
-        # vertices are the vendored DLLs and an edge represents a "depends-on"
-        # relationship. We perform a topological sort of this graph. The reverse
-        # of this topological sort then tells us what order we need to load the
-        # DLLs so that all dependencies of a DLL are loaded before that DLL is
-        # loaded.
-        print('calculating DLL load order')
-        for dependency_name in dependency_names.copy():
-            # dependency_name is NOT lowercased
-            if dependency_name.lower() in name_mangler:
-                dependency_names.remove(dependency_name)
-                dependency_names.add(name_mangler[dependency_name.lower()])
+        if self._min_supported_python is None or self._min_supported_python < (3, 10):
+            # Perform topological sort to determine the order that DLLs must be
+            # loaded at runtime. We first construct a directed graph where the
+            # vertices are the vendored DLLs and an edge represents a "depends-
+            # on" relationship. We perform a topological sort of this graph. The
+            # reverse of this topological sort then tells us what order we need
+            # to load the DLLs so that all dependencies of a DLL are loaded
+            # before that DLL is loaded.
+            print('calculating DLL load order')
+            for dependency_name in dependency_names.copy():
+                # dependency_name is NOT lowercased
+                if dependency_name.lower() in name_mangler:
+                    dependency_names.remove(dependency_name)
+                    dependency_names.add(name_mangler[dependency_name.lower()])
 
-        # map from lowercased DLL name to its original case
-        dependency_name_casemap = {dependency_name.lower(): dependency_name for dependency_name in dependency_names}
+            # map from lowercased DLL name to its original case
+            dependency_name_casemap = {dependency_name.lower(): dependency_name for dependency_name in dependency_names}
 
-        graph = {}  # map each lowercased DLL name to a lowercased set of its vendored direct dependencies
-        for dll_name in dependency_names:
-            # dll_name is NOT lowercased
-            dll_path = os.path.join(libs_dir, dll_name)
-            # In this context, delay-loaded DLL dependencies are not true
-            # dependencies because they are not necessary to get the DLL to load
-            # initially. More importantly, we may get circular dependencies if
-            # we were to consider delay-loaded DLLs as true dependencies. For
-            # example, there exist versions of concrt140.dll and msvcp140.dll
-            # such that concrt140.dll lists msvcp140.dll in its import table,
-            # while msvcp140.dll lists concrt140.dll in its delay import table.
-            graph[dll_name.lower()] = _patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
-        rev_dll_load_order = []
-        no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
-        while no_incoming_edge:
-            dll_name_lower = no_incoming_edge.pop()
-            rev_dll_load_order.append(dependency_name_casemap[dll_name_lower])
-            while graph[dll_name_lower]:
-                dependent_dll_name = graph[dll_name_lower].pop()
-                if not any(dependent_dll_name in value for value in graph.values()):
-                    no_incoming_edge.add(dependent_dll_name)
-        if any(graph.values()):
-            graph_leftover = {k: v for k, v in graph.items() if v}
-            raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
-        load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
-        load_order_filepath = os.path.join(libs_dir, load_order_filename)
-        if os.path.exists(load_order_filepath):
-            raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
-        with open(os.path.join(libs_dir, load_order_filename), 'w') as file:
-            file.write('\n'.join(reversed(rev_dll_load_order)))
-            file.write('\n')
+            graph = {}  # map each lowercased DLL name to a lowercased set of its vendored direct dependencies
+            for dll_name in dependency_names:
+                # dll_name is NOT lowercased
+                dll_path = os.path.join(libs_dir, dll_name)
+                # In this context, delay-loaded DLL dependencies are not true
+                # dependencies because they are not necessary to get the DLL to load
+                # initially. More importantly, we may get circular dependencies if
+                # we were to consider delay-loaded DLLs as true dependencies. For
+                # example, there exist versions of concrt140.dll and msvcp140.dll
+                # such that concrt140.dll lists msvcp140.dll in its import table,
+                # while msvcp140.dll lists concrt140.dll in its delay import table.
+                graph[dll_name.lower()] = _patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
+            rev_dll_load_order = []
+            no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
+            while no_incoming_edge:
+                dll_name_lower = no_incoming_edge.pop()
+                rev_dll_load_order.append(dependency_name_casemap[dll_name_lower])
+                while graph[dll_name_lower]:
+                    dependent_dll_name = graph[dll_name_lower].pop()
+                    if not any(dependent_dll_name in value for value in graph.values()):
+                        no_incoming_edge.add(dependent_dll_name)
+            if any(graph.values()):
+                graph_leftover = {k: v for k, v in graph.items() if v}
+                raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
+            load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
+            load_order_filepath = os.path.join(libs_dir, load_order_filename)
+            if os.path.exists(load_order_filepath):
+                raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
+            with open(os.path.join(libs_dir, load_order_filename), 'w') as file:
+                file.write('\n'.join(reversed(rev_dll_load_order)))
+                file.write('\n')
+        else:
+            load_order_filename = None
 
         # Create or patch top-level __init__.py in each package to load
         # dependent DLLs from correct location at runtime.
