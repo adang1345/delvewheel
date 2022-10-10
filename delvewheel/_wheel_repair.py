@@ -463,7 +463,7 @@ class WheelRepair:
         else:
             print('    None')
         if not_found_dll_names:
-            print('\nWarning: At least one dependent DLL needs to be copied into the wheel but was not found.\n\n')
+            print('\nWarning: At least one dependent DLL needs to be copied into the wheel but was not found.')
 
     def repair(self, target: str, no_mangles: set, no_mangle_all: bool, lib_sdir: str) -> None:
         """Repair the wheel in a manner similar to auditwheel.
