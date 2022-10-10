@@ -437,7 +437,7 @@ class WheelRepair:
             dependency_paths_outside_wheel = list(dependency_paths | extra_dependency_paths)
             dependency_paths_outside_wheel.sort()
         print('The following DLLs will be copied into the wheel.')
-        if dependency_paths_outside_wheel:
+        if dependency_paths_outside_wheel or not_found_dll_names:
             for dependency_path in dependency_paths_outside_wheel:
                 print(f'    {os.path.basename(dependency_path)} ({dependency_path})')
             for not_found_dll_name in not_found_dll_names:
