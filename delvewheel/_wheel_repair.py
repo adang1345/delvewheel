@@ -63,6 +63,19 @@ pp = pprint.PrettyPrinter(indent=4)
 class WheelRepair:
     """An instance represents a wheel that can be repaired."""
 
+    _verbose: int  # verbosity level, 0 to 2
+    _whl_path: str  # path to wheel
+    _whl_name: str  # name of wheel
+    _distribution_name: str
+    _version: str  # wheel version
+    _extract_dir_obj: typing.Optional[tempfile.TemporaryDirectory]  # wheel extraction directory object
+    _extract_dir: str  # wheel extraction directory
+    _add_dlls: typing.Set[str]  # additional DLLs to addd
+    _no_dlls: typing.Set[str]  # DLLs to exclude
+    _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
+    _ignore_in_wheel: bool  # whether to ignore DLLs that are already inside wheel
+    _arch: str  # CPU architecture of wheel: 'x86', 'x64', 'arm64'
+
     def __init__(self,
                  whl_path: str,
                  extract_dir: typing.Optional[str] = None,
@@ -81,7 +94,7 @@ class WheelRepair:
             (cannot overlap with add_dlls)
         no_mangles: Set of lowercase DLL names not to mangle
         ignore_in_wheel: whether to ignore DLLs that are already in the wheel
-        verbose: verbosity level, 0 to 3"""
+        verbose: verbosity level, 0 to 2"""
         if not os.path.isfile(whl_path):
             raise FileNotFoundError(f'{whl_path} not found')
 
@@ -146,7 +159,7 @@ class WheelRepair:
         self._ignore_in_wheel = ignore_in_wheel
 
         # determine the CPU architecture of the wheel
-        self._arch = None
+        self._arch = ''
         if 'win32' in platform_tags:
             self._arch = 'x86'
         elif 'win_amd64' in platform_tags:
@@ -160,7 +173,7 @@ class WheelRepair:
                         arch = _patch_dll.get_arch(os.path.join(root, filename))
                         if not arch:
                             raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
-                        elif self._arch is not None and self._arch != arch:
+                        elif self._arch and self._arch != arch:
                             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
                         self._arch = arch
             self._arch = 'x64'  # set default value for safety; this shouldn't be used
@@ -168,7 +181,7 @@ class WheelRepair:
     @staticmethod
     def _rehash(file_path: str) -> typing.Tuple[str, int]:
         """Return (hash, size) for a file with path file_path. The hash and size
-        are used by pip to verify the integrity of the contents of a wheel."""
+        can be used to verify the integrity of the contents of a wheel."""
         with open(file_path, 'rb') as file:
             contents = file.read()
             hash = base64.urlsafe_b64encode(hashlib.sha256(contents).digest()).decode('latin1').rstrip('=')
