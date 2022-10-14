@@ -269,12 +269,12 @@ def get_direct_needed(lib_path: str, include_delay_imports: bool, lower: bool, v
 
 
 def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, verbose: int) -> set:
-    """Given the path to a shared library, return a set containing the lowercase
-    DLL names of all direct dependencies that belong in the wheel and should be
-    name-mangled.
+    """Given the path to a shared library, return a set containing the
+    lowercase DLL names of all direct dependencies that belong in the wheel and
+    should be name-mangled.
 
-    no_dlls is a set of lowercase additional DLL names that do not belong in the
-    wheel.
+    no_dlls is a set of lowercase additional DLL names that do not belong in
+    the wheel.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
     with PEContext(lib_path, None, True, verbose) as pe:

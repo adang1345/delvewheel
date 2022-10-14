@@ -20,8 +20,8 @@ from . import _version
 # Template for patching __init__.py so that the vendored DLLs are loaded at
 # runtime. If the patch would be placed at the beginning of the file, an empty
 # triple-quoted string is placed at the beginning so that the comment
-# "start delvewheel patch" does not show up when the built-in help system help()
-# is invoked on the package. For non-Anaconda Python >= 3.8, we use the
+# "start delvewheel patch" does not show up when the built-in help system
+# help() is invoked on the package. For non-Anaconda Python >= 3.8, we use the
 # os.add_dll_directory() function so that the folder containing the vendored
 # DLLs is added to the DLL search path. For Python 3.7 or lower, this function
 # is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
@@ -112,8 +112,8 @@ class WheelRepair:
         whl_path: Path to the wheel to repair
         extract_dir: Directory where wheel is extracted. If None, a temporary
             directory is created.
-        dest_dir: Directory to place the repaired wheel. If None, it defaults to
-            wheelhouse, relative to the current working directory.
+        dest_dir: Directory to place the repaired wheel. If None, it defaults
+            to wheelhouse, relative to the current working directory.
         add_dlls: Set of lowercase DLL names to force inclusion into the wheel
         no_dlls: Set of lowercase DLL names to force exclusion from wheel
             (cannot overlap with add_dlls)
@@ -135,8 +135,8 @@ class WheelRepair:
         self._version = whl_name_split[1]
 
         if extract_dir is None:
-            # need to assign temp directory object to an attribute to prevent it
-            # from being destructed
+            # need to assign temp directory object to an attribute to prevent
+            # it from being destructed
             self._extract_dir_obj = tempfile.TemporaryDirectory()
             self._extract_dir = self._extract_dir_obj.name
         else:
@@ -171,9 +171,9 @@ class WheelRepair:
                 break
         self._no_dlls |= ignore_by_distribution
 
-        # If ignore_in_wheel is True, save list of all directories in the wheel.
-        # These directories will be used to search for DLLs that are already in
-        # the wheel.
+        # If ignore_in_wheel is True, save list of all directories in the
+        # wheel. These directories will be used to search for DLLs that are
+        # already in the wheel.
         if ignore_in_wheel:
             self._wheel_dirs = [self._extract_dir]
             for root, dirnames, _ in os.walk(self._extract_dir):
@@ -214,8 +214,8 @@ class WheelRepair:
 
     @staticmethod
     def _rehash(file_path: str) -> typing.Tuple[str, int]:
-        """Return (hash, size) for a file with path file_path. The hash and size
-        can be used to verify the integrity of the contents of a wheel."""
+        """Return (hash, size) for a file with path file_path. The hash and
+        size can be used to verify the integrity of the contents of a wheel."""
         with open(file_path, 'rb') as file:
             contents = file.read()
             hash = base64.urlsafe_b64encode(hashlib.sha256(contents).digest()).decode('latin1').rstrip('=')
@@ -369,9 +369,9 @@ class WheelRepair:
         """Given an iterable of DLL paths, partition the contents into a tuple
         of sets
         (dependency_paths_in_wheel, dependency_paths_outside_wheel).
-        dependency_paths_in_wheel contains the paths to DLLs that are already in
-        the wheel, and dependency_paths_outside_wheel contains the paths to DLLs
-        that are not in the wheel."""
+        dependency_paths_in_wheel contains the paths to DLLs that are already
+        in the wheel, and dependency_paths_outside_wheel contains the paths to
+        DLLs that are not in the wheel."""
         dependency_paths_in_wheel = set()
         dependency_paths_outside_wheel = set()
         for dependency_path in dependency_paths:
@@ -585,10 +585,10 @@ class WheelRepair:
             # Perform topological sort to determine the order that DLLs must be
             # loaded at runtime. We first construct a directed graph where the
             # vertices are the vendored DLLs and an edge represents a "depends-
-            # on" relationship. We perform a topological sort of this graph. The
-            # reverse of this topological sort then tells us what order we need
-            # to load the DLLs so that all dependencies of a DLL are loaded
-            # before that DLL is loaded.
+            # on" relationship. We perform a topological sort of this graph.
+            # The reverse of this topological sort then tells us what order we
+            # need to load the DLLs so that all dependencies of a DLL are
+            # loaded before that DLL is loaded.
             print('calculating DLL load order')
             for dependency_name in dependency_names.copy():
                 # dependency_name is NOT lowercased
@@ -604,12 +604,13 @@ class WheelRepair:
                 # dll_name is NOT lowercased
                 dll_path = os.path.join(libs_dir, dll_name)
                 # In this context, delay-loaded DLL dependencies are not true
-                # dependencies because they are not necessary to get the DLL to load
-                # initially. More importantly, we may get circular dependencies if
-                # we were to consider delay-loaded DLLs as true dependencies. For
-                # example, there exist versions of concrt140.dll and msvcp140.dll
-                # such that concrt140.dll lists msvcp140.dll in its import table,
-                # while msvcp140.dll lists concrt140.dll in its delay import table.
+                # dependencies because they are not necessary to get the DLL to
+                # load initially. More importantly, we may get circular
+                # dependencies if we were to consider delay-loaded DLLs as true
+                # dependencies. For example, there exist versions of
+                # concrt140.dll and msvcp140.dll such that concrt140.dll lists
+                # msvcp140.dll in its import table, while msvcp140.dll lists
+                # concrt140.dll in its delay import table.
                 graph[dll_name.lower()] = _dll_utils.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
             rev_dll_load_order = []
             no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
