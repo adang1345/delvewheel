@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 from ._wheel_repair import WheelRepair
-from . import _patch_dll
+from . import _dll_utils
 
 
 def _subdir_suffix(s: str) -> str:
@@ -66,7 +66,7 @@ def main():
                 no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.lib_sdir)
     else:  # args.command == 'needed'
-        for dll_name in sorted(_patch_dll.get_direct_needed(args.file, True, False, args.v), key=str.lower):
+        for dll_name in sorted(_dll_utils.get_direct_needed(args.file, True, False, args.v), key=str.lower):
             print(dll_name)
 
 

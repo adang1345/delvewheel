@@ -13,7 +13,7 @@ import sys
 import tempfile
 import typing
 import zipfile
-from . import _patch_dll
+from . import _dll_utils
 from . import _dll_list
 from . import _version
 
@@ -196,7 +196,7 @@ class WheelRepair:
             for root, _, filenames in os.walk(self._extract_dir):
                 for filename in filenames:
                     if filename.lower().endswith('.pyd'):
-                        arch = _patch_dll.get_arch(os.path.join(root, filename))
+                        arch = _dll_utils.get_arch(os.path.join(root, filename))
                         if not arch:
                             raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
                         elif self._arch and self._arch != arch:
@@ -408,7 +408,7 @@ class WheelRepair:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored, not_found = _patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', self._verbose)
+                    discovered, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', self._verbose)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -416,7 +416,7 @@ class WheelRepair:
         # find extra dependencies specified with --add-dll
         extra_dependency_paths = set()
         for dll_name in self._add_dlls:
-            path = _patch_dll.find_library(dll_name, None, self._arch)
+            path = _dll_utils.find_library(dll_name, None, self._arch)
             if path:
                 extra_dependency_paths.add(path)
             else:
@@ -489,7 +489,7 @@ class WheelRepair:
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
-                    dll_arch = _patch_dll.get_arch(extension_module_path)
+                    dll_arch = _dll_utils.get_arch(extension_module_path)
                     if dll_arch != self._arch:
                         raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} is {dll_arch}, which is not allowed in a {self._arch} wheel')
                     if self._is_top_level_ext_module(extension_module_path):
@@ -499,7 +499,7 @@ class WheelRepair:
                     elif self._verbose >= 1:
                         print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored = _patch_dll.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', self._verbose)[:2]
+                    discovered, ignored = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', self._verbose)[:2]
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
 
@@ -510,7 +510,7 @@ class WheelRepair:
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
                 no_mangles.add(name_lower)
-                no_mangles.update(_patch_dll.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
+                no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
                 if name_lower not in self._add_dlls:
                     ignored_dll_names.add(name_lower)
             dependency_paths = dependency_paths_outside_wheel
@@ -523,7 +523,7 @@ class WheelRepair:
         for dll_name in self._add_dlls:
             if dll_name in dependency_names_lower:
                 continue
-            path = _patch_dll.find_library(dll_name, None, self._arch)
+            path = _dll_utils.find_library(dll_name, None, self._arch)
             if path:
                 extra_dependency_paths.add(path)
             else:
@@ -573,8 +573,8 @@ class WheelRepair:
                 extension_module_name = os.path.basename(extension_module_path)
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
-                needed = _patch_dll.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
-                _patch_dll.replace_needed(extension_module_path, needed, name_mangler, self._verbose)
+                needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
+                _dll_utils.replace_needed(extension_module_path, needed, name_mangler, self._verbose)
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
@@ -583,8 +583,8 @@ class WheelRepair:
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
                 lib_path = os.path.join(libs_dir, lib_name)
-                needed = _patch_dll.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
-                _patch_dll.replace_needed(lib_path, needed, name_mangler, self._verbose)
+                needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
+                _dll_utils.replace_needed(lib_path, needed, name_mangler, self._verbose)
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
@@ -617,7 +617,7 @@ class WheelRepair:
                 # example, there exist versions of concrt140.dll and msvcp140.dll
                 # such that concrt140.dll lists msvcp140.dll in its import table,
                 # while msvcp140.dll lists concrt140.dll in its delay import table.
-                graph[dll_name.lower()] = _patch_dll.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
+                graph[dll_name.lower()] = _dll_utils.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
             rev_dll_load_order = []
             no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
             while no_incoming_edge:
