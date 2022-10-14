@@ -50,8 +50,8 @@ class MachineType(enum.Enum):
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all
 # the files with extension .dll or .drv found in C:\Windows\SysWOW64 on vanilla
-# installations of Windows 7 SP1 x64, 8 x64, 8.1 x64, 10 x64, 10 arm64, and 11
-# arm64.
+# installations of Windows 7 SP1 x64, 8 x64, 8.1 x64, 10 x64, 10 arm64, 11 x64,
+# and 11 arm64.
 ignore_names_x86 = {
     'accessibilitycpl.dll',
     'acledit.dll',
