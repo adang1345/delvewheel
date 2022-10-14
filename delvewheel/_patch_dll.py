@@ -27,7 +27,7 @@ class PEContext:
 
         Exactly one of path and data must be non-None.
         """
-        if path is data is None or path is not None and data is not None:
+        if (path is None) == (data is None):
             raise ValueError('Exactly one of path and data must be provided')
         self._pe = pefile.PE(path, data)
         if parse_imports:
