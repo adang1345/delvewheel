@@ -1,6 +1,51 @@
 """Lists of DLLs to handle specially."""
 
+import enum
 import re
+import typing
+
+
+class MachineType(enum.Enum):
+    """Enumeration of supported CPU architectures"""
+    I386 = enum.auto()
+    AMD64 = enum.auto()
+    ARM64 = enum.auto()
+
+    @classmethod
+    def machine_field_to_type(cls, machine_field: int) -> typing.Optional['MachineType']:
+        """Given the Machine field of a PE file, return the machine type or
+        None if the machine type is unsupported."""
+        if machine_field == 0x14c:
+            return cls.I386
+        if machine_field == 0x8664:
+            return cls.AMD64
+        if machine_field == 0xaa64:
+            return cls.ARM64
+        return None
+
+    @classmethod
+    def platform_tag_to_type(cls, tag: str) -> typing.Optional['MachineType']:
+        """Given a platform tag of a wheel, return the machine type or None if
+        the tag is unrecognized."""
+        if tag == 'win32':
+            return cls.I386
+        if tag == 'win_amd64':
+            return cls.AMD64
+        if tag == 'win_arm64':
+            return cls.ARM64
+        return None
+
+    @property
+    def setuptools_platspec(self) -> str:
+        """Convert the machine type to a setuptools platform specification."""
+        if self is self.__class__.I386:
+            return 'win32'
+        if self is self.__class__.AMD64:
+            return 'x86_amd64'
+        if self is self.__class__.ARM64:
+            return 'x86_arm64'
+        raise ValueError(f'No setuptools platspec exists for {self}')
+
 
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all
@@ -5804,6 +5849,13 @@ ignore_names_arm64 = {
     'zipcontainer.dll',
     'zipfldr.dll',
     'ztrace_maps.dll',
+}
+
+# DLLs to ignore, keyed by CPU architecture
+ignore_names = {
+    MachineType.I386: ignore_names_x86,
+    MachineType.AMD64: ignore_names_x64,
+    MachineType.ARM64: ignore_names_arm64,
 }
 
 # set of regular expressions for additional DLLs to ignore

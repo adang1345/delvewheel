@@ -7,10 +7,10 @@ import pathlib
 import sys
 import typing
 import warnings
-import setuptools.msvc
 import pefile
 import machomachomangler.pe
 from . import _dll_list
+from ._dll_list import MachineType
 
 
 pefile.fast_load = True
@@ -48,10 +48,9 @@ class PEContext:
         self._pe.close()
 
 
-def get_arch(path: str) -> str:
-    """Return the architecture of a PE file. Possible architectures are 'x86',
-    'x64', and 'arm64'. If the PE file is not one of these architectures,
-    return ''.
+def get_arch(path: str) -> typing.Optional[MachineType]:
+    """Return the architecture of a PE file. If the PE file is not for a
+    supported architecture, return None.
 
     Implementation is based on the PE file specification at
     https://docs.microsoft.com/en-us/windows/win32/debug/pe-format."""
@@ -59,25 +58,18 @@ def get_arch(path: str) -> str:
         file.seek(0x3c)
         pe_signature_offset = int.from_bytes(file.read(4), 'little')
         file.seek(pe_signature_offset + 4)
-        machine = file.read(2)
-    if machine == b'L\x01':
-        return 'x86'
-    elif machine == b'd\x86':
-        return 'x64'
-    elif machine == b'd\xaa':
-        return 'arm64'
-    else:
-        return ''
+        machine = int.from_bytes(file.read(2), 'little')
+    return MachineType.machine_field_to_type(machine)
 
 
-def _translate_directory() -> typing.Callable[[str, str], str]:
+def _translate_directory() -> typing.Callable[[str, MachineType], str]:
     """Closure that computes certain values once only for determining how to
     translate a directory when searching for DLLs on Windows.
 
-    Returns a function translate_directory(directory: str, arch: str) -> str
+    Returns a function translate_directory(directory: str, arch: MachineType) -> str
     that performs directory translations. Given a directory to search for a DLL
-    of the given architecture ('x86', 'x64', 'arm64'), translate the directory,
-    taking the Windows file system redirector into account.
+    of the given architecture, translate the directory, taking the Windows file
+    system redirector into account.
 
     See https://docs.microsoft.com/en-us/windows/win32/winprog64/file-system-redirector
     for more information about the Windows file system redirector.
@@ -107,7 +99,7 @@ def _translate_directory() -> typing.Callable[[str, str], str]:
     arm64 | arm64  | x86   | redirect System32 to SysWOW64
     arm64 | arm64  | x64   | none
     arm64 | arm64  | arm64 | none"""
-    def null_translator(directory: str, arch: str) -> str:
+    def null_translator(directory: str, arch: MachineType) -> str:
         return directory
     if sys.platform != 'win32':
         # no file system redirection on non-Windows systems
@@ -119,8 +111,8 @@ def _translate_directory() -> typing.Callable[[str, str], str]:
     if not interpreter_arch:
         warnings.warn('Running delvewheel on this CPU architecture is not supported', RuntimeWarning)
         return null_translator
-    if interpreter_arch == 'arm64':
-        os_arch = 'arm64'
+    if interpreter_arch is MachineType.ARM64:
+        os_arch = MachineType.ARM64
     elif hasattr(kernel32, 'IsWow64Process2'):
         process_machine = ctypes.c_ushort()
         native_machine = ctypes.c_ushort()
@@ -128,19 +120,17 @@ def _translate_directory() -> typing.Callable[[str, str], str]:
             raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError()}')
         if not process_machine.value:
             os_arch = interpreter_arch
-        elif native_machine.value == 0x8664:  # IMAGE_FILE_MACHINE_AMD64
-            os_arch = 'x64'
-        elif native_machine.value == 0xAA64:  # IMAGE_FILE_MACHINE_ARM64
-            os_arch = 'arm64'
         else:
+            os_arch = MachineType.machine_field_to_type(native_machine.value)
+        if not os_arch:
             raise OSError(f'Unexpected native machine type 0x{native_machine.value:04X}')
     elif hasattr(kernel32, 'IsWow64Process'):
         wow64_process = ctypes.c_int()
         if not kernel32.IsWow64Process(ctypes.c_void_p(kernel32.GetCurrentProcess()), ctypes.byref(wow64_process)):
             raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError()}')
-        os_arch = 'x64' if wow64_process.value else interpreter_arch
+        os_arch = MachineType.AMD64 if wow64_process.value else interpreter_arch
     else:
-        os_arch = 'x86'
+        os_arch = MachineType.I386
 
     # file system redirection map
     windir = os.environ.get('windir', r'C:\Windows')
@@ -188,19 +178,19 @@ def _translate_directory() -> typing.Callable[[str, str], str]:
             warnings.warn(f'{lastgood_system32} is ignored in DLL search path due to technical limitations', RuntimeWarning)
         return directory
 
-    if os_arch == 'x64' and interpreter_arch == 'x86':
-        return lambda directory, arch: translate_system32_to_sysnative(directory) if arch == 'x64' else directory
-    elif os_arch == 'arm64' and interpreter_arch == 'x86':
-        return lambda directory, arch: translate_system32_to_sysnative(directory) if arch == 'arm64' else directory
-    elif os_arch != 'x86' != interpreter_arch:
-        return lambda directory, arch: translate_system32_to_syswow64(directory) if arch == 'x86' else directory
+    if os_arch is MachineType.AMD64 and interpreter_arch is MachineType.I386:
+        return lambda directory, arch: translate_system32_to_sysnative(directory) if arch is MachineType.AMD64 else directory
+    elif os_arch is MachineType.ARM64 and interpreter_arch is MachineType.I386:
+        return lambda directory, arch: translate_system32_to_sysnative(directory) if arch is MachineType.ARM64 else directory
+    elif os_arch is not MachineType.I386 is not interpreter_arch:
+        return lambda directory, arch: translate_system32_to_syswow64(directory) if arch is MachineType.I386 else directory
     return null_translator
 
 
 _translate_directory = _translate_directory()
 
 
-def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: str) -> typing.Optional[str]:
+def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: MachineType) -> typing.Optional[str]:
     """Given the name of a DLL, return the path to the DLL, or None if the DLL
     cannot be found. DLL names are searched in a case-insensitive fashion. The
     search goes in the following order and considers only the DLLs with the
@@ -211,7 +201,7 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
        system and a directory contains more than one DLL with the correct
        architecture that differs by case only, then choose one arbitrarily.)
     3. On Windows, the Visual C++ 14.x runtime redistributable directory, if it
-       exists."""
+       can be found."""
     name = name.lower()
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
@@ -236,14 +226,10 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
                 if os.path.isfile(path) and get_arch(path) == arch:
                     return path
     if sys.platform == 'win32':
-        if arch == 'x86':
-            plat_spec = 'win32'
-        elif arch == 'x64':
-            plat_spec = 'x86_amd64'
-        else:
-            plat_spec = 'x86_arm64'
         try:
-            vcvars = setuptools.msvc.msvc14_get_vc_env(plat_spec)
+            from setuptools import msvc
+            plat_spec = arch.setuptools_platspec
+            vcvars = msvc.msvc14_get_vc_env(plat_spec)
             vcruntime = vcvars['py_vcruntime_redist']
             redist_dir = os.path.dirname(vcruntime)
             path = os.path.normpath(os.path.join(redist_dir, name))
@@ -297,12 +283,10 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
             if hasattr(pe, attr):
                 imports = itertools.chain(imports, getattr(pe, attr))
         needed = set()
-        if pe.FILE_HEADER.Machine == 0x014c:
-            ignore_names = _dll_list.ignore_names_x86
-        elif pe.FILE_HEADER.Machine == 0x8664:
-            ignore_names = _dll_list.ignore_names_x64
-        else:
-            ignore_names = _dll_list.ignore_names_arm64
+        lib_arch = MachineType.machine_field_to_type(pe.FILE_HEADER.Machine)
+        if not lib_arch:
+            raise ValueError(f'{lib_path} has an unsupported CPU architecture')
+        ignore_names = _dll_list.ignore_names[lib_arch]
         for entry in imports:
             dll_name = entry.dll.decode('utf-8').lower()
             if dll_name not in ignore_names and \
@@ -351,15 +335,10 @@ def get_all_needed(lib_path: str,
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
                         imports = itertools.chain(imports, getattr(pe, attr))
-                if pe.FILE_HEADER.Machine == 0x014c:
-                    lib_arch = 'x86'
-                    ignore_names = _dll_list.ignore_names_x86
-                elif pe.FILE_HEADER.Machine == 0x8664:
-                    lib_arch = 'x64'
-                    ignore_names = _dll_list.ignore_names_x64
-                else:
-                    lib_arch = 'arm64'
-                    ignore_names = _dll_list.ignore_names_arm64
+                lib_arch = MachineType.machine_field_to_type(pe.FILE_HEADER.Machine)
+                if not lib_arch:
+                    raise ValueError(f'{lib_path} has an unsupported CPU architecture')
+                ignore_names = _dll_list.ignore_names[lib_arch]
                 for entry in imports:
                     dll_name = entry.dll.decode('utf-8').lower()
                     if dll_name not in ignore_names and \

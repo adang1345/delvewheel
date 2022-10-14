@@ -3,7 +3,6 @@
 import ast
 import base64
 import hashlib
-import itertools
 import os
 import pathlib
 import pprint
@@ -97,7 +96,7 @@ class WheelRepair:
     _no_dlls: typing.Set[str]  # DLLs to exclude
     _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
     _ignore_in_wheel: bool  # whether to ignore DLLs that are already inside wheel
-    _arch: str  # CPU architecture of wheel: 'x86', 'x64', 'arm64'
+    _arch: _dll_list.MachineType  # CPU architecture of wheel
     _min_supported_python: typing.Optional[typing.Tuple[int, int]]
         # minimum supported Python version based on Python tags (ignoring the
         # Python-Requires metadatum), None if unknown
@@ -130,7 +129,7 @@ class WheelRepair:
         if not self._whl_name.endswith('.whl'):
             raise ValueError(f'{self._whl_name} is not a valid wheel name')
         whl_name_split = os.path.splitext(self._whl_name)[0].split('-')
-        if len(whl_name_split) not in (5, 6):
+        if len(whl_name_split) not in (5, 6) or not all(whl_name_split):
             raise ValueError(f'{self._whl_name} is not a valid wheel name')
         self._distribution_name = whl_name_split[0]
         self._version = whl_name_split[1]
@@ -159,12 +158,12 @@ class WheelRepair:
         # Modify self._no_dlls to include those that are already part of every
         # Python distribution the wheel targets.
         abi_tags = whl_name_split[-2].split('.')
-        platform_tags = whl_name_split[-1].split('.')
-        if len(set(platform_tags) & {'win32', 'win_amd64', 'win_arm64'}) > 1:
+        platform_tag = whl_name_split[-1]
+        if '.' in platform_tag:
             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
         ignore_by_distribution = set().union(*_dll_list.ignore_by_distribution.values())
-        for abi_platform in itertools.product(abi_tags, platform_tags):
-            abi_platform = '-'.join(abi_platform)
+        for abi_tag in abi_tags:
+            abi_platform = f'{abi_tag}-{platform_tag}'
             if abi_platform in _dll_list.ignore_by_distribution:
                 ignore_by_distribution &= _dll_list.ignore_by_distribution[abi_platform]
             else:
@@ -185,24 +184,18 @@ class WheelRepair:
         self._ignore_in_wheel = ignore_in_wheel
 
         # determine the CPU architecture of the wheel
-        self._arch = ''
-        if 'win32' in platform_tags:
-            self._arch = 'x86'
-        elif 'win_amd64' in platform_tags:
-            self._arch = 'x64'
-        elif 'win_arm64' in platform_tags:
-            self._arch = 'arm64'
-        else:
+        self._arch = _dll_list.MachineType.platform_tag_to_type(platform_tag)
+        if not self._arch:
             for root, _, filenames in os.walk(self._extract_dir):
                 for filename in filenames:
                     if filename.lower().endswith('.pyd'):
                         arch = _dll_utils.get_arch(os.path.join(root, filename))
                         if not arch:
                             raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
-                        elif self._arch and self._arch != arch:
+                        elif self._arch and self._arch is not arch:
                             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
                         self._arch = arch
-            self._arch = 'x64'  # set default value for safety; this shouldn't be used
+            self._arch = _dll_list.MachineType.AMD64  # set default value for safety; this shouldn't be used
 
         # get minimum supported Python version
         python_tags = whl_name_split[-3].split('.')
@@ -491,7 +484,7 @@ class WheelRepair:
                     extension_module_path = os.path.join(root, filename)
                     dll_arch = _dll_utils.get_arch(extension_module_path)
                     if dll_arch != self._arch:
-                        raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} is {dll_arch}, which is not allowed in a {self._arch} wheel')
+                        raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} has a CPU architecture that is not compatible with this wheel')
                     if self._is_top_level_ext_module(extension_module_path):
                         if self._verbose >= 1:
                             print(f'analyzing top-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
