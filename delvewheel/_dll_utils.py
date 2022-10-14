@@ -109,7 +109,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
     kernel32 = ctypes.windll.kernel32
     interpreter_arch = get_arch(sys.executable)
     if not interpreter_arch:
-        warnings.warn('Running delvewheel on this CPU architecture is not supported', RuntimeWarning)
+        # file system redirection rules are unknown
         return null_translator
     if interpreter_arch is MachineType.ARM64:
         os_arch = MachineType.ARM64
