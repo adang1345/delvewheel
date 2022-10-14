@@ -1,3 +1,10 @@
+# 1.1.0
+- Revise lists of system DLLs.
+- Introduce experimental support for repair of `win_arm64` wheels.
+- Improve documentation and code style.
+- Optimize the `__init__.py` patch for Python >= 3.10.
+- Ensure that `delvewheel show` always shows the dependent DLLs that are not found.
+
 # 1.0.1
 - Add unit tests for more Python versions and platforms.
 - Avoid including `libpypy3.9-c.dll` when repairing a PyPy3.9 wheel.
