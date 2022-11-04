@@ -35,17 +35,6 @@ class MachineType(enum.Enum):
             return cls.ARM64
         return None
 
-    @property
-    def setuptools_platspec(self) -> str:
-        """Convert the machine type to a setuptools platform specification."""
-        if self is self.__class__.I386:
-            return 'win32'
-        if self is self.__class__.AMD64:
-            return 'x86_amd64'
-        if self is self.__class__.ARM64:
-            return 'x86_arm64'
-        raise ValueError(f'No setuptools platspec exists for {self}')
-
 
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all

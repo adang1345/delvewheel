@@ -199,9 +199,7 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
     1. If not None, the directories in wheel_dirs.
     2. The PATH environment variable. (If we are on a case-sensitive file
        system and a directory contains more than one DLL with the correct
-       architecture that differs by case only, then choose one arbitrarily.)
-    3. On Windows, the Visual C++ 14.x runtime redistributable directory, if it
-       can be found."""
+       architecture that differs by case only, then choose one arbitrarily.)"""
     name = name.lower()
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
@@ -225,19 +223,6 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
                 path = os.path.join(directory, item)
                 if os.path.isfile(path) and get_arch(path) == arch:
                     return path
-    if sys.platform == 'win32':
-        try:
-            from setuptools import msvc
-            plat_spec = arch.setuptools_platspec
-            vcvars = msvc.msvc14_get_vc_env(plat_spec)
-            vcruntime = vcvars['py_vcruntime_redist']
-            redist_dir = os.path.dirname(vcruntime)
-            path = os.path.normpath(os.path.join(redist_dir, name))
-            if os.path.isfile(path) and get_arch(path) == arch:
-                return path
-            return None
-        except Exception:
-            return None
     return None
 
 

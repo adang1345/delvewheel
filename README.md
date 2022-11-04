@@ -31,11 +31,7 @@ The environment used to run `delvewheel` does _not_ need to match the target env
 
 `delvewheel needed`: list the direct DLL dependencies of a single executable
 
-`delvewheel` searches for the location of DLL dependencies in the following order.
-1. The `PATH` environment variable.
-2. The Visual C++ 14.x runtime redistributable directory, if it exists.
-
-To specify an additional directory to search for DLLs, add the location of the DLL to the `PATH` environment variable or use the `--add-path` option.
+`delvewheel` uses the `PATH` environment variable to search for DLL dependencies. To specify an additional directory to search for DLLs, add the location of the DLL to the `PATH` environment variable or use the `--add-path` option.
 
 For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`, `delvewheel needed -h`).
 
