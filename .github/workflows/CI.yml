@@ -30,8 +30,8 @@ jobs:
       - name: build and install
         working-directory: ${{ github.workspace }}
         run: |
-          pip install setuptools wheel
-          python setup.py sdist bdist_wheel
+          pip install build
+          python -m build
           pip install $(Get-ChildItem dist\delvewheel-*.whl)
           if ((git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | Out-String).Contains("delvewheel/_version.py`r`n")) {
             echo VERSION_CHANGED=1 | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
