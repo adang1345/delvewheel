@@ -1,3 +1,7 @@
+# 1.1.1
+- Improve compatibility with PyInstaller. Repaired wheels no longer raise an error immediately if they can't find the vendored DLLs when in a PyInstaller environment.
+- Remove the Visual C++ runtime redistributable directory from the default search path.
+
 # 1.1.0
 - Revise lists of system DLLs.
 - Introduce experimental support for repair of `win_arm64` wheels.
