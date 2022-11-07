@@ -36,6 +36,63 @@ class MachineType(enum.Enum):
         return None
 
 
+# set of regular expressions for additional DLLs to ignore
+ignore_regexes = {
+    re.compile(r'^python[0-9]+\.dll$'),  # included in CPython distribution
+    re.compile(r'^libpypy([0-9]+\.)*[0-9]+-c\.dll$'),  # included in PyPy distribution
+    re.compile(r'^api-'),  # let Windows handle API sets
+}
+
+# DLLs to ignore based on Python ABI tag and platform tag. For CPython, these
+# are included in their respective Python distributions. For PyPy, these are
+# prerequisites for PyPy to run in the first place.
+ignore_by_distribution = {
+    'cp27m-win32': {'msvcr90.dll'},
+    'cp27m-win_amd64': {'msvcr90.dll'},
+    'pypy_41-win32': {'msvcr90.dll'},
+    'pypy_73-win32': {'vcruntime140.dll'},
+    'pypy_73-win_amd64': {'vcruntime140.dll'},
+    'cp34m-win32': {'msvcr100.dll'},
+    'cp34m-win_amd64': {'msvcr100.dll'},
+    'cp35m-win32': {'vcruntime140.dll'},
+    'cp35m-win_amd64': {'vcruntime140.dll'},
+    'cp36m-win32': {'vcruntime140.dll'},
+    'cp36m-win_amd64': {'vcruntime140.dll'},
+    'pypy36_pp73-win32': {'vcruntime140.dll'},
+    'cp37m-win32': {'vcruntime140.dll'},
+    'cp37m-win_amd64': {'vcruntime140.dll'},
+    'pypy37_pp73-win32': {'vcruntime140.dll'},
+    'pypy37_pp73-win_amd64': {'vcruntime140.dll'},
+    'cp38-win32': {'vcruntime140.dll'},
+    'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'pypy38_pp73-win_amd64': {'vcruntime140.dll'},
+    'cp39-win32': {'vcruntime140.dll'},
+    'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'pypy39_pp73-win_amd64': {'vcruntime140.dll'},
+    'cp310-win32': {'vcruntime140.dll'},
+    'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp311-win32': {'vcruntime140.dll'},
+    'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+}
+
+# Prefixes of DLLs whose names should not be mangled. These either are
+# dependencies of DLLs that contain data after the PE file proper (and thus
+# cannot be modified by machomachomangler) or already have the version in the
+# filename.
+no_mangle_prefixes = {
+    'vcruntime',
+    'vccorlib',
+    'msvcp',
+    'msvcr',
+    'concrt',
+    'mfc',
+    'vcamp',
+    'vcomp',
+    'libwinpthread',
+    'ucrtbase',
+}
+
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all
 # the files with extension .dll or .drv found in C:\Windows\SysWOW64 on vanilla
@@ -5845,61 +5902,4 @@ ignore_names = {
     MachineType.I386: ignore_names_x86,
     MachineType.AMD64: ignore_names_x64,
     MachineType.ARM64: ignore_names_arm64,
-}
-
-# set of regular expressions for additional DLLs to ignore
-ignore_regexes = {
-    re.compile(r'^python[0-9]+\.dll$'),  # included in CPython distribution
-    re.compile(r'^libpypy([0-9]+\.)*[0-9]+-c\.dll$'),  # included in PyPy distribution
-    re.compile(r'^api-'),  # let Windows handle API sets
-}
-
-# DLLs to ignore based on Python ABI tag and platform tag. For CPython, these
-# are included in their respective Python distributions. For PyPy, these are
-# prerequisites for PyPy to run in the first place.
-ignore_by_distribution = {
-    'cp27m-win32': {'msvcr90.dll'},
-    'cp27m-win_amd64': {'msvcr90.dll'},
-    'pypy_41-win32': {'msvcr90.dll'},
-    'pypy_73-win32': {'vcruntime140.dll'},
-    'pypy_73-win_amd64': {'vcruntime140.dll'},
-    'cp34m-win32': {'msvcr100.dll'},
-    'cp34m-win_amd64': {'msvcr100.dll'},
-    'cp35m-win32': {'vcruntime140.dll'},
-    'cp35m-win_amd64': {'vcruntime140.dll'},
-    'cp36m-win32': {'vcruntime140.dll'},
-    'cp36m-win_amd64': {'vcruntime140.dll'},
-    'pypy36_pp73-win32': {'vcruntime140.dll'},
-    'cp37m-win32': {'vcruntime140.dll'},
-    'cp37m-win_amd64': {'vcruntime140.dll'},
-    'pypy37_pp73-win32': {'vcruntime140.dll'},
-    'pypy37_pp73-win_amd64': {'vcruntime140.dll'},
-    'cp38-win32': {'vcruntime140.dll'},
-    'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
-    'pypy38_pp73-win_amd64': {'vcruntime140.dll'},
-    'cp39-win32': {'vcruntime140.dll'},
-    'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
-    'pypy39_pp73-win_amd64': {'vcruntime140.dll'},
-    'cp310-win32': {'vcruntime140.dll'},
-    'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
-    'cp311-win32': {'vcruntime140.dll'},
-    'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
-    'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
-}
-
-# Prefixes of DLLs whose names should not be mangled. These either are
-# dependencies of DLLs that contain data after the PE file proper (and thus
-# cannot be modified by machomachomangler) or already have the version in the
-# filename.
-no_mangle_prefixes = {
-    'vcruntime',
-    'vccorlib',
-    'msvcp',
-    'msvcr',
-    'concrt',
-    'mfc',
-    'vcamp',
-    'vcomp',
-    'libwinpthread',
-    'ucrtbase',
 }
