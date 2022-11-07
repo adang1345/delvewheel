@@ -278,7 +278,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
                     dll_name not in no_dlls and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                     dll_name not in no_mangles and \
-                    not any(dll_name.startswith(prefix) for prefix in _dll_list.no_mangle_prefixes):
+                    not any(r.fullmatch(dll_name) for r in _dll_list.no_mangle_regexes):
                 needed.add(dll_name)
     return needed
 

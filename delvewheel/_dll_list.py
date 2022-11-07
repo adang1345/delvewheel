@@ -76,21 +76,21 @@ ignore_by_distribution = {
     'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
-# Prefixes of DLLs whose names should not be mangled. These either are
-# dependencies of DLLs that contain data after the PE file proper (and thus
-# cannot be modified by machomachomangler) or already have the version in the
-# filename.
-no_mangle_prefixes = {
-    'vcruntime',
-    'vccorlib',
-    'msvcp',
-    'msvcr',
-    'concrt',
-    'mfc',
-    'vcamp',
-    'vcomp',
-    'libwinpthread',
-    'ucrtbase',
+# Set of regular expressions of DLLs whose names should not be mangled. These
+# either are dependencies of DLLs that contain data after the PE file proper
+# (and thus cannot be modified by machomachomangler) or are well-known and
+# often already have the version in the filename.
+no_mangle_regexes = {
+    re.compile(r'vcruntime\d.*\.dll'),  # Microsoft C runtime
+    re.compile(r'vccorlib\d.*\.dll'),  # Microsoft VC WinRT core
+    re.compile(r'msvcp[\d_].*\.dll'),  # Microsoft C/C++ runtime
+    re.compile(r'msvcr.*\.dll'),  # Microsoft C runtime
+    re.compile(r'concrt\d.*\.dll'),  # Microsoft concurrency runtime
+    re.compile(r'mfc\d.*\.dll'),  # Microsoft Foundation Class
+    re.compile(r'vcamp\d.*\.dll'),  # Microsoft C++ AMP runtime
+    re.compile(r'vcomp.*\.dll'),  # Microsoft C/C++ OpenMP runtime
+    re.compile(r'libwinpthread-\d.*\.dll'),  # POSIX WinThreads for Windows
+    re.compile(r'ucrtbase.*\.dll'),  # Microsoft C runtime
 }
 
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can

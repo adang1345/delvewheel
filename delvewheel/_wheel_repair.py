@@ -565,7 +565,7 @@ class WheelRepair:
             print('mangling DLL names')
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
-                if not any(lib_name.lower().startswith(prefix) for prefix in _dll_list.no_mangle_prefixes) and \
+                if not any(r.fullmatch(lib_name.lower()) for r in _dll_list.no_mangle_regexes) and \
                         lib_name.lower() not in no_mangles:
                     root, ext = os.path.splitext(lib_name)
                     with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
