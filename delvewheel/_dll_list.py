@@ -38,9 +38,9 @@ class MachineType(enum.Enum):
 
 # set of regular expressions for additional DLLs to ignore
 ignore_regexes = {
-    re.compile(r'^python[0-9]+\.dll$'),  # included in CPython distribution
-    re.compile(r'^libpypy([0-9]+\.)*[0-9]+-c\.dll$'),  # included in PyPy distribution
-    re.compile(r'^api-'),  # let Windows handle API sets
+    re.compile(r'python[0-9]+\.dll'),  # included in CPython distribution
+    re.compile(r'libpypy([0-9]+\.)*[0-9]+-c\.dll'),  # included in PyPy distribution
+    re.compile('api-.*'),  # let Windows handle API sets
 }
 
 # DLLs to ignore based on Python ABI tag and platform tag. For CPython, these

@@ -276,7 +276,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
             dll_name = entry.dll.decode('utf-8').lower()
             if dll_name not in ignore_names and \
                     dll_name not in no_dlls and \
-                    not any(r.search(dll_name) for r in _dll_list.ignore_regexes) and \
+                    not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                     dll_name not in no_mangles and \
                     not any(dll_name.startswith(prefix) for prefix in _dll_list.no_mangle_prefixes):
                 needed.add(dll_name)
@@ -327,7 +327,7 @@ def get_all_needed(lib_path: str,
                 for entry in imports:
                     dll_name = entry.dll.decode('utf-8').lower()
                     if dll_name not in ignore_names and \
-                            not any(r.search(dll_name) for r in _dll_list.ignore_regexes) and \
+                            not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                             dll_name not in no_dlls:
                         dll_path = find_library(dll_name, wheel_dirs, lib_arch)
                         if dll_path:
