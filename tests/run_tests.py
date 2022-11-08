@@ -467,6 +467,52 @@ class RepairTestCase(unittest.TestCase):
         """-vv"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', '-vv', 'simpleext/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
 
+    def test_abi3_cp36(self):
+        """Repair an abi3 wheel for CPython 3.6+."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp36-abi3-win_amd64.whl'])
+        try:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl') as wheel:
+                simpledll_found = False
+                vcruntime_found = False
+                for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir():
+                    if path.name == 'simpledll.dll':
+                        simpledll_found = True
+                    elif path.name == 'vcruntime140.dll':
+                        vcruntime_found = True
+                self.assertTrue(simpledll_found)
+                self.assertFalse(vcruntime_found)
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl'])
+            check_call(['python', '-c', 'import simpleext'])
+        finally:
+            try:
+                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+            except subprocess.CalledProcessError:
+                pass
+            remove('wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl')
+
+    def test_abi3_cp310(self):
+        """Repair an abi3 wheel for CPython 3.10+."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp310-abi3-win_amd64.whl'])
+        try:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl') as wheel:
+                simpledll_found = False
+                vcruntime_found = False
+                for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir():
+                    if path.name == 'simpledll.dll':
+                        simpledll_found = True
+                    elif path.name == 'vcruntime140.dll':
+                        vcruntime_found = True
+                self.assertTrue(simpledll_found)
+                self.assertFalse(vcruntime_found)
+            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl'])
+            check_call(['python', '-c', 'import simpleext'])
+        finally:
+            try:
+                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+            except subprocess.CalledProcessError:
+                pass
+            remove('wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl')
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""

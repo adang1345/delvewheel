@@ -170,15 +170,27 @@ class WheelRepair:
         platform_tag = whl_name_split[-1]
         if '.' in platform_tag:
             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
-        ignore_by_distribution = set().union(*_dll_list.ignore_by_distribution.values())
+        ignore_by_abi_platform = set().union(*_dll_list.ignore_by_abi_platform.values())
         for abi_tag in abi_tags:
             abi_platform = f'{abi_tag}-{platform_tag}'
-            if abi_platform in _dll_list.ignore_by_distribution:
-                ignore_by_distribution &= _dll_list.ignore_by_distribution[abi_platform]
+            if abi_platform in _dll_list.ignore_by_abi_platform:
+                ignore_by_abi_platform &= _dll_list.ignore_by_abi_platform[abi_platform]
             else:
-                ignore_by_distribution = set()
+                ignore_by_abi_platform = set()
                 break
-        self._no_dlls |= ignore_by_distribution
+        self._no_dlls |= ignore_by_abi_platform
+
+        python_tags = whl_name_split[-3].split('.')
+        if abi_tags == ['abi3']:
+            ignore_abi3 = set().union(*_dll_list.ignore_abi3.values())
+            for python_tag in python_tags:
+                python_platform = f'{python_tag}-{platform_tag}'
+                if python_platform in _dll_list.ignore_abi3:
+                    ignore_abi3 &= _dll_list.ignore_abi3[python_platform]
+                else:
+                    ignore_abi3 = set()
+                    break
+            self._no_dlls |= ignore_abi3
 
         # If ignore_in_wheel is True, save list of all directories in the
         # wheel. These directories will be used to search for DLLs that are
@@ -207,7 +219,6 @@ class WheelRepair:
             self._arch = _dll_list.MachineType.AMD64  # set default value for safety; this shouldn't be used
 
         # get minimum supported Python version
-        python_tags = whl_name_split[-3].split('.')
         if python_tags:
             unknown = False
             python_versions = []

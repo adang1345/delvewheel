@@ -43,10 +43,10 @@ ignore_regexes = {
     re.compile('api-.*'),  # let Windows handle API sets
 }
 
-# DLLs to ignore based on Python ABI tag and platform tag. For CPython, these
-# are included in their respective Python distributions. For PyPy, these are
+# DLLs to ignore based on ABI tag and platform tag. For CPython, these are
+# included in their respective Python distributions. For PyPy, these are
 # prerequisites for PyPy to run in the first place.
-ignore_by_distribution = {
+ignore_by_abi_platform = {
     'cp27m-win32': {'msvcr90.dll'},
     'cp27m-win_amd64': {'msvcr90.dll'},
     'pypy_41-win32': {'msvcr90.dll'},
@@ -69,6 +69,26 @@ ignore_by_distribution = {
     'cp39-win32': {'vcruntime140.dll'},
     'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'pypy39_pp73-win_amd64': {'vcruntime140.dll'},
+    'cp310-win32': {'vcruntime140.dll'},
+    'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp311-win32': {'vcruntime140.dll'},
+    'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+}
+
+# DLLs to ignore based on Python tag and platform tag for a wheel that uses the
+# stable ABI with ABI tag 'abi3'.
+ignore_abi3 = {
+    'cp35-win32': {'vcruntime140.dll'},
+    'cp35-win_amd64': {'vcruntime140.dll'},
+    'cp36-win32': {'vcruntime140.dll'},
+    'cp36-win_amd64': {'vcruntime140.dll'},
+    'cp37-win32': {'vcruntime140.dll'},
+    'cp37-win_amd64': {'vcruntime140.dll'},
+    'cp38-win32': {'vcruntime140.dll'},
+    'cp38-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp39-win32': {'vcruntime140.dll'},
+    'cp39-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp310-win32': {'vcruntime140.dll'},
     'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp311-win32': {'vcruntime140.dll'},
