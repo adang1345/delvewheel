@@ -1,5 +1,6 @@
 /dist
 /delvewheel.egg-info
+/build
 __pycache__/
 wheelhouse/
 .idea/
