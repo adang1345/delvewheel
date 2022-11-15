@@ -74,6 +74,9 @@ ignore_by_abi_platform = {
     'cp311-win32': {'vcruntime140.dll'},
     'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp312-win32': {'vcruntime140.dll'},
+    'cp312-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp312-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
 # DLLs to ignore based on Python tag and platform tag for a wheel that uses the
@@ -94,6 +97,9 @@ ignore_abi3 = {
     'cp311-win32': {'vcruntime140.dll'},
     'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp312-win32': {'vcruntime140.dll'},
+    'cp312-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp312-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
 # Set of regular expressions of DLLs whose names should not be mangled. These
