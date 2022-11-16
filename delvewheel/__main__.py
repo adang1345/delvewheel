@@ -13,6 +13,14 @@ def _subdir_suffix(s: str) -> str:
     return s
 
 
+def _dll_names(s: str) -> str:
+    """Helper for argument parser for validating a list of DLL names"""
+    for dll_name in filter(None, map(str.strip, s.split(os.pathsep))):
+        if any(c in r'<>:"/\|?*' or ord(c) < 32 for c in dll_name):
+            raise argparse.ArgumentTypeError(f'Invalid DLL name {dll_name!r}')
+    return s
+
+
 def main():
     """Main function"""
     # parse arguments
@@ -30,13 +38,13 @@ def main():
     for subparser in (parser_show, parser_repair):
         subparser.add_argument('wheel', nargs='+', help='wheel(s) to show or repair')
         subparser.add_argument('--add-path', default='', metavar='PATHS', help=f'additional path(s) to search for DLLs, {os.pathsep!r}-delimited')
-        subparser.add_argument('--add-dll', default='', metavar='DLLS', help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
-        subparser.add_argument('--no-dll', default='', metavar='DLLS', help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
+        subparser.add_argument('--add-dll', default='', metavar='DLLS', type=_dll_names, help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
+        subparser.add_argument('--no-dll', default='', metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
-    parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
+    parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
     parser_needed.add_argument('file', help='path to a DLL or PYD file')
