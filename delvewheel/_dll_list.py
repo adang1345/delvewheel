@@ -47,11 +47,17 @@ ignore_regexes = {
 # included in their respective Python distributions. For PyPy, these are
 # prerequisites for PyPy to run in the first place.
 ignore_by_abi_platform = {
+    'cp26m-win32': {'msvcr90.dll'},
+    'cp26m-win_amd64': {'msvcr90.dll'},
     'cp27m-win32': {'msvcr90.dll'},
     'cp27m-win_amd64': {'msvcr90.dll'},
     'pypy_41-win32': {'msvcr90.dll'},
     'pypy_73-win32': {'vcruntime140.dll'},
     'pypy_73-win_amd64': {'vcruntime140.dll'},
+    'cp32m-win32': {'msvcr90.dll'},
+    'cp32m-win_amd64': {'msvcr90.dll'},
+    'cp33m-win32': {'msvcr100.dll'},
+    'cp33m-win_amd64': {'msvcr100.dll'},
     'cp34m-win32': {'msvcr100.dll'},
     'cp34m-win_amd64': {'msvcr100.dll'},
     'cp35m-win32': {'vcruntime140.dll'},
