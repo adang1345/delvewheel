@@ -1,3 +1,8 @@
+# 1.1.2
+- For `abi3` wheels, don't include DLLs included with Python.
+- Don't assume `vcruntime140_1.dll` is present for Python 3.8 x64.
+- Don't vendor DLLs included with CPython 3.12.
+
 # 1.1.1
 - Improve compatibility with PyInstaller. Repaired wheels no longer raise an error immediately if they can't find the vendored DLLs when in a PyInstaller environment.
 - Remove the Visual C++ runtime redistributable directory from the default search path.
