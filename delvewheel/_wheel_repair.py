@@ -38,15 +38,17 @@ _patch_init_template = """
 
 {0}# start delvewheel patch
 def _delvewheel_init_patch_{1}():
+    import ctypes
     import os
+    import platform
     import sys
     libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {2!r}))
     is_pyinstaller = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-    if sys.version_info[:2] >= (3, 8) and not os.path.exists(os.path.join(sys.base_prefix, 'conda-meta')) or sys.version_info[:2] >= (3, 10):
+    is_conda_cpython = platform.python_implementation() == 'CPython' and (hasattr(ctypes.pythonapi, 'Anaconda_GetVersion') or 'packaged by conda-forge' in sys.version)
+    if sys.version_info[:2] >= (3, 8) and not is_conda_cpython or sys.version_info[:2] >= (3, 10):
         if not is_pyinstaller or os.path.isdir(libs_dir):
             os.add_dll_directory(libs_dir)
     else:
-        from ctypes import WinDLL
         load_order_filepath = os.path.join(libs_dir, {3!r})
         if not is_pyinstaller or os.path.isfile(load_order_filepath):
             with open(os.path.join(libs_dir, {3!r})) as file:
@@ -54,7 +56,7 @@ def _delvewheel_init_patch_{1}():
             for lib in load_order:
                 lib_path = os.path.join(os.path.join(libs_dir, lib))
                 if not is_pyinstaller or os.path.isfile(lib_path):
-                    WinDLL(lib_path)
+                    ctypes.WinDLL(lib_path)
 
 
 _delvewheel_init_patch_{1}()
