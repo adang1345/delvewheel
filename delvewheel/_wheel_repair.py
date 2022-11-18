@@ -244,11 +244,10 @@ class WheelRepair:
             size = len(contents)
             return hash, size
 
-    @staticmethod
-    def _hashfile(afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32) -> str:
+    def _hashfile(self, afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32) -> str:
         """Hash the contents of an open file handle with SHA256. Return the
         first length characters of the hash."""
-        hasher = hashlib.sha256()
+        hasher = hashlib.sha256(self._distribution_name.encode())
         buf = afile.read(blocksize)
         while len(buf) > 0:
             hasher.update(buf)
