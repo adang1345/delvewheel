@@ -1,3 +1,13 @@
+# 1.1.4
+- Add Python 3.12 to trove classifiers.
+- Don't vendor DLLs required by CPython 2.6, 3.2, and 3.3 for wheels targeting those versions.
+- Validate DLL names provided as arguments.
+- Improve Anaconda Python detection.
+- Use wheel distribution name in hash for name-mangling.
+
+# 1.1.3
+- Withdrawn due to a mistake in the release process.
+
 # 1.1.2
 - For `abi3` wheels, don't include DLLs included with Python.
 - Don't assume `vcruntime140_1.dll` is present for Python 3.8 x64.
