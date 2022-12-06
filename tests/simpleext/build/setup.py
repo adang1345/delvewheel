@@ -16,7 +16,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Operating System :: MacOS :: MacOS X',
         'Operating System :: Microsoft :: Windows',
     ],
     license='MIT',
