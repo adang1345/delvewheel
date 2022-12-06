@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 from ._wheel_repair import WheelRepair
 from . import _dll_utils
 
@@ -25,10 +24,7 @@ def main():
     """Main function"""
     # parse arguments
     parser = argparse.ArgumentParser(description='Self-contained wheels for Windows')
-    kwargs = {'dest': 'command'}
-    if sys.version_info[:2] >= (3, 7):
-        kwargs['required'] = True
-    subparsers = parser.add_subparsers(**kwargs)
+    subparsers = parser.add_subparsers(dest='command', required=True)
     parser_show_description = 'Search a wheel for external DLL dependencies'
     parser_show = subparsers.add_parser('show', help=parser_show_description, description=parser_show_description)
     parser_repair_description = 'Vendor in external DLL dependencies of a wheel'
@@ -50,8 +46,6 @@ def main():
     parser_needed.add_argument('file', help='path to a DLL or PYD file')
     parser_needed.add_argument('-v', action='count', default=0, help='verbosity')
     args = parser.parse_args()
-    if args.command is None:
-        raise ValueError('No command provided. Use -h for help.')
 
     # handle command
     if args.command in ('show', 'repair'):

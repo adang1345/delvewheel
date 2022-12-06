@@ -44,16 +44,16 @@ jobs:
       - name: run tests with Python 3.10
         working-directory: ${{ github.workspace }}\tests
         run: python run_tests.py -v
-      - name: set up Python 3.6
+      - name: set up Python 3.7
         uses: actions/setup-python@v4
         with:
-          python-version: '3.6'
-      - name: run tests with Python 3.6
+          python-version: '3.7'
+      - name: run tests with Python 3.7
         working-directory: ${{ github.workspace }}\tests
         run: |
           pip install wheel
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
-          python run_tests.py -v Python36TestCase
+          python run_tests.py -v Python37TestCase
       - name: set up PyPy3.9
         uses: actions/setup-python@v4
         with:
