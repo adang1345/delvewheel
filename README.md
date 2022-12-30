@@ -1,7 +1,7 @@
 [![CI](https://github.com/adang1345/delvewheel/workflows/CI/badge.svg)](https://github.com/adang1345/delvewheel/actions?query=workflow%3ACI)  [![PyPI version](https://img.shields.io/pypi/v/delvewheel?logo=pypi)](https://pypi.org/project/delvewheel) [![Python versions](https://img.shields.io/pypi/pyversions/delvewheel?logo=python)](https://pypi.org/project/delvewheel)
 # delvewheel
 
-`delvewheel` is a command-line tool for creating Python wheel packages for Windows that have DLL dependencies that may not be present on the target system. It is functionally similar to [`auditwheel`](https://github.com/pypa/auditwheel) (for Linux) and [`delocate`](https://github.com/matthew-brett/delocate) (for Mac OS).
+`delvewheel` is a command-line tool for creating Python wheel packages for Windows that have DLL dependencies that may not be present on the target system. It is functionally similar to [`auditwheel`](https://github.com/pypa/auditwheel) (for Linux) and [`delocate`](https://github.com/matthew-brett/delocate) (for macOS).
 
 Suppose that you have built a Python wheel for Windows containing an extension module, but the wheel depends on DLLs that are present in the build environment but may not be present on the end user's machine. This tool determines which DLLs a wheel depends on (aside from system libraries) and copies those DLLs into the wheel.
 
