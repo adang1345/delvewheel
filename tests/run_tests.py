@@ -99,6 +99,15 @@ class ShowTestCase(unittest.TestCase):
         """-vv"""
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', '-vv', 'simpleext/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
 
+    def test_already_repaired(self):
+        """Show is canceled if wheel is already repaired."""
+        try:
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+            output = subprocess.check_output(['delvewheel', 'show', 'wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl'], text=True)
+            self.assertIn('has already repaired', output)
+        finally:
+            remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
+
 
 class RepairTestCase(unittest.TestCase):
     """Tests for delvewheel repair"""
@@ -512,6 +521,15 @@ class RepairTestCase(unittest.TestCase):
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl')
+
+    def test_already_repaired(self):
+        """Repair is canceled if wheel is already repaired."""
+        try:
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+            output = subprocess.check_output(['delvewheel', 'repair', 'wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl'], text=True)
+            self.assertIn('has already repaired', output)
+        finally:
+            remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
 
 
 class NeededTestCase(unittest.TestCase):

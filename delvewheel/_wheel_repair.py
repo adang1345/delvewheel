@@ -378,12 +378,16 @@ class WheelRepair:
 
     def _get_repair_version(self) -> str:
         """If this wheel has already been repaired, return the delvewheel
-        version that performed the repair. Otherwise, return the empty
-        string."""
+        version that performed the repair or '(unknown version)' if the version
+        could not be determined. Return the empty string if the wheel has not
+        been repaired."""
         filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
         if os.path.isfile(filename):
             with open(filename) as file:
-                return file.readline().strip()
+                line = file.readline()
+                if line.startswith('Version: '):
+                    return line[len('Version: '):].rstrip()
+            return '(unknown version)'
         return ''
 
     def _split_dependency_paths(self, dependency_paths: typing.Iterable) -> typing.Tuple[typing.Set, typing.Set]:
@@ -667,10 +671,11 @@ class WheelRepair:
         # package have the same name, do not create __init__.py in the package.
         # Otherwise, the import resolution order of the module and the package
         # would be swapped.
+        dist_info_foldername = f'{self._distribution_name}-{self._version}.dist-info'
         for item in os.listdir(self._extract_dir):
             init_path = os.path.join(self._extract_dir, item, '__init__.py')
             if os.path.isdir(os.path.join(self._extract_dir, item)) and \
-                    item != f'{self._distribution_name}-{self._version}.dist-info' and \
+                    item != dist_info_foldername and \
                     item != f'{self._distribution_name}-{self._version}.data' and \
                     item != libs_dir_name and \
                     (item not in top_level_ext_module_names or os.path.isfile(init_path)):
@@ -684,14 +689,15 @@ class WheelRepair:
                             (item not in top_level_ext_module_names or os.path.isfile(init_path)):
                         self._patch_init(init_path, libs_dir_name, load_order_filename)
 
-        # create .dist-info/DELVEWHEEL file to indicate that the wheel has been
-        # repaired
-        filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
+        # Create .dist-info/DELVEWHEEL file to log repair information. The first
+        # line of the file must be 'Version: ' followed by the delvewheel
+        # version. Further lines are for information purposes only and are
+        # subject to change without notice between delvewheel versions.
+        filename = os.path.join(self._extract_dir, dist_info_foldername, 'DELVEWHEEL')
         with open(filename, 'w') as file:
-            file.write(f'{_version.__version__}\n\n{sys.argv}')
+            file.write(f'Version: {_version.__version__}\nArguments: {sys.argv}\n')
 
         # update record file, which tracks wheel contents and their checksums
-        dist_info_foldername = '-'.join(self._whl_name.split('-')[:2]) + '.dist-info'
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
         print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
         filepath_list = []
