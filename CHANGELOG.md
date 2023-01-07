@@ -1,3 +1,10 @@
+# 1.2.0
+- Drop support for Python 3.6. Python 3.7+ will be required to run `delvewheel` itself. Wheels with a target Python version of 3.6 can still be repaired.
+- Don't vendor DLLs included with CPython 3.9 or 3.10 arm64 for wheels targeting those versions.
+- Make the `DELVEWHEEL` metadata file more structured.
+- Add tests for wheels that have no external DLL dependencies.
+- Include `delvewheel` version in help menu.
+
 # 1.1.4
 - Add Python 3.12 to trove classifiers.
 - Don't vendor DLLs required by CPython 2.6, 3.2, and 3.3 for wheels targeting those versions.
