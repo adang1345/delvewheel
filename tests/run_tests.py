@@ -108,6 +108,23 @@ class ShowTestCase(unittest.TestCase):
         finally:
             remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
 
+    def test_pure_python(self):
+        """No dependencies needed if wheel is pure Python."""
+        output = subprocess.check_output(['delvewheel', 'show', 'no_dependencies/more_itertools-9.0.0-py3-none-any.whl'], text=True)
+        self.assertIn('will be copied into the wheel.\n    None', output)
+
+    def test_no_external(self):
+        """No dependencies needed if wheel has an extension module that has no
+        external dependencies."""
+        output = subprocess.check_output(['delvewheel', 'show', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'], text=True)
+        self.assertIn('will be copied into the wheel.\n    None', output)
+
+    def test_wrong_platform(self):
+        """No dependencies needed if wheel has an extension module that is not
+        for Windows."""
+        output = subprocess.check_output(['delvewheel', 'show', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
+        self.assertIn('will be copied into the wheel.\n    None', output)
+
 
 class RepairTestCase(unittest.TestCase):
     """Tests for delvewheel repair"""
@@ -530,6 +547,23 @@ class RepairTestCase(unittest.TestCase):
             self.assertIn('has already repaired', output)
         finally:
             remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
+
+    def test_pure_python(self):
+        """Repair is canceled if wheel is pure Python."""
+        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/more_itertools-9.0.0-py3-none-any.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
+
+    def test_no_external(self):
+        """Repair is canceled if wheel has an extension module that has no
+        external dependencies."""
+        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
+
+    def test_wrong_platform(self):
+        """Repair is canceled if wheel has an extension module that is not for
+        Windows."""
+        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
 
 
 class NeededTestCase(unittest.TestCase):
