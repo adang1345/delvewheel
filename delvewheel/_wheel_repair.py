@@ -649,6 +649,12 @@ class WheelRepair:
             if any(graph.values()):
                 graph_leftover = {k: v for k, v in graph.items() if v}
                 raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
+            # If the wheel contains a top-level extension module, then the load-
+            # order file will be installed directly into site-packages. To avoid
+            # conflicts with load-order files from other distributions, include
+            # the distribution name and version in the load-order filename. Do
+            # this regardless of whether the wheel actually contains a top-level
+            # extension module.
             load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
             load_order_filepath = os.path.join(libs_dir, load_order_filename)
             if os.path.exists(load_order_filepath):
