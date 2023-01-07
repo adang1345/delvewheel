@@ -1,6 +1,7 @@
 import argparse
 import os
 from ._wheel_repair import WheelRepair
+from ._version import __version__
 from . import _dll_utils
 
 
@@ -23,7 +24,7 @@ def _dll_names(s: str) -> str:
 def main():
     """Main function"""
     # parse arguments
-    parser = argparse.ArgumentParser(description='Self-contained wheels for Windows')
+    parser = argparse.ArgumentParser(description=f'Delvewheel {__version__}: Create self-contained wheels for Windows')
     subparsers = parser.add_subparsers(dest='command', required=True)
     parser_show_description = 'Search a wheel for external DLL dependencies'
     parser_show = subparsers.add_parser('show', help=parser_show_description, description=parser_show_description)
