@@ -1,75 +1,75 @@
-# 1.2.0
+## 1.2.0
 - Drop support for Python 3.6. Python 3.7+ will be required to run `delvewheel` itself. Wheels with a target Python version of 3.6 can still be repaired.
 - Don't vendor DLLs included with CPython 3.9 or 3.10 arm64 for wheels targeting those versions.
 - Make the `DELVEWHEEL` metadata file more structured.
 - Add tests for wheels that have no external DLL dependencies.
 - Include `delvewheel` version in help menu.
 
-# 1.1.4
+## 1.1.4
 - Add Python 3.12 to trove classifiers.
 - Don't vendor DLLs required by CPython 2.6, 3.2, and 3.3 for wheels targeting those versions.
 - Validate DLL names provided as arguments.
 - Improve Anaconda Python detection.
 - Use wheel distribution name in hash for name-mangling.
 
-# 1.1.3
+## 1.1.3
 - Withdrawn due to a mistake in the release process.
 
-# 1.1.2
+## 1.1.2
 - For `abi3` wheels, don't include DLLs included with Python.
 - Don't assume `vcruntime140_1.dll` is present for Python 3.8 x64.
 - Don't vendor DLLs included with CPython 3.12.
 
-# 1.1.1
+## 1.1.1
 - Improve compatibility with PyInstaller. Repaired wheels no longer raise an error immediately if they can't find the vendored DLLs when in a PyInstaller environment.
 - Remove the Visual C++ runtime redistributable directory from the default search path.
 
-# 1.1.0
+## 1.1.0
 - Revise lists of system DLLs.
 - Introduce experimental support for repair of `win_arm64` wheels.
 - Improve documentation and code style.
 - Optimize the `__init__.py` patch for Python >= 3.10.
 - Ensure that `delvewheel show` always shows the dependent DLLs that are not found.
 
-# 1.0.1
+## 1.0.1
 - Add unit tests for more Python versions and platforms.
 - Avoid including `libpypy3.9-c.dll` when repairing a PyPy3.9 wheel.
 - Avoid `OSError: [Errno 22] Invalid argument` during name-mangling step when running `delvewheel` in PyPy.
 
-# 1.0.0
+## 1.0.0
 - Label project as production/stable.
 - Fix "relative import outside package" warning.
 - Add unit tests.
 - Make `delvewheel needed` output prettier.
 
-# 0.0.25
+## 0.0.25
 - Undo deprecation of `--no-mangle-all`. It will stay.
 
-# 0.0.24
+## 0.0.24
 - Don't mangle `ucrtbased.dll`.
 - Fix DLL load error for Anaconda Python 3.8 and 3.9.
 
-# 0.0.23
+## 0.0.23
 - Increase hash length when name-mangling DLLs.
 - Remove extra newline from output end.
 - Document CPU architecture limitations.
 - Document warning regarding `--add-dll`.
 - Deprecate `--no-mangle-all`.
 
-# 0.0.22
+## 0.0.22
 - Improve performance of reading PE files.
 - Print warnings from `pefile` at verbosity level 2.
 - Disable the Anaconda workaround for Python 3.8.13.
 
-# 0.0.21
+## 0.0.21
 - Record command-line arguments in `DELVEWHEEL` file to aid in diagnosing issues.
 - Don't vendor DLLs that are included with PyPy3.7 64-bit or PyPy2.7.
 
-# 0.0.20
+## 0.0.20
 - Remove the limitation where the bitness of Python interpreter must match the bitness of the wheel.
 - Ensure that the search for `.pyd` files is case-insensitive. Previously, extension modules would be missed if the `.pyd` extension was not all lowercase.
 
-# 0.0.19
+## 0.0.19
 - Fix a bug where using `--add-dll` can cause failures during the name-mangling step.
 - Fix a bug where `--ignore-in-wheel` does not take effect during a wheel repair.
 - Allow `delvewheel` to run on non-Windows systems.
@@ -78,56 +78,56 @@
 - Document the limitations of `--ignore-in-wheel`.
 - Don't vendor DLLs included with CPython 3.11 or PyPy3.8 for wheels targeting those versions.
 
-# 0.0.18
+## 0.0.18
 - Fix a parse error if `__init__.py` contains a docstring that uses triple single-quotes.
 - Fix a parse error if `__init__.py` contains a docstring whose contents start with a double-quote.
 
-# 0.0.17
+## 0.0.17
 - Don't mangle `libwinpthread*.dll`.
 
-# 0.0.16
+## 0.0.16
 - Avoid adding `__init__.py` to a folder with the same name as a top-level module. This ensures that the module search order is unaffected by the wheel repair process.
 
-# 0.0.15
+## 0.0.15
 - Fix an issue with the Anaconda workaround where `CONDA_DLL_SEARCH_MODIFICATION_ENABLE` was not restored.
 
-# 0.0.14
+## 0.0.14
 - Work around a bug in Anaconda distribution of Python where `os.add_dll_directory()` has no effect.
 - Don't vendor DLLs included with Python 3.10 for wheels targeting this version.
 
-# 0.0.13
+## 0.0.13
 - Continue searching when a DLL dependency of the wrong bitness is found.
 
-# 0.0.12
+## 0.0.12
 - Parse `__init__.py` correctly when comments precede the docstring.
 - Fix `__init__.py` for Python < 3.8.
 
-# 0.0.11
+## 0.0.11
 - Introduce the `--ignore-in-wheel` flag.
 - Avoid repairing wheels that were already repaired.
 - Don't vendor DLLs that are already included with a Python installation.
 - Add the Microsoft Visual C++ runtime redistributable directory to the DLL search path.
 
-# 0.0.10
+## 0.0.10
 - Ensure that vendored DLLs can be loaded when the wheel has a top-level module.
 - Patch `__init__.py` correctly in a platlib wheel.
 - Clarify the documentation for the `--no-dll` flag.
 
-# 0.0.9
+## 0.0.9
 - Use the `delvewheel` version number instead of random string when patching `__init__.py`.
 - Correct the patching of `__init__.py` when it contains a `__future__` import.
 
-# 0.0.8
+## 0.0.8
 - Correct the parsing of `__init__.py` with docstring that starts or ends with whitespace.
 
-# 0.0.7
+## 0.0.7
 - Patch `__init__.py` correctly in a purelib wheel.
 - Enforce incompatibility with non-Windows platforms.
 
-# 0.0.6
+## 0.0.6
 - Fix error running on Python 3.8 or earlier.
 
-# 0.0.5
+## 0.0.5
 - Improve error message if a DLL cannot be name-mangled.
 - Don't mangle `msvcr*.dll`.
 - Change `--add-path` to prepend to `PATH` instead of appending.
