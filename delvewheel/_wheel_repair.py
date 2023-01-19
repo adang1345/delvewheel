@@ -710,7 +710,7 @@ class WheelRepair:
         for root, _, files in os.walk(self._extract_dir):
             for file in files:
                 filepath_list.append(os.path.join(root, file))
-        with open(record_filepath, 'w') as record_file:
+        with open(record_filepath, 'w', newline='\n') as record_file:
             for file_path in filepath_list:
                 if file_path == record_filepath:
                     record_file.write(os.path.relpath(record_filepath, self._extract_dir).replace('\\', '/'))
