@@ -700,7 +700,7 @@ class WheelRepair:
         # version. Further lines are for information purposes only and are
         # subject to change without notice between delvewheel versions.
         filename = os.path.join(self._extract_dir, dist_info_foldername, 'DELVEWHEEL')
-        with open(filename, 'w') as file:
+        with open(filename, 'w', newline='\n') as file:
             file.write(f'Version: {_version.__version__}\nArguments: {sys.argv}\n')
 
         # update record file, which tracks wheel contents and their checksums
