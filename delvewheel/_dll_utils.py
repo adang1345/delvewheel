@@ -1,4 +1,4 @@
-"""DLL file patching functions."""
+"""Utilities for analyzing and patching DLL files."""
 
 import ctypes
 import itertools
