@@ -4,7 +4,10 @@ import ctypes
 import itertools
 import os
 import pathlib
+import shutil
+import subprocess
 import sys
+import tempfile
 import textwrap
 import typing
 import warnings
@@ -343,28 +346,32 @@ def get_all_needed(lib_path: str,
     return discovered, ignored, not_found
 
 
-def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, verbose: int) -> None:
+def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, strip: bool, verbose: int) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map.
     old_deps: a subset of the dependencies that lib_path has
     name_map: a dict that maps an old dependency name to a new name, must
-        contain at least all the keys in old_deps"""
+        contain at least all the keys in old_deps
+    strip: whether to try to strip DLLs that contain trailing data"""
     used_name_map = {dep.encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
     if not used_name_map:
         # no dependency names to change
         return
-    with open(lib_path, 'rb') as f:
-        buf = f.read()
-    try:
-        buf = bytes(machomachomangler.pe.redll(buf, used_name_map))
-    except ValueError as ex:
-        if "Can't add new section" in str(ex):
+    with PEContext(lib_path, None, False, verbose) as pe:
+        pe_size = pe.sections[-1].PointerToRawData + pe.sections[-1].SizeOfRawData
+    if pe_size < os.path.getsize(lib_path):
+        if strip:
+            try:
+                subprocess.check_call(['strip', '-s', lib_path])
+            except FileNotFoundError:
+                raise FileNotFoundError('GNU strip not found in PATH') from None
+        else:
             error_text = [
                 textwrap.fill(
                     'Unable to rename the dependencies of '
                     f'{os.path.basename(lib_path)} because this DLL contains '
                     'trailing data after the point where the DLL file '
-                    'specification ends. Commonly, the trailing data consists '
+                    'specification ends. Commonly, the trailing data consist '
                     'of symbols that can be safely removed, although there '
                     'exist situations where the data must be present for the '
                     'DLL to function properly. Here are your options.',
@@ -378,13 +385,21 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, ver
                 ),
                 '\n',
                 textwrap.fill(
+                    '- Use the --strip flag to ask delvewheel to execute '
+                    'strip automatically when trailing data are detected.',
+                    subsequent_indent='  '
+                ),
+                '\n',
+                textwrap.fill(
                     f'- Include {os.pathsep.join(old_deps)} in the '
                     '--no-mangle flag.',
                     subsequent_indent='  '
                 )
             ]
-            raise RuntimeError(''.join(error_text)) from None
-        raise ex
+            raise RuntimeError(''.join(error_text))
+    with open(lib_path, 'rb') as f:
+        buf = f.read()
+    buf = bytes(machomachomangler.pe.redll(buf, used_name_map))
     with PEContext(None, buf, False, verbose) as pe:
         pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
         buf = pe.write()

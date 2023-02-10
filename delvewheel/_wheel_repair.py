@@ -483,11 +483,13 @@ class WheelRepair:
         if not_found_dll_names:
             print('\nWarning: At least one dependent DLL needs to be copied into the wheel but was not found.')
 
-    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, lib_sdir: str) -> None:
+    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, strip: bool, lib_sdir: str) -> None:
         """Repair the wheel in a manner similar to auditwheel.
         target is the target directory for storing the repaired wheel
         no_mangles is a set of lowercase DLL names that will not be mangled
         no_mangle_all is True if no DLL name mangling should happen at all
+        strip is True if we should strip DLLs that contain trailing data when
+            name-mangling
         lib_sdir is the suffix for the directory to store the DLLs"""
         print(f'repairing {self._whl_path}')
 
@@ -592,7 +594,7 @@ class WheelRepair:
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
-                _dll_utils.replace_needed(extension_module_path, needed, name_mangler, self._verbose)
+                _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose)
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
@@ -602,7 +604,7 @@ class WheelRepair:
                         print(f'repairing {lib_name} -> {lib_name}')
                 lib_path = os.path.join(libs_dir, lib_name)
                 needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
-                _dll_utils.replace_needed(lib_path, needed, name_mangler, self._verbose)
+                _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose)
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 

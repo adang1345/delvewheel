@@ -177,6 +177,25 @@ class RepairTestCase(unittest.TestCase):
                 self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
         self.assertTrue(import_iknowpy_successful())
 
+    def test_strip_0(self):
+        """--strip has no effect when it's not needed"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--strip', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
+    def test_strip_1(self):
+        """--strip needed for 1 DLL"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--strip', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
+    def test_strip_2(self):
+        """--strip needed for 2 DLLs"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--strip', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
     def test_add_dll_1(self):
         """--add-dll for 1 DLL, case-insensitive"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
