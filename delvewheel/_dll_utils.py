@@ -5,6 +5,7 @@ import itertools
 import os
 import pathlib
 import sys
+import textwrap
 import typing
 import warnings
 import pefile
@@ -358,16 +359,31 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, ver
         buf = bytes(machomachomangler.pe.redll(buf, used_name_map))
     except ValueError as ex:
         if "Can't add new section" in str(ex):
-            raise RuntimeError(
-                'Unable to rename the dependencies of '
-                f'{os.path.basename(lib_path)} because this DLL has trailing '
-                'data. If this DLL was created with MinGW, run the strip '
-                f'utility. Otherwise, include {os.pathsep.join(old_deps)} in '
-                'the --no-mangle flag. In addition, if you believe that '
-                'delvewheel should avoid name-mangling a specific DLL by '
-                'default, open an issue at '
-                'https://github.com/adang1345/delvewheel/issues and include '
-                'this error message.') from None
+            error_text = [
+                textwrap.fill(
+                    'Unable to rename the dependencies of '
+                    f'{os.path.basename(lib_path)} because this DLL contains '
+                    'trailing data after the point where the DLL file '
+                    'specification ends. Commonly, the trailing data consists '
+                    'of symbols that can be safely removed, although there '
+                    'exist situations where the data must be present for the '
+                    'DLL to function properly. Here are your options.',
+                    initial_indent=' ' * len('RuntimeError: ')).lstrip(),
+                '\n',
+                textwrap.fill(
+                    '- Try to remove the trailing data using the GNU strip '
+                    'utility with the command '
+                    f"`strip -s {os.path.basename(lib_path)}'.",
+                    subsequent_indent='  '
+                ),
+                '\n',
+                textwrap.fill(
+                    f'- Include {os.pathsep.join(old_deps)} in the '
+                    '--no-mangle flag.',
+                    subsequent_indent='  '
+                )
+            ]
+            raise RuntimeError(''.join(error_text)) from None
         raise ex
     with PEContext(None, buf, False, verbose) as pe:
         pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
