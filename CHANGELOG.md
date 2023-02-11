@@ -1,3 +1,9 @@
+## 1.3.0 <sub><sup>(_10 February 2023_)</sup></sub>
+- Use Unix line endings for the `RECORD` and `DELVEWHEEL` metadata files.
+- Improve error message in name-mangling step when a DLL has trailing data.
+- Preserve the order of paths specified with `--add-path`.
+- Introduce the `--strip` flag to automatically strip DLLs with trailing data during the name-mangling step.
+
 ## 1.2.0 <sub><sup>(_7 January 2023_)</sup></sub>
 - Drop support for Python 3.6. Python 3.7+ will be required to run `delvewheel` itself. Wheels with a target Python version of 3.6 can still be repaired.
 - Don't vendor DLLs included with CPython 3.9 or 3.10 arm64 for wheels targeting those versions.
