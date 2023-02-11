@@ -4,10 +4,8 @@ import ctypes
 import itertools
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
-import tempfile
 import textwrap
 import typing
 import warnings
@@ -359,12 +357,27 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, str
         return
     with PEContext(lib_path, None, False, verbose) as pe:
         pe_size = pe.sections[-1].PointerToRawData + pe.sections[-1].SizeOfRawData
+    if pe_size < os.path.getsize(lib_path) and strip:
+        try:
+            subprocess.check_call(['strip', '-s', lib_path])
+        except FileNotFoundError:
+            raise FileNotFoundError('GNU strip not found in PATH') from None
+        with PEContext(lib_path, None, False, verbose) as pe:
+            pe_size = pe.sections[-1].PointerToRawData + pe.sections[-1].SizeOfRawData
     if pe_size < os.path.getsize(lib_path):
         if strip:
-            try:
-                subprocess.check_call(['strip', '-s', lib_path])
-            except FileNotFoundError:
-                raise FileNotFoundError('GNU strip not found in PATH') from None
+            raise RuntimeError(textwrap.fill(
+                'Unable to rename the dependencies of '
+                f'{os.path.basename(lib_path)} because this DLL contains '
+                'trailing data after the point where the DLL file '
+                'specification ends. The GNU strip utility was run '
+                'automatically in attempt to remove the trailing data but '
+                'failed to remove all of it. Unless you have knowledge to the '
+                'contrary, you should assume that the trailing data were '
+                'added for an important reason and are not safe to remove. '
+                f'Include {os.pathsep.join(old_deps)} in the --no-mangle flag '
+                'to fix this error.',
+                initial_indent=' ' * len('RuntimeError: ')).lstrip())
         else:
             error_text = [
                 textwrap.fill(
