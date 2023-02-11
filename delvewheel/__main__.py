@@ -50,7 +50,7 @@ def main():
 
     # handle command
     if args.command in ('show', 'repair'):
-        add_paths = set(os.path.abspath(path) for path in args.add_path.split(os.pathsep) if path)
+        add_paths = dict.fromkeys(os.path.abspath(path) for path in args.add_path.split(os.pathsep) if path)
         add_dlls = set(dll_name.lower() for dll_name in args.add_dll.split(os.pathsep) if dll_name)
         no_dlls = set(dll_name.lower() for dll_name in args.no_dll.split(os.pathsep) if dll_name)
 
