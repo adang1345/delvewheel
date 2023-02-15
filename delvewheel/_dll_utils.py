@@ -356,14 +356,14 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, str
         # no dependency names to change
         return
     with PEContext(lib_path, None, False, verbose) as pe:
-        pe_size = pe.sections[-1].PointerToRawData + pe.sections[-1].SizeOfRawData
+        pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
     if pe_size < os.path.getsize(lib_path) and strip:
         try:
             subprocess.check_call(['strip', '-s', lib_path])
         except FileNotFoundError:
             raise FileNotFoundError('GNU strip not found in PATH') from None
         with PEContext(lib_path, None, False, verbose) as pe:
-            pe_size = pe.sections[-1].PointerToRawData + pe.sections[-1].SizeOfRawData
+            pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
     if pe_size < os.path.getsize(lib_path):
         if strip:
             raise RuntimeError(textwrap.fill(
