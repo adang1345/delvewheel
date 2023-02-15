@@ -1,21 +1,36 @@
 """Utilities for analyzing and patching DLL files."""
 
 import ctypes
+import io
 import itertools
 import os
 import pathlib
+import struct
 import subprocess
 import sys
 import textwrap
 import typing
 import warnings
 import pefile
-import machomachomangler.pe
 from . import _dll_list
 from ._dll_list import MachineType
 
 
 pefile.fast_load = True
+_SECTION_HEADER_FORMAT = (
+    '<'   # little-endian
+    '8s'  # Name
+    'I'   # VirtualSize
+    'I'   # VirtualAddress
+    'I'   # SizeOfRawData
+    'I'   # PointerToRawData
+    'I'   # PointerToRelocations
+    'I'   # PointerToLinenumbers
+    'H'   # NumberOfRelocations
+    'H'   # NumberOfLinenumbers
+    'I'   # Characteristics
+)
+_SECTION_HEADER_SIZE = struct.calcsize(_SECTION_HEADER_FORMAT)
 
 
 class PEContext:
@@ -344,56 +359,66 @@ def get_all_needed(lib_path: str,
     return discovered, ignored, not_found
 
 
-def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, strip: bool, verbose: int) -> None:
+def _round_to_next(size: int, alignment: int) -> int:
+    """Return smallest n such that n % alignment == 0 and n >= size."""
+    if size % alignment == 0:
+        return size
+    else:
+        return alignment * (size // alignment + 1)
+
+
+def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typing.Dict[str, str], strip: bool, verbose: int) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map.
     old_deps: a subset of the dependencies that lib_path has
     name_map: a dict that maps an old dependency name to a new name, must
         contain at least all the keys in old_deps
     strip: whether to try to strip DLLs that contain trailing data"""
-    used_name_map = {dep.encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
+    used_name_map = {dep.lower().encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
+        # map from lowercase old DLL name in bytes to new DLL name in bytes, includes only those DLLs that will be mangled
     if not used_name_map:
         # no dependency names to change
         return
     with PEContext(lib_path, None, False, verbose) as pe:
         pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
     if pe_size < os.path.getsize(lib_path) and strip:
+        # try to strip the trailing data
         try:
             subprocess.check_call(['strip', '-s', lib_path])
         except FileNotFoundError:
             raise FileNotFoundError('GNU strip not found in PATH') from None
         with PEContext(lib_path, None, False, verbose) as pe:
             pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
+    lib_name = os.path.basename(lib_path)
     if pe_size < os.path.getsize(lib_path):
+        # cannot rename dependencies due to trailing data
         if strip:
             raise RuntimeError(textwrap.fill(
-                'Unable to rename the dependencies of '
-                f'{os.path.basename(lib_path)} because this DLL contains '
-                'trailing data after the point where the DLL file '
-                'specification ends. The GNU strip utility was run '
+                f'Unable to rename the dependencies of {lib_name} because '
+                'this DLL contains trailing data after the point where the '
+                'DLL file specification ends. The GNU strip utility was run '
                 'automatically in attempt to remove the trailing data but '
                 'failed to remove all of it. Unless you have knowledge to the '
-                'contrary, you should assume that the trailing data were '
-                'added for an important reason and are not safe to remove. '
-                f'Include {os.pathsep.join(old_deps)} in the --no-mangle flag '
-                'to fix this error.',
+                'contrary, you should assume that the trailing data exist for '
+                'an important reason and are not safe to remove. Include '
+                f'{os.pathsep.join(old_deps)} in the --no-mangle flag to fix '
+                'this error.',
                 initial_indent=' ' * len('RuntimeError: ')).lstrip())
         else:
             error_text = [
                 textwrap.fill(
-                    'Unable to rename the dependencies of '
-                    f'{os.path.basename(lib_path)} because this DLL contains '
-                    'trailing data after the point where the DLL file '
-                    'specification ends. Commonly, the trailing data consist '
-                    'of symbols that can be safely removed, although there '
-                    'exist situations where the data must be present for the '
-                    'DLL to function properly. Here are your options.',
+                    f'Unable to rename the dependencies of {lib_name} because '
+                    'this DLL contains trailing data after the point where '
+                    'the DLL file specification ends. Commonly, the trailing '
+                    'data consist of symbols that can be safely removed, '
+                    'although there exist situations where the data must be '
+                    'present for the DLL to function properly. Here are your '
+                    'options.',
                     initial_indent=' ' * len('RuntimeError: ')).lstrip(),
                 '\n',
                 textwrap.fill(
                     '- Try to remove the trailing data using the GNU strip '
-                    'utility with the command '
-                    f"`strip -s {os.path.basename(lib_path)}'.",
+                    f"utility with the command `strip -s {lib_name}'.",
                     subsequent_indent='  '
                 ),
                 '\n',
@@ -410,11 +435,85 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable, name_map: dict, str
                 )
             ]
             raise RuntimeError(''.join(error_text))
-    with open(lib_path, 'rb') as f:
-        buf = f.read()
-    buf = bytes(machomachomangler.pe.redll(buf, used_name_map))
-    with PEContext(None, buf, False, verbose) as pe:
+
+    # generate section data containing strings for new DLL names
+    section_offset_mapping = {}  # map lowercase old DLL name to offset of new DLL name within new section
+    with io.BytesIO() as new_section_data:
+        for old_dll, new_dll in used_name_map.items():
+            section_offset_mapping[old_dll] = new_section_data.tell()
+            new_section_data.write(new_dll)
+            new_section_data.write(b'\x00')
+        new_section_data = new_section_data.getvalue()
+
+    # update PE headers and import tables to what they will need to be once the
+    # new section header and new section are added
+    with PEContext(lib_path, None, True, verbose) as pe:
+        section_table_end = pe.DOS_HEADER.e_lfanew + 4 + \
+                            pe.FILE_HEADER.sizeof() + \
+                            pe.FILE_HEADER.SizeOfOptionalHeader + \
+                            pe.FILE_HEADER.NumberOfSections * _SECTION_HEADER_SIZE
+        if pe.OPTIONAL_HEADER.SizeOfHeaders - section_table_end >= _SECTION_HEADER_SIZE:
+            # there's enough unused space to add new section header
+            new_section_header_space_needed = 0
+        else:
+            # there's not enough unused space to add new section header;
+            # calculate how much extra space to add
+            new_section_header_space_needed = _round_to_next(_SECTION_HEADER_SIZE, pe.OPTIONAL_HEADER.FileAlignment)
+        new_section_data_size = _round_to_next(len(new_section_data), pe.OPTIONAL_HEADER.FileAlignment)
+        new_section_rva = _round_to_next(max(section.VirtualAddress + section.Misc_VirtualSize for section in pe.sections), pe.OPTIONAL_HEADER.SectionAlignment)
+
+        pe.FILE_HEADER.NumberOfSections += 1
+        pe.OPTIONAL_HEADER.SizeOfInitializedData += len(new_section_data)
+        pe.OPTIONAL_HEADER.SizeOfImage += new_section_header_space_needed + new_section_data_size
+        pe.OPTIONAL_HEADER.SizeOfHeaders += new_section_header_space_needed
+        for section in pe.sections:
+            section.PointerToRawData += new_section_header_space_needed
+        cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+        if cert_table.Size > 0:
+            warnings.warn(f'Authenticode signature has been removed from {lib_name}', UserWarning)
+            cert_table.VirtualAddress = 0
+            cert_table.Size = 0
+
+        if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                old_dll = entry.dll.lower()
+                if old_dll in section_offset_mapping:
+                    entry.struct.Name = new_section_rva + section_offset_mapping[old_dll]
+        if hasattr(pe, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
+            for entry in pe.DIRECTORY_ENTRY_DELAY_IMPORT:
+                old_dll = entry.dll.lower()
+                if old_dll in section_offset_mapping:
+                    entry.struct.szName = new_section_rva + section_offset_mapping[old_dll]
+        lib_data = pe.write()
+
+    # add new section header and new section
+    with io.BytesIO() as new_lib_data:
+        new_lib_data.write(lib_data[:section_table_end])
+        new_section_header = struct.pack(
+            _SECTION_HEADER_FORMAT,
+            b'redll',  # Name
+            len(new_section_data),  # VirtualSize
+            new_section_rva,  # VirtualAddress
+            new_section_data_size,  # SizeOfRawData
+            len(lib_data) + new_section_header_space_needed,  # PointerToRawData
+            0,  # PointerToRelocations
+            0,  # PointerToLinenumbers
+            0,  # NumberOfRelocations
+            0,  # NumberOfLinenumbers
+            pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_READ'] | pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_CNT_INITIALIZED_DATA']
+                # Characteristics
+        )
+        new_lib_data.write(new_section_header)
+        if new_section_header_space_needed:
+            new_lib_data.write(b'\x00' * (new_section_header_space_needed - _SECTION_HEADER_SIZE))
+            new_lib_data.write(lib_data[section_table_end:])
+        else:
+            new_lib_data.write(lib_data[section_table_end + _SECTION_HEADER_SIZE:])
+        new_lib_data.write(new_section_data)
+        new_lib_data.write(b'\x00' * (new_section_data_size - len(new_section_data)))
+        lib_data = new_lib_data.getvalue()
+
+    # fix the checksum
+    with PEContext(None, lib_data, False, verbose) as pe:
         pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
-        buf = pe.write()
-    with open(lib_path, 'wb') as f:
-        f.write(buf)
+        pe.write(lib_path)

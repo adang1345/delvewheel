@@ -112,8 +112,8 @@ ignore_abi3 = {
 
 # Set of regular expressions of DLLs whose names should not be mangled. These
 # either are dependencies of DLLs that contain data after the PE file proper
-# (and thus cannot be modified by machomachomangler) or are well-known and
-# often already have the version in the filename.
+# (and thus cannot be name-mangled as-is) or are well-known and often already
+# have the version in the filename.
 no_mangle_regexes = {
     re.compile(r'vcruntime\d.*\.dll'),  # Microsoft C runtime
     re.compile(r'vccorlib\d.*\.dll'),  # Microsoft VC WinRT core
