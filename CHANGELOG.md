@@ -1,3 +1,8 @@
+## 1.3.1 <sub><sup>(_16 February 2023_)</sup></sub>
+- Improve error message if `--strip` fails to remove all trailing data.
+- Correct the calculation that determines whether a DLL contains trailing data if the last entry in the PE section header does not correspond to the last section of the PE file.
+- Remove the `machomachomangler` dependency. `delvewheel` now takes full responsibility for DLL name-mangling.
+
 ## 1.3.0 <sub><sup>(_10 February 2023_)</sup></sub>
 - Use Unix line endings for the `RECORD` and `DELVEWHEEL` metadata files.
 - Improve error message in name-mangling step when a DLL has trailing data.
