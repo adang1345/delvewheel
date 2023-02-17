@@ -185,15 +185,15 @@ class RepairTestCase(unittest.TestCase):
     def test_strip_1(self):
         """--strip needed for 1 DLL"""
         with self.assertRaises(subprocess.CalledProcessError):
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--strip', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
     def test_strip_2(self):
         """--strip needed for 2 DLLs"""
         with self.assertRaises(subprocess.CalledProcessError):
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--strip', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
     def test_add_dll_1(self):
@@ -586,7 +586,7 @@ class RepairTestCase(unittest.TestCase):
 
     def test_header_space(self):
         """PE header space is added correctly in name-mangling step."""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--test', 'header_space', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--test', 'not_enough_padding,header_space', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
 
