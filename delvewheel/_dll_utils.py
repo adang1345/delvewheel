@@ -437,10 +437,10 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
             raise RuntimeError(''.join(error_text))
 
     # generate section data containing strings for new DLL names
-    section_offset_mapping = {}  # map lowercase old DLL name to offset of new DLL name within new section
+    new_section_offset_mapping = {}  # map lowercase old DLL name to offset of new DLL name within new section
     with io.BytesIO() as new_section_data:
         for old_dll, new_dll in used_name_map.items():
-            section_offset_mapping[old_dll] = new_section_data.tell()
+            new_section_offset_mapping[old_dll] = new_section_data.tell()
             new_section_data.write(new_dll)
             new_section_data.write(b'\x00')
         new_section_data = new_section_data.getvalue()
@@ -459,12 +459,13 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
             # there's not enough unused space to add new section header;
             # calculate how much extra space to add
             new_section_header_space_needed = _round_to_next(_SECTION_HEADER_SIZE, pe.OPTIONAL_HEADER.FileAlignment)
-        new_section_data_size = _round_to_next(len(new_section_data), pe.OPTIONAL_HEADER.FileAlignment)
+        new_section_data_size = len(new_section_data)
+        new_section_data_padded_size = _round_to_next(new_section_data_size, pe.OPTIONAL_HEADER.FileAlignment)
         new_section_rva = _round_to_next(max(section.VirtualAddress + section.Misc_VirtualSize for section in pe.sections), pe.OPTIONAL_HEADER.SectionAlignment)
 
         pe.FILE_HEADER.NumberOfSections += 1
-        pe.OPTIONAL_HEADER.SizeOfInitializedData += new_section_data_size
-        pe.OPTIONAL_HEADER.SizeOfImage = _round_to_next(new_section_rva + len(new_section_data), pe.OPTIONAL_HEADER.SectionAlignment)
+        pe.OPTIONAL_HEADER.SizeOfInitializedData += new_section_data_padded_size
+        pe.OPTIONAL_HEADER.SizeOfImage = _round_to_next(new_section_rva + new_section_data_size, pe.OPTIONAL_HEADER.SectionAlignment)
         pe.OPTIONAL_HEADER.SizeOfHeaders += new_section_header_space_needed
         for section in pe.sections:
             section.PointerToRawData += new_section_header_space_needed
@@ -477,13 +478,13 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
         if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 old_dll = entry.dll.lower()
-                if old_dll in section_offset_mapping:
-                    entry.struct.Name = new_section_rva + section_offset_mapping[old_dll]
+                if old_dll in new_section_offset_mapping:
+                    entry.struct.Name = new_section_rva + new_section_offset_mapping[old_dll]
         if hasattr(pe, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             for entry in pe.DIRECTORY_ENTRY_DELAY_IMPORT:
                 old_dll = entry.dll.lower()
-                if old_dll in section_offset_mapping:
-                    entry.struct.szName = new_section_rva + section_offset_mapping[old_dll]
+                if old_dll in new_section_offset_mapping:
+                    entry.struct.szName = new_section_rva + new_section_offset_mapping[old_dll]
         lib_data = pe.write()
 
     # add new section header and new section
@@ -492,9 +493,9 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
         new_section_header = struct.pack(
             _SECTION_HEADER_FORMAT,
             b'redll',  # Name
-            len(new_section_data),  # VirtualSize
+            new_section_data_size,  # VirtualSize
             new_section_rva,  # VirtualAddress
-            new_section_data_size,  # SizeOfRawData
+            new_section_data_padded_size,  # SizeOfRawData
             len(lib_data) + new_section_header_space_needed,  # PointerToRawData
             0,  # PointerToRelocations
             0,  # PointerToLinenumbers
@@ -510,7 +511,7 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
         else:
             new_lib_data.write(lib_data[section_table_end + _SECTION_HEADER_SIZE:])
         new_lib_data.write(new_section_data)
-        new_lib_data.write(b'\x00' * (new_section_data_size - len(new_section_data)))
+        new_lib_data.write(b'\x00' * (new_section_data_padded_size - new_section_data_size))
         lib_data = new_lib_data.getvalue()
 
     # fix the checksum
