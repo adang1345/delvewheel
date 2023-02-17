@@ -463,8 +463,8 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
         new_section_rva = _round_to_next(max(section.VirtualAddress + section.Misc_VirtualSize for section in pe.sections), pe.OPTIONAL_HEADER.SectionAlignment)
 
         pe.FILE_HEADER.NumberOfSections += 1
-        pe.OPTIONAL_HEADER.SizeOfInitializedData += len(new_section_data)
-        pe.OPTIONAL_HEADER.SizeOfImage += new_section_header_space_needed + new_section_data_size
+        pe.OPTIONAL_HEADER.SizeOfInitializedData += new_section_data_size
+        pe.OPTIONAL_HEADER.SizeOfImage = _round_to_next(new_section_rva + len(new_section_data), pe.OPTIONAL_HEADER.SectionAlignment)
         pe.OPTIONAL_HEADER.SizeOfHeaders += new_section_header_space_needed
         for section in pe.sections:
             section.PointerToRawData += new_section_header_space_needed
