@@ -97,6 +97,7 @@ class WheelRepair:
     """An instance represents a wheel that can be repaired."""
 
     _verbose: int  # verbosity level, 0 to 2
+    _test: typing.List[str]  # testing options for internal use
     _whl_path: str  # path to wheel
     _whl_name: str  # name of wheel
     _distribution_name: str
@@ -114,11 +115,12 @@ class WheelRepair:
 
     def __init__(self,
                  whl_path: str,
-                 extract_dir: typing.Optional[str] = None,
-                 add_dlls: typing.Optional[typing.Set[str]] = None,
-                 no_dlls: typing.Optional[typing.Set[str]] = None,
-                 ignore_in_wheel: bool = False,
-                 verbose: int = 0) -> None:
+                 extract_dir: typing.Optional[str],
+                 add_dlls: typing.Optional[typing.Set[str]],
+                 no_dlls: typing.Optional[typing.Set[str]],
+                 ignore_in_wheel: bool,
+                 verbose: int,
+                 test: typing.List[str]) -> None:
         """Initialize a wheel repair object.
         whl_path: Path to the wheel to repair
         extract_dir: Directory where wheel is extracted. If None, a temporary
@@ -130,11 +132,13 @@ class WheelRepair:
             (cannot overlap with add_dlls)
         no_mangles: Set of lowercase DLL names not to mangle
         ignore_in_wheel: whether to ignore DLLs that are already in the wheel
-        verbose: verbosity level, 0 to 2"""
+        verbose: verbosity level, 0 to 2
+        test: testing options for internal use"""
         if not os.path.isfile(whl_path):
             raise FileNotFoundError(f'{whl_path} not found')
 
         self._verbose = verbose
+        self._test = test
         self._whl_path = whl_path
         self._whl_name = os.path.basename(whl_path)
         if not self._whl_name.endswith('.whl'):
@@ -594,7 +598,7 @@ class WheelRepair:
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
-                _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose)
+                _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
@@ -604,7 +608,7 @@ class WheelRepair:
                         print(f'repairing {lib_name} -> {lib_name}')
                 lib_path = os.path.join(libs_dir, lib_name)
                 needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
-                _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose)
+                _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose, self._test)
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 

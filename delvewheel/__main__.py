@@ -40,6 +40,7 @@ def main():
         subparser.add_argument('--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
+        subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
     parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
@@ -63,7 +64,7 @@ def main():
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
 
         for wheel in args.wheel:
-            wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.ignore_in_wheel, args.v)
+            wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.ignore_in_wheel, args.v, args.test.split(','))
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'

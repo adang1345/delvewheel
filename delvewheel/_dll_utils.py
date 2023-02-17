@@ -367,7 +367,7 @@ def _round_to_next(size: int, alignment: int) -> int:
         return alignment * (size // alignment + 1)
 
 
-def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typing.Dict[str, str], strip: bool, verbose: int) -> None:
+def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typing.Dict[str, str], strip: bool, verbose: int, test: typing.List[str]) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map.
     old_deps: a subset of the dependencies that lib_path has
@@ -452,7 +452,7 @@ def replace_needed(lib_path: str, old_deps: typing.Iterable[str], name_map: typi
                             pe.FILE_HEADER.sizeof() + \
                             pe.FILE_HEADER.SizeOfOptionalHeader + \
                             pe.FILE_HEADER.NumberOfSections * _SECTION_HEADER_SIZE
-        if pe.OPTIONAL_HEADER.SizeOfHeaders - section_table_end >= _SECTION_HEADER_SIZE:
+        if 'header_space' not in test and pe.OPTIONAL_HEADER.SizeOfHeaders - section_table_end >= _SECTION_HEADER_SIZE:
             # there's enough unused space to add new section header
             new_section_header_space_needed = 0
         else:

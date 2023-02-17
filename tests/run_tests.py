@@ -584,6 +584,11 @@ class RepairTestCase(unittest.TestCase):
         output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
         self.assertIn('no external dependencies are needed', output)
 
+    def test_header_space(self):
+        """PE header space is added correctly in name-mangling step."""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--test', 'header_space', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
