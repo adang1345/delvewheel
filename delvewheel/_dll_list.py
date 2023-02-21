@@ -123,7 +123,6 @@ no_mangle_regexes = {
     re.compile(r'mfc\d.*\.dll'),  # Microsoft Foundation Class
     re.compile(r'vcamp\d.*\.dll'),  # Microsoft C++ AMP runtime
     re.compile(r'vcomp.*\.dll'),  # Microsoft C/C++ OpenMP runtime
-    re.compile(r'libwinpthread-\d.*\.dll'),  # POSIX WinThreads for Windows
     re.compile(r'ucrtbase.*\.dll'),  # Microsoft C runtime
 }
 
