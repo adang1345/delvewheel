@@ -1,3 +1,8 @@
+## 1.3.2 <sub><sup>(_21 February 2023_)</sup></sub>
+- Fix the calculation for the `SizeOfImage` and `SizeOfInitializedData` PE headers during name-mangling.
+- During name-mangling, if enough internal padding space exists within a DLL, use this space to write the new dependency names instead of creating a new PE section. This allows us to name-mangle the dependencies of a DLL containing trailing data as long as enough padding space exists.
+- Remove `libwinpthread` from the default no-mangle list.
+
 ## 1.3.1 <sub><sup>(_16 February 2023_)</sup></sub>
 - Improve error message if `--strip` fails to remove all trailing data.
 - Correct the calculation that determines whether a DLL contains trailing data if the last entry in the PE section header does not correspond to the last section of the PE file.
