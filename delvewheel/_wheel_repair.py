@@ -655,12 +655,12 @@ class WheelRepair:
             if any(graph.values()):
                 graph_leftover = {k: v for k, v in graph.items() if v}
                 raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
-            # If the wheel contains a top-level extension module, then the load-
-            # order file will be installed directly into site-packages. To avoid
-            # conflicts with load-order files from other distributions, include
-            # the distribution name and version in the load-order filename. Do
-            # this regardless of whether the wheel actually contains a top-level
-            # extension module.
+            # If the wheel contains a top-level extension module, then the
+            # load-order file will be installed directly into site-packages. To
+            # avoid conflicts with load-order files from other distributions,
+            # include the distribution name and version in the load-order
+            # filename. Do this regardless of whether the wheel actually
+            # contains a top-level extension module.
             load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
             load_order_filepath = os.path.join(libs_dir, load_order_filename)
             if os.path.exists(load_order_filepath):
@@ -701,8 +701,8 @@ class WheelRepair:
                             (item not in top_level_ext_module_names or os.path.isfile(init_path)):
                         self._patch_init(init_path, libs_dir_name, load_order_filename)
 
-        # Create .dist-info/DELVEWHEEL file to log repair information. The first
-        # line of the file must be 'Version: ' followed by the delvewheel
+        # Create .dist-info/DELVEWHEEL file to log repair information. The
+        # first line of the file must be 'Version: ' followed by the delvewheel
         # version. Further lines are for information purposes only and are
         # subject to change without notice between delvewheel versions.
         filename = os.path.join(self._extract_dir, dist_info_foldername, 'DELVEWHEEL')
