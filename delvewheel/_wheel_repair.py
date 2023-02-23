@@ -29,6 +29,9 @@ from . import _version
 # preload the DLLs for Anaconda Python < 3.10, which has a bug where
 # os.add_dll_directory() does not always take effect.
 #
+# The template must produce Python code that is compatible with Python 2.6, the
+# oldest supported target Python version.
+#
 # To use the template, call str.format(), passing in
 # 0. '""""""' if the patch would be at the start of the file else ''
 # 1. an identifying string such as the delvewheel version
@@ -67,6 +70,9 @@ del _delvewheel_init_patch_{1}
 
 # Template for patching __init__.py for Python 3.10 and above. For these Python
 # versions, os.add_dll_directory() is used as the exclusive strategy.
+#
+# The template must produce Python code that is compatible with Python 2.6, the
+# oldest supported target Python version.
 #
 # To use the template, call str.format(), passing in
 # 0. '""""""' if the patch would be at the start of the file else ''
@@ -285,7 +291,7 @@ class WheelRepair:
             file is not used"""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
 
-        open(init_path, 'a+').close()
+        open(init_path, 'a+').close()  # create file if it doesn't exist
         with open(init_path) as file:
             init_contents = file.read()
         node = ast.parse(init_contents)

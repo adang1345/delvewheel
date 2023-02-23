@@ -215,7 +215,8 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
     given architecture.
 
     1. If not None, the directories in wheel_dirs.
-    2. The PATH environment variable. (If we are on a case-sensitive file
+    2. The PATH environment variable, with any applicable adjustments due to
+       the Windows file system redirector. (If we are on a case-sensitive file
        system and a directory contains more than one DLL with the correct
        architecture that differs by case only, then choose one arbitrarily.)"""
     name = name.lower()
@@ -320,7 +321,7 @@ def get_all_needed(lib_path: str,
     DLL names of all dependent DLLs that cannot be found.
 
     no_dlls is a set of DLL names to force exclusion from the wheel. We do not
-    search for dependencies of these DLLs. Cannot overlap with add_dlls.
+    search for dependencies of these DLLs.
 
     If wheel_dirs is not None, it is an iterable of directories in the wheel
     where dependencies are searched first."""
@@ -389,6 +390,10 @@ def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: typing.Iterable[byt
     algorithm. new_dlls must be in a deterministic order in order for the Next
     Fit algorithm to return a deterministic result.
 
+    Side effect: pe.sections is sorted by VirtualAddress. In most cases this
+    should make no difference because the PE specification requires that the
+    sections be ordered by VirtualAddress.
+
     Precondition: pe must have at least 1 DLL dependency"""
     pe_size = 0
     new_dlls = list(new_dlls)
@@ -413,7 +418,9 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
     name_map: a dict that maps an old dependency name to a new name, must
         contain at least all the keys in old_deps
     strip: whether to try to strip DLLs that contain trailing data if not
-        enough internal padding exists"""
+        enough internal padding exists
+    verbose: verbosity level, 0 to 2
+    test: testing options for internal use"""
     if not old_deps:
         # no dependency names to change
         return
