@@ -58,8 +58,8 @@ def _delvewheel_init_patch_{1}():
                 load_order = file.read().split()
             for lib in load_order:
                 lib_path = os.path.join(os.path.join(libs_dir, lib))
-                if not is_pyinstaller or os.path.isfile(lib_path):
-                    ctypes.WinDLL(lib_path)
+                if (not is_pyinstaller or os.path.isfile(lib_path)) and not ctypes.windll.kernel32.LoadLibraryExW(ctypes.c_wchar_p(lib_path), None, 0x00000008):
+                    raise OSError('Error loading {{}}; {{}}'.format(lib, ctypes.FormatError()))
 
 
 _delvewheel_init_patch_{1}()
@@ -626,48 +626,17 @@ class WheelRepair:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
         if self._min_supported_python is None or self._min_supported_python < (3, 10):
-            # Perform topological sort to determine the order that DLLs must be
-            # loaded at runtime. We first construct a directed graph where the
-            # vertices are the vendored DLLs and an edge represents a "depends-
-            # on" relationship. We perform a topological sort of this graph.
-            # The reverse of this topological sort then tells us what order we
-            # need to load the DLLs so that all dependencies of a DLL are
-            # loaded before that DLL is loaded.
-            print('calculating DLL load order')
+            # Create .load-order file containing list of DLLs to load during
+            # import. Contrary to what the filename suggests, the DLLs are not
+            # listed in any particular order. In an older version of
+            # delvewheel, the DLLs needed to be listed in a particular order,
+            # and the old filename has been kept to maintain backward
+            # compatibility with re-bundling tools such as PyInstaller.
             for dependency_name in dependency_names.copy():
                 # dependency_name is NOT lowercased
                 if dependency_name.lower() in name_mangler:
                     dependency_names.remove(dependency_name)
                     dependency_names.add(name_mangler[dependency_name.lower()])
-
-            # map from lowercased DLL name to its original case
-            dependency_name_casemap = {dependency_name.lower(): dependency_name for dependency_name in dependency_names}
-
-            graph = {}  # map each lowercased DLL name to a lowercased set of its vendored direct dependencies
-            for dll_name in dependency_names:
-                # dll_name is NOT lowercased
-                dll_path = os.path.join(libs_dir, dll_name)
-                # In this context, delay-loaded DLL dependencies are not true
-                # dependencies because they are not necessary to get the DLL to
-                # load initially. More importantly, we may get circular
-                # dependencies if we were to consider delay-loaded DLLs as true
-                # dependencies. For example, there exist versions of
-                # concrt140.dll and msvcp140.dll such that concrt140.dll lists
-                # msvcp140.dll in its import table, while msvcp140.dll lists
-                # concrt140.dll in its delay import table.
-                graph[dll_name.lower()] = _dll_utils.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
-            rev_dll_load_order = []
-            no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
-            while no_incoming_edge:
-                dll_name_lower = no_incoming_edge.pop()
-                rev_dll_load_order.append(dependency_name_casemap[dll_name_lower])
-                while graph[dll_name_lower]:
-                    dependent_dll_name = graph[dll_name_lower].pop()
-                    if not any(dependent_dll_name in value for value in graph.values()):
-                        no_incoming_edge.add(dependent_dll_name)
-            if any(graph.values()):
-                graph_leftover = {k: v for k, v in graph.items() if v}
-                raise RuntimeError(f'Dependent DLLs have a circular dependency: {graph_leftover}')
             # If the wheel contains a top-level extension module, then the
             # load-order file will be installed directly into site-packages. To
             # avoid conflicts with load-order files from other distributions,
@@ -679,7 +648,7 @@ class WheelRepair:
             if os.path.exists(load_order_filepath):
                 raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
             with open(os.path.join(libs_dir, load_order_filename), 'w', newline='\n') as file:
-                file.write('\n'.join(reversed(rev_dll_load_order)))
+                file.write('\n'.join(dependency_names))
                 file.write('\n')
         else:
             load_order_filename = None
