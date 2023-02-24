@@ -556,10 +556,7 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
 
             # update PE headers to what they will need to be once the
             # new section header and new section are added
-            section_table_end = (pe.DOS_HEADER.e_lfanew + 4 +
-                                 pe.FILE_HEADER.sizeof() +
-                                 pe.FILE_HEADER.SizeOfOptionalHeader +
-                                 pe.FILE_HEADER.NumberOfSections * _SECTION_HEADER_SIZE)
+            section_table_end = pe.sections[-1].get_file_offset() + _SECTION_HEADER_SIZE
             if 'header_space' not in test and pe.OPTIONAL_HEADER.SizeOfHeaders - section_table_end >= _SECTION_HEADER_SIZE:
                 # there's enough unused space to add new section header
                 new_section_header_space_needed = 0
