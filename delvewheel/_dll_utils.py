@@ -32,6 +32,7 @@ _SECTION_HEADER_FORMAT = (
 )
 _SECTION_HEADER_SIZE = struct.calcsize(_SECTION_HEADER_FORMAT)
 _NEW_SECTION_CHARACTERISTICS = pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_READ'] | pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_CNT_INITIALIZED_DATA']
+_ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT = 8
 
 
 class PEContext:
@@ -427,6 +428,17 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
     name_map = {dep.lower().encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
         # keep only the DLLs that will be mangled
 
+    # If an attribute certificate table exists and is the only trailing data,
+    # remove the table. In this case, we end up removing all trailing data
+    # without needing to run strip.
+    with PEContext(lib_path, None, False, verbose) as pe:
+        pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
+        cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+        truncate = cert_table.VirtualAddress == _round_to_next(pe_size, _ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT) and cert_table.VirtualAddress + cert_table.Size == os.path.getsize(lib_path)
+    if truncate:
+        with open(lib_path, 'rb+') as f:
+            f.truncate(pe_size)
+
     # New dependency names are longer than the old ones, so we cannot simply
     # overwrite the bytes of the old dependency names. Determine whether the PE
     # file has enough usable internal padding to use to write the new
@@ -588,12 +600,10 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
                     if old_dll in new_section_offset_mapping:
                         entry.struct.szName = new_section_rva + new_section_offset_mapping[old_dll]
 
-        # clear any signatures
+        # clear reference to attribute certificate table if it exists
         cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-        if cert_table.Size:
-            warnings.warn(f'Authenticode signature has been removed from {lib_name}', UserWarning)
-            cert_table.VirtualAddress = 0
-            cert_table.Size = 0
+        cert_table.VirtualAddress = 0
+        cert_table.Size = 0
 
         # all changes to headers are done; serialize the PE file
         lib_data = pe.write()

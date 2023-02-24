@@ -45,7 +45,14 @@ ignore_regexes = {
 
 # DLLs to ignore based on ABI tag and platform tag. For CPython, these are
 # included in their respective Python distributions. For PyPy, these are
-# prerequisites for PyPy to run in the first place.
+# prerequisites for PyPy to run in the first place. Strictly speaking,
+# vcruntime140.dll and vcruntime140_1.dll shouldn't be included because
+# Microsoft guarantees backward but not forward compatibility across Visual C++
+# runtime redistributable versions since 2015. However, in practice, forward
+# compatibility is strong enough to keep these DLLs in the list. Plus, anyone
+# who builds an extension module against a newer version of MSVC++ than Python
+# itself is already assuming the risks associated with lack of forward
+# compatibility.
 ignore_by_abi_platform = {
     'cp26m-win32': {'msvcr90.dll'},
     'cp26m-win_amd64': {'msvcr90.dll'},
@@ -88,7 +95,9 @@ ignore_by_abi_platform = {
 }
 
 # DLLs to ignore based on Python tag and platform tag for a wheel that uses the
-# stable ABI with ABI tag 'abi3'.
+# stable ABI with ABI tag 'abi3'. Strictly speaking, vcruntime140.dll and
+# vcruntime140_1.dll shouldn't be included, but see the above comment for
+# ignore_by_abi_platform.
 ignore_abi3 = {
     'cp35-win32': {'vcruntime140.dll'},
     'cp35-win_amd64': {'vcruntime140.dll'},
@@ -110,21 +119,8 @@ ignore_abi3 = {
     'cp312-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
-# Set of regular expressions of DLLs whose names should not be mangled. These
-# either are dependencies of DLLs that contain data after the PE file proper
-# (and thus cannot be name-mangled as-is) or are well-known and often already
-# have the version in the filename.
-no_mangle_regexes = {
-    re.compile(r'vcruntime\d.*\.dll'),  # Microsoft C runtime
-    re.compile(r'vccorlib\d.*\.dll'),  # Microsoft VC WinRT core
-    re.compile(r'msvcp[\d_].*\.dll'),  # Microsoft C/C++ runtime
-    re.compile(r'msvcr.*\.dll'),  # Microsoft C runtime
-    re.compile(r'concrt\d.*\.dll'),  # Microsoft concurrency runtime
-    re.compile(r'mfc\d.*\.dll'),  # Microsoft Foundation Class
-    re.compile(r'vcamp\d.*\.dll'),  # Microsoft C++ AMP runtime
-    re.compile(r'vcomp.*\.dll'),  # Microsoft C/C++ OpenMP runtime
-    re.compile(r'ucrtbase.*\.dll'),  # Microsoft C runtime
-}
+# Set of regular expressions of DLLs whose names should not be mangled.
+no_mangle_regexes = {}
 
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all
