@@ -292,6 +292,14 @@ class WheelRepair:
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
 
         open(init_path, 'a+').close()  # create file if it doesn't exist
+        with open(init_path, newline='') as file:
+            line = file.readline()
+        for newline in ('\r\n', '\r', '\n'):
+            if line.endswith(newline):
+                break
+        else:
+            newline = '\r\n'
+
         with open(init_path) as file:
             init_contents = file.read()
         node = ast.parse(init_contents)
@@ -308,7 +316,7 @@ class WheelRepair:
             # insert patch after the last __future__ import
             patch_init_contents = self._patch_init_contents(False, libs_dir, load_order_filename)
             init_contents_split = init_contents.splitlines(True)
-            with open(init_path, 'w') as file:
+            with open(init_path, 'w', newline=newline) as file:
                 file.write(''.join(init_contents_split[:future_import_lineno]))
                 file.write('\n')
                 file.write(patch_init_contents)
@@ -316,7 +324,7 @@ class WheelRepair:
         elif docstring is None:
             # prepend patch
             patch_init_contents = self._patch_init_contents(True, libs_dir, load_order_filename)
-            with open(init_path, 'w') as file:
+            with open(init_path, 'w', newline=newline) as file:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
@@ -359,7 +367,7 @@ class WheelRepair:
                 extra_text = init_contents[docstring_end_index: docstring_end_line]
                 if extra_text and not extra_text.isspace():
                     raise ValueError(f'Error parsing __init__.py: extra text {extra_text!r} is on the line where the docstring ends. Move the extra text to a new line and try again.')
-                with open(init_path, 'w') as file:
+                with open(init_path, 'w', newline=newline) as file:
                     file.write(init_contents[:docstring_end_index])
                     file.write('\n')
                     file.write(patch_init_contents)
