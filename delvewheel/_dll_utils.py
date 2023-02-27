@@ -463,10 +463,7 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
             pe_size, enough_padding = _get_pe_size_and_enough_padding(pe, name_map.values())
 
     lib_name = os.path.basename(lib_path)
-    with open(lib_path, 'rb') as f:
-        # workaround for https://github.com/erocarrera/pefile/issues/356
-        lib_data = f.read()
-    if not enough_padding and pe_size < len(lib_data):
+    if not enough_padding and pe_size < os.path.getsize(lib_path):
         # cannot rename dependencies due to trailing data
         if strip:
             raise RuntimeError(textwrap.fill(
@@ -514,6 +511,9 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
             ]
             raise RuntimeError(''.join(error_text))
 
+    with open(lib_path, 'rb') as f:
+        # workaround for https://github.com/erocarrera/pefile/issues/356
+        lib_data = f.read()
     with PEContext(None, lib_data, True, verbose) as pe:
         if enough_padding:
             # overwrite padding with new DLL names
