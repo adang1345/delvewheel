@@ -1,3 +1,10 @@
+## 1.3.3 <sub><sup>(_27 February 2023_)</sup></sub>
+- Clarify the supported platforms in the README.
+- Improve comments and docstrings.
+- Remove load order calculation. The `.load-order` file still exists to aid in loading DLLs for Python 3.7 or lower, but it no longer contains the DLLs in any particular order.
+- Preserve line endings when patching `__init.py__`.
+- Remove attribute certificate table when name-mangling. This also removes the Visual C++ redistributable DLLs from the no-mangle list. They will now be name-mangled by default.
+
 ## 1.3.2 <sub><sup>(_21 February 2023_)</sup></sub>
 - Fix the calculation for the `SizeOfImage` and `SizeOfInitializedData` PE headers during name-mangling.
 - During name-mangling, if enough internal padding space exists within a DLL, use this space to write the new dependency names instead of creating a new PE section. This allows us to name-mangle the dependencies of a DLL containing trailing data as long as enough padding space exists.
