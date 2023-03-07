@@ -423,6 +423,11 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
         self.assertTrue(import_simpleext_successful())
 
+    def test_top_level_delay_load(self):
+        """Top-level extension module and a delay-load dependency"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', '--test', 'pth_file', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful())
+
     def test_top_level_purelib(self):
         """Top-level extension module in purelib directory"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0toplevelpurelib-cp310-cp310-win_amd64.whl'])
@@ -589,6 +594,16 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--test', 'not_enough_padding,header_space', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
+    def test_no_delay_load(self):
+        """No delay-load dependencies are present."""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'concrt140.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
+    def test_delay_load(self):
+        """Many delay-load dependencies are present and are used."""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/delay_load;iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
@@ -635,7 +650,7 @@ class Python37TestCase(unittest.TestCase):
 
     def test_repair_iknowpy(self):
         try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', '--no-dll', 'concrt140.dll', 'iknowpy/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl'])
             check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl'])
             check_call(['python', '-c', 'import iknowpy'])
         finally:
