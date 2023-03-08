@@ -1,3 +1,7 @@
+## 1.3.4 <sub><sup>(_8 March 2023_)</sup></sub>
+- Restore the load order calculation because it turns out to be necessary for improving support for delay-load DLLs.
+- Improve support for delay-load DLLs.
+
 ## 1.3.3 <sub><sup>(_27 February 2023_)</sup></sub>
 - Clarify the supported platforms in the README.
 - Improve comments and docstrings.
