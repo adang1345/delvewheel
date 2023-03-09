@@ -202,12 +202,9 @@ class WheelRepair:
         whl_path: Path to the wheel to repair
         extract_dir: Directory where wheel is extracted. If None, a temporary
             directory is created.
-        dest_dir: Directory to place the repaired wheel. If None, it defaults
-            to wheelhouse, relative to the current working directory.
         add_dlls: Set of lowercase DLL names to force inclusion into the wheel
         no_dlls: Set of lowercase DLL names to force exclusion from wheel
             (cannot overlap with add_dlls)
-        no_mangles: Set of lowercase DLL names not to mangle
         ignore_in_wheel: whether to ignore DLLs that are already in the wheel
         verbose: verbosity level, 0 to 2
         test: testing options for internal use"""
