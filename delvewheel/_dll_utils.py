@@ -246,38 +246,30 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
     return None
 
 
-def get_direct_needed(lib_path: str, verbose: int) -> set:
+def get_direct_needed(lib_path: str, include_delay_imports: bool, lower: bool, verbose: int) -> set:
     """Given the path to a shared library, return a set containing the DLL
-    names of all its direct dependencies."""
-    imports = []
-    needed = set()
+    names of all its direct dependencies.
+
+    If include_delay_imports is True, delay-loaded dependencies are included.
+    Otherwise, they are not included.
+
+    If lower is True, the DLL names are all lowercase. Otherwise, they are in
+    the original case."""
     with PEContext(lib_path, None, True, verbose) as pe:
-        for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
+        imports = []
+        if include_delay_imports:
+            attrs = ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT')
+        else:
+            attrs = ('DIRECTORY_ENTRY_IMPORT',)
+        for attr in attrs:
             if hasattr(pe, attr):
                 imports = itertools.chain(imports, getattr(pe, attr))
+        needed = set()
         for entry in imports:
             name = entry.dll.decode('utf-8')
+            if lower:
+                name = name.lower()
             needed.add(name)
-    return needed
-
-
-def get_direct_needed_partitioned(lib_path: str, verbose: int) -> typing.List[set]:
-    """Given the path to a shared library, return a list of 2 sets containing
-    the lowercase DLL names of all its direct dependencies. The first set
-    contains the regular dependencies and the second set contains the delay-
-    load dependencies."""
-    needed = [set(), set()]
-    with PEContext(lib_path, None, True, verbose) as pe:
-        if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                needed[0].add(entry.dll.decode('utf-8').lower())
-        if hasattr(pe, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
-            for entry in pe.DIRECTORY_ENTRY_DELAY_IMPORT:
-                needed[1].add(entry.dll.decode('utf-8').lower())
-    if needed[0] & needed[1]:
-        # Something is both a regular and delay-load dependency. This is
-        # probably illegal in the first place, but handle it anyway.
-        needed[1] -= needed[0]
     return needed
 
 

@@ -15,4 +15,3 @@ wheelhouse/
 /tests/simpleext/build/dist
 /dll_lists/ignore_names_*
 /sandbox.py
-/venv

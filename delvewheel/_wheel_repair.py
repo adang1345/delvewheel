@@ -10,9 +10,7 @@ import re
 import shutil
 import sys
 import tempfile
-import textwrap
 import typing
-import warnings
 import zipfile
 from . import _dll_utils
 from . import _dll_list
@@ -20,17 +18,16 @@ from . import _version
 
 
 # Template for patching __init__.py so that the vendored DLLs are loaded at
-# runtime, assuming that there are no delay-load dependencies. If the patch
-# would be placed at the beginning of the file, an empty triple-quoted string
-# is placed at the beginning so that the comment "start delvewheel patch" does
-# not show up when the built-in help system help() is invoked on the package.
-# For non-Anaconda Python >= 3.8, we use the os.add_dll_directory() function so
-# that the folder containing the vendored DLLs is added to the DLL search path.
-# For Python 3.7 or lower, this function is unavailable, so we preload the
-# DLLs. Whenever Python needs a vendored DLL, it will use the already-loaded
-# DLL instead of searching for it. We also preload the DLLs for Anaconda Python
-# < 3.10, which has a bug where os.add_dll_directory() does not always take
-# effect.
+# runtime. If the patch would be placed at the beginning of the file, an empty
+# triple-quoted string is placed at the beginning so that the comment
+# "start delvewheel patch" does not show up when the built-in help system
+# help() is invoked on the package. For non-Anaconda Python >= 3.8, we use the
+# os.add_dll_directory() function so that the folder containing the vendored
+# DLLs is added to the DLL search path. For Python 3.7 or lower, this function
+# is unavailable, so we preload the DLLs. Whenever Python needs a vendored DLL,
+# it will use the already-loaded DLL instead of searching for it. We also
+# preload the DLLs for Anaconda Python < 3.10, which has a bug where
+# os.add_dll_directory() does not always take effect.
 #
 # The template must produce Python code that is compatible with Python 2.6, the
 # oldest supported target Python version.
@@ -71,9 +68,8 @@ del _delvewheel_init_patch_{1}
 
 """
 
-# Template for patching __init__.py for Python 3.10 and above, assuming that
-# there are no delay-load dependencies. For these Python versions,
-# os.add_dll_directory() is used as the exclusive strategy.
+# Template for patching __init__.py for Python 3.10 and above. For these Python
+# versions, os.add_dll_directory() is used as the exclusive strategy.
 #
 # The template must produce Python code that is compatible with Python 2.6, the
 # oldest supported target Python version.
@@ -98,73 +94,6 @@ _delvewheel_init_patch_{1}()
 del _delvewheel_init_patch_{1}
 # end delvewheel patch
 
-"""
-
-# Template for patching __init__.py if a delay-load dependency exists. The
-# preload strategy is used so that all delay-load dependencies are found.
-# Unless the developer has a specially-crafted delay load helper function,
-# directories specified using os.add_dll_directory() are not searched when
-# delay loading. Thus, we cannot rely on os.add_dll_directory() if a delay-load
-# dependency exists.
-#
-# The template must produce Python code that is compatible with Python 2.6, the
-# oldest supported target Python version.
-#
-# To use the template, call str.format(), passing in
-# 0. '""""""' if the patch would be at the start of the file else ''
-# 1. an identifying string such as the delvewheel version
-# 2. the name of the directory containing the vendored DLLs
-# 3. the name of the file containing the DLL load order
-_patch_init_template_v3 = """
-
-{0}# start delvewheel patch
-def _delvewheel_init_patch_{1}():
-    import ctypes
-    import os
-    import sys
-    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {2!r}))
-    is_pyinstaller = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-    load_order_filepath = os.path.join(libs_dir, {3!r})
-    if not is_pyinstaller or os.path.isfile(load_order_filepath):
-        with open(os.path.join(libs_dir, {3!r})) as file:
-            load_order = file.read().split()
-        for lib in load_order:
-            lib_path = os.path.join(libs_dir, lib)
-            if not is_pyinstaller or os.path.isfile(lib_path):
-                ctypes.WinDLL(lib_path)
-
-
-_delvewheel_init_patch_{1}()
-del _delvewheel_init_patch_{1}
-# end delvewheel patch
-
-"""
-
-# Template for creating a .pth file if a top-level extension module exists and
-# has a delay-load dependency. The .pth file is used to preload the
-# dependencies upon Python startup.
-#
-# To use the template, call str.format(), passing in
-# 0. the name of the file containing the DLL load order
-_pth_template = """\
-import ctypes
-import os
-import site
-
-is_pyinstaller = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-for d in site.getsitepackages():
-    load_order_filepath = os.path.join(d, {0!r})
-    if os.path.isfile(load_order_filepath):
-        with open(load_order_filepath) as file:
-            load_order = file.read().split()
-        for lib in load_order:
-            lib_path = os.path.join(d, lib)
-            if not is_pyinstaller or os.path.isfile(lib_path):
-                ctypes.WinDLL(lib_path)
-        break
-else:
-    if not is_pyinstaller:
-        raise FileNotFoundError({0!r} + ' not found')
 """
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -332,37 +261,29 @@ class WheelRepair:
             buf = afile.read(blocksize)
         return hasher.hexdigest()[:length]
 
-    def _patch_init_contents(self, at_start: bool, libs_dir: str, delay_load_dependency_exists: bool, load_order_filename: typing.Optional[str]) -> str:
+    def _patch_init_contents(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str]) -> str:
         """Return the contents of the patch to place in __init__.py.
 
         at_start is whether the contents are placed at the beginning of
             __init__.py
-        libs_dir is the name of the directory where DLLs are stored
-        delay_load_dependency_exists is whether any delay-load dependencies
-            exist
+        libs_dir is the name of the directory where DLLs are stored.
         load_order_filename is the name of the .load-order file, or None if the
             file is not used"""
-        if delay_load_dependency_exists:
-            if load_order_filename is None:
-                raise ValueError('load_order_filename cannot be None')
-            return _patch_init_template_v3.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
-        elif self._min_supported_python is None or self._min_supported_python < (3, 10):
+        if self._min_supported_python is None or self._min_supported_python < (3, 10):
             if load_order_filename is None:
                 raise ValueError('load_order_filename cannot be None')
             return _patch_init_template.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), libs_dir, load_order_filename)
         else:
             return _patch_init_template_v2.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), libs_dir)
 
-    def _patch_init(self, init_path: str, libs_dir: str, delay_load_dependency_exists: bool, load_order_filename: typing.Optional[str]) -> None:
+    def _patch_init(self, init_path: str, libs_dir: str, load_order_filename: typing.Optional[str]) -> None:
         """Given the path to __init__.py, create or patch the file so that
         vendored-in DLLs can be loaded at runtime. The patch is placed at the
         topmost location after the docstring (if any) and any
         "from __future__ import" statements.
 
         init_path is the path to the __init__.py file to patch
-        libs_dir is the name of the directory where DLLs are stored
-        delay_load_dependency_exists is whether any delay-load dependencies
-            exist
+        libs_dir is the name of the directory where DLLs are stored.
         load_order_filename is the name of the .load-order file, or None if the
             file is not used"""
         print(f'patching {os.path.relpath(init_path, self._extract_dir)}')
@@ -390,7 +311,7 @@ class WheelRepair:
 
         if future_import_lineno > 0:
             # insert patch after the last __future__ import
-            patch_init_contents = self._patch_init_contents(False, libs_dir, delay_load_dependency_exists, load_order_filename)
+            patch_init_contents = self._patch_init_contents(False, libs_dir, load_order_filename)
             init_contents_split = init_contents.splitlines(True)
             with open(init_path, 'w', newline=newline) as file:
                 file.write(''.join(init_contents_split[:future_import_lineno]))
@@ -399,13 +320,13 @@ class WheelRepair:
                 file.write(''.join(init_contents_split[future_import_lineno:]))
         elif docstring is None:
             # prepend patch
-            patch_init_contents = self._patch_init_contents(True, libs_dir, delay_load_dependency_exists, load_order_filename)
+            patch_init_contents = self._patch_init_contents(True, libs_dir, load_order_filename)
             with open(init_path, 'w', newline=newline) as file:
                 file.write(patch_init_contents)
                 file.write(init_contents)
         else:
             # place patch just after docstring
-            patch_init_contents = self._patch_init_contents(False, libs_dir, delay_load_dependency_exists, load_order_filename)
+            patch_init_contents = self._patch_init_contents(False, libs_dir, load_order_filename)
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
                 # verify that the first child node is the docstring
                 raise ValueError('Error parsing __init__.py: docstring exists but is not the first element of the parse tree')
@@ -702,56 +623,37 @@ class WheelRepair:
                 if lib_name.lower() in name_mangler:
                     os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
-        # calculate DLL load order if necessary
-        print('calculating DLL load order')
-        for dependency_name in dependency_names.copy():
-            # dependency_name is NOT lowercased
-            if dependency_name.lower() in name_mangler:
-                dependency_names.remove(dependency_name)
-                dependency_names.add(name_mangler[dependency_name.lower()])
-
-        # map from lowercased DLL name to its original case
-        dependency_name_casemap = {dependency_name.lower(): dependency_name for dependency_name in dependency_names}
-
-        # Map each lowercased DLL name to a list. Each list contains
-        # index 0: set of lowercased vendored direct dependencies
-        # index 1: set of lowercased vendored direct delay-load dependencies
-        graph = {}
-
-        # Construct dependency graph. The graph contains both regular and
-        # delay-load dependencies because there exist situations where a
-        # delay-load dependency must be present for a DLL to load initially.
-        # These situations defeat the purpose of delay-loading in the first
-        # place, but they exist and must be handled. One such situation is if
-        # we have a DLL that has a C++ dynamic initializer that calls a
-        # function in a delay-load dependency.
-        delay_load_dependency_exists = 'pth_file' in self._test
-        for dll_name in dependency_names:
-            # dll_name is NOT lowercased
-            dll_path = os.path.join(libs_dir, dll_name)
-            needed = _dll_utils.get_direct_needed_partitioned(dll_path, self._verbose)
-            needed[0] &= set(dependency_name_casemap.keys())
-            needed[1] &= set(dependency_name_casemap.keys())
-            if needed[1]:
-                delay_load_dependency_exists = True
-            graph[dll_name.lower()] = needed
-
-        if self._min_supported_python is None or self._min_supported_python < (3, 10) or delay_load_dependency_exists:
-            # Break dependency cycles where A.dll lists B.dll in its import
-            # table and B.dll lists A.dll in its delay import table. There
-            # exist versions of msvcp140.dll and concrt140.dll that have this
-            # cycle. Theoretically, more complicated cycles may exist, but I
-            # can't think of a legitimate reason anyone would purposely create
-            # a more complicated cycle. If a more complicated cycle exists, the
-            # application developer should probably re-think the design.
-            for dll_name_lower, dependencies in graph.items():
-                for dependency_name_lower in dependencies[0]:
-                    graph[dependency_name_lower][1].discard(dll_name_lower)
-
+        if self._min_supported_python is None or self._min_supported_python < (3, 10):
             # Perform topological sort to determine the order that DLLs must be
-            # loaded at runtime.
-            for dll_name_lower, dependencies in graph.items():
-                graph[dll_name_lower] = dependencies[0] | dependencies[1]
+            # loaded at runtime. We first construct a directed graph where the
+            # vertices are the vendored DLLs and an edge represents a "depends-
+            # on" relationship. We perform a topological sort of this graph.
+            # The reverse of this topological sort then tells us what order we
+            # need to load the DLLs so that all dependencies of a DLL are
+            # loaded before that DLL is loaded.
+            print('calculating DLL load order')
+            for dependency_name in dependency_names.copy():
+                # dependency_name is NOT lowercased
+                if dependency_name.lower() in name_mangler:
+                    dependency_names.remove(dependency_name)
+                    dependency_names.add(name_mangler[dependency_name.lower()])
+
+            # map from lowercased DLL name to its original case
+            dependency_name_casemap = {dependency_name.lower(): dependency_name for dependency_name in dependency_names}
+
+            graph = {}  # map each lowercased DLL name to a lowercased set of its vendored direct dependencies
+            for dll_name in dependency_names:
+                # dll_name is NOT lowercased
+                dll_path = os.path.join(libs_dir, dll_name)
+                # In this context, delay-loaded DLL dependencies are not true
+                # dependencies because they are not necessary to get the DLL to
+                # load initially. More importantly, we may get circular
+                # dependencies if we were to consider delay-loaded DLLs as true
+                # dependencies. For example, there exist versions of
+                # concrt140.dll and msvcp140.dll such that concrt140.dll lists
+                # msvcp140.dll in its import table, while msvcp140.dll lists
+                # concrt140.dll in its delay import table.
+                graph[dll_name.lower()] = _dll_utils.get_direct_needed(dll_path, False, True, self._verbose) & set(dependency_name_casemap.keys())
             rev_dll_load_order = []
             no_incoming_edge = {dll_name_lower for dll_name_lower in dependency_name_casemap.keys() if not any(dll_name_lower in value for value in graph.values())}
             while no_incoming_edge:
@@ -774,7 +676,7 @@ class WheelRepair:
             load_order_filepath = os.path.join(libs_dir, load_order_filename)
             if os.path.exists(load_order_filepath):
                 raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
-            with open(os.path.join(libs_dir, load_order_filename), 'w', newline='\n') as file:
+            with open(os.path.join(libs_dir, load_order_filename), 'w') as file:
                 file.write('\n'.join(reversed(rev_dll_load_order)))
                 file.write('\n')
         else:
@@ -800,7 +702,7 @@ class WheelRepair:
                     item != f'{self._distribution_name}-{self._version}.data' and \
                     item != libs_dir_name and \
                     (item not in top_level_ext_module_names or os.path.isfile(init_path)):
-                self._patch_init(init_path, libs_dir_name, delay_load_dependency_exists, load_order_filename)
+                self._patch_init(init_path, libs_dir_name, load_order_filename)
         for extra_dir_name in ('purelib', 'platlib'):
             extra_dir = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.data', extra_dir_name)
             if os.path.isdir(extra_dir):
@@ -808,28 +710,7 @@ class WheelRepair:
                     init_path = os.path.join(extra_dir, item, '__init__.py')
                     if os.path.isdir(os.path.join(extra_dir, item)) and \
                             (item not in top_level_ext_module_names or os.path.isfile(init_path)):
-                        self._patch_init(init_path, libs_dir_name, delay_load_dependency_exists, load_order_filename)
-
-        if top_level_ext_module_names and delay_load_dependency_exists:
-            # Create .pth file to preload dependencies, as that is the only
-            # way to ensure that the delay-load dependencies are found.
-            warnings.warn(textwrap.fill(
-                'The wheel contains a top-level extension module and has a '
-                'delay-load dependency, so we are injecting some code that '
-                'runs at Python startup to preload the dependencies. End '
-                'users who have Python processes that were running before the '
-                'wheel was installed should start new Python instances after '
-                'installing the wheel.',
-                initial_indent='\n'), UserWarning)
-            pth_filename = f'_preload_{self._distribution_name}_{self._version}.pth'
-            pth_filepath = os.path.join(libs_dir, pth_filename)
-            if os.path.exists(pth_filepath):
-                raise FileExistsError(f'{os.path.relpath(pth_filepath, self._extract_dir)} already exists')
-            with open(os.path.join(libs_dir, pth_filename), 'w', newline='\n') as file:
-                # dummy import statement is included because Python code in a
-                # .pth file is executed only if it starts with an import
-                # statement
-                file.write(f'import sys; exec({_pth_template.format(load_order_filename)!r})\n')
+                        self._patch_init(init_path, libs_dir_name, load_order_filename)
 
         # Create .dist-info/DELVEWHEEL file to log repair information. The
         # first line of the file must be 'Version: ' followed by the delvewheel
