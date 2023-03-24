@@ -1,3 +1,7 @@
+## 1.3.5 <sub><sup>(_24 March 2023_)</sup></sub>
+- Revert the improved support for delay-load DLLs. This change caused other problems, and delay-load DLLs don't seem to be used too widely anyway.
+- Document that support for delay-load DLLs is limited.
+
 ## 1.3.4 <sub><sup>(_8 March 2023_)</sup></sub>
 - Restore the load order calculation because it turns out to be necessary for improving support for delay-load DLLs.
 - Improve support for delay-load DLLs.
