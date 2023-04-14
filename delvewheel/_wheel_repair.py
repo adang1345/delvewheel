@@ -676,7 +676,7 @@ class WheelRepair:
             load_order_filepath = os.path.join(libs_dir, load_order_filename)
             if os.path.exists(load_order_filepath):
                 raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
-            with open(os.path.join(libs_dir, load_order_filename), 'w') as file:
+            with open(os.path.join(libs_dir, load_order_filename), 'w', newline='\r\n') as file:
                 file.write('\n'.join(reversed(rev_dll_load_order)))
                 file.write('\n')
         else:
