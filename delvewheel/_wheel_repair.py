@@ -498,14 +498,16 @@ class WheelRepair:
         if not_found_dll_names:
             print('\nWarning: At least one dependent DLL needs to be copied into the wheel but was not found.')
 
-    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, strip: bool, lib_sdir: str) -> None:
+    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, strip: bool, lib_sdir: str, no_diagnostic: bool) -> None:
         """Repair the wheel in a manner similar to auditwheel.
         target is the target directory for storing the repaired wheel
         no_mangles is a set of lowercase DLL names that will not be mangled
         no_mangle_all is True if no DLL name mangling should happen at all
         strip is True if we should strip DLLs that contain trailing data when
             name-mangling
-        lib_sdir is the suffix for the directory to store the DLLs"""
+        lib_sdir is the suffix for the directory to store the DLLs
+        no_diagnostic is True if no diagnostic information is written to the
+            DELVEWHEEL metadata file"""
         print(f'repairing {self._whl_path}')
 
         # check whether wheel has already been repaired
@@ -718,7 +720,9 @@ class WheelRepair:
         # subject to change without notice between delvewheel versions.
         filename = os.path.join(self._extract_dir, dist_info_foldername, 'DELVEWHEEL')
         with open(filename, 'w', newline='\n') as file:
-            file.write(f'Version: {_version.__version__}\nArguments: {sys.argv}\n')
+            file.write(f'Version: {_version.__version__}\n')
+            if not no_diagnostic:
+                file.write(f'Arguments: {sys.argv}\n')
 
         # update record file, which tracks wheel contents and their checksums
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
