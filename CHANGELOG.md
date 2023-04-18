@@ -1,3 +1,7 @@
+## 1.3.6 <sub><sup>(_24 March 2023_)</sup></sub>
+- Use Unix-style line endings for `.load-order` file.
+- Add `--no-diagnostic` flag to avoid writing diagnostic information to `DELVEWHEEL` metadata file.
+
 ## 1.3.5 <sub><sup>(_24 March 2023_)</sup></sub>
 - Revert the improved support for delay-load DLLs. This change caused other problems, and delay-load DLLs don't seem to be used too widely anyway.
 - Document that support for delay-load DLLs is limited.
