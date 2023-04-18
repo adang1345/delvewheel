@@ -1,4 +1,4 @@
-## 1.3.6 <sub><sup>(_24 March 2023_)</sup></sub>
+## 1.3.6 <sub><sup>(_18 April 2023_)</sup></sub>
 - Use Unix-style line endings for `.load-order` file.
 - Add `--no-diagnostic` flag to avoid writing diagnostic information to `DELVEWHEEL` metadata file.
 
