@@ -86,6 +86,7 @@ ignore_by_abi_platform = {
     'cp310-win32': {'vcruntime140.dll'},
     'cp310-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp310-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'pypy310_pp73-win_amd64': {'vcruntime140.dll'},
     'cp311-win32': {'vcruntime140.dll'},
     'cp311-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp311-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
