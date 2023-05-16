@@ -1,3 +1,9 @@
+## 1.3.7 <sub><sup>(_16 May 2023_)</sup></sub>
+- Provide the C source code for a delay-load import hook.
+- Remove load order calculation. The `.load-order` file still exists to aid in loading DLLs for Python 3.7 or lower, but it no longer contains the DLLs in any particular order. This change was made previously in 1.3.3, was reverted in 1.3.4, and is now restored.
+- Check for directory and file existence in the `__init__.py` patch. This improves compatibility with repackaging tools that relocate the vendored DLLs.
+- Don't vendor `vcruntime140.dll` for PyPy3.10.
+
 ## 1.3.6 <sub><sup>(_18 April 2023_)</sup></sub>
 - Use Unix-style line endings for `.load-order` file.
 - Add `--no-diagnostic` flag to avoid writing diagnostic information to `DELVEWHEEL` metadata file.
