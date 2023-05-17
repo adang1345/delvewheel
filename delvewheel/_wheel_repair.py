@@ -82,7 +82,6 @@ _patch_init_template_v2 = """
 {0}# start delvewheel patch
 def _delvewheel_init_patch_{1}():
     import os
-    import sys
     libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, {2!r}))
     if os.path.isdir(libs_dir):
         os.add_dll_directory(libs_dir)
