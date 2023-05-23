@@ -133,7 +133,7 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         self.assertTrue(import_iknowpy_successful())
@@ -148,7 +148,7 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnOwEnGiNe.dLl', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('iKnowEngine'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -161,7 +161,7 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll;iKnowBase.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('iKnowEngine') or path.name.startswith('iKnowBase'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -202,7 +202,7 @@ class RepairTestCase(unittest.TestCase):
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('kernel32'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -217,7 +217,7 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         self.assertTrue(import_iknowpy_successful())
@@ -228,7 +228,7 @@ class RepairTestCase(unittest.TestCase):
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('kernel32'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -245,7 +245,7 @@ class RepairTestCase(unittest.TestCase):
         kernelbase_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.lower().startswith('kernel32'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -309,9 +309,9 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-in-wheel', 'iknowpy/iknowpy-1.5.0-0ignore-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-0ignore-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
-                if any(path.name.startswith(x) for x in ('iKnowBase', 'iKnowShell', 'iKnowCore', 'iKnowALI')):
+                if any(path.name.startswith(x) for x in ('iKnowBase', 'iKnowShell', 'iKnowCore', 'iKnowALI', 'msvcp140')):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
                 elif path.name.startswith('iKnowEngine'):
                     self.fail('iKnowEngine.dll is ignored')
@@ -327,9 +327,9 @@ class RepairTestCase(unittest.TestCase):
         iknowengine_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-0ignore-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
-                if any(path.name.startswith(x) for x in ('iKnowEngine', 'iKnowBase', 'iKnowShell', 'iKnowCore', 'iKnowALI')):
+                if any(path.name.startswith(x) for x in ('iKnowEngine', 'iKnowBase', 'iKnowShell', 'iKnowCore', 'iKnowALI', 'msvcp140')):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
                     if path.name == 'iKnowEngine.dll':
                         iknowengine_found = True
@@ -683,7 +683,7 @@ class LinuxTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
 
@@ -692,7 +692,7 @@ class LinuxTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnOwEnGiNe.dLl', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('iKnowEngine'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -704,7 +704,7 @@ class LinuxTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll:iKnowBase.dll', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('iKnowEngine') or path.name.startswith('iKnowBase'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
@@ -717,7 +717,7 @@ class LinuxTestCase(unittest.TestCase):
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'):
+                if path.name in ('.load-order-iknowpy-1.5.0',):
                     continue
                 if path.name.startswith('kernel32'):
                     self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
