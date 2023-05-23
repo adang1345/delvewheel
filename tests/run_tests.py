@@ -280,7 +280,7 @@ class RepairTestCase(unittest.TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                self.assertTrue(path.name in ('.load-order-iknowpy-1.5.0', 'concrt140.dll', 'msvcp140.dll'))
+                self.assertTrue(path.name in ('.load-order-iknowpy-1.5.0', 'msvcp140.dll'))
         try:
             check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
             with self.assertRaises(subprocess.CalledProcessError):
@@ -295,7 +295,7 @@ class RepairTestCase(unittest.TestCase):
 
     def test_no_dll_all(self):
         """--no-dll that removes all DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll;concrt140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         self.assertFalse(os.path.exists('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'))
 
     def test_ignore_in_wheel_irrelevant(self):
@@ -341,7 +341,7 @@ class RepairTestCase(unittest.TestCase):
     def test_extract_dir(self):
         """--extract-dir"""
         try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll;concrt140.dll', '--no-mangle-all', '--extract-dir', 'temp', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', '--extract-dir', 'temp', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
             self.assertFalse(os.path.exists('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'))
             self.assertTrue(os.path.exists('temp/iknowpy'))
         finally:
@@ -611,6 +611,17 @@ class NeededTestCase(unittest.TestCase):
         p = subprocess.run(['delvewheel', 'needed', 'simpleext/x86/simpledll.dll'], capture_output=True, text=True, check=True)
         self.assertEqual('api-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\nKERNEL32.dll\n'
                           'VCRUNTIME140.dll\n', p.stdout)
+        self.assertFalse(p.stderr)
+
+    def test_msvcp140(self):
+        """msvcp140.dll's delay-load dependency on concrt140.dll is ignored."""
+        p = subprocess.run(['delvewheel', 'needed', 'iknowpy/msvcp140.dll'], capture_output=True, text=True, check=True)
+        self.assertEqual(
+            'api-ms-win-crt-convert-l1-1-0.dll\napi-ms-win-crt-environment-l1-1-0.dll\n'
+            'api-ms-win-crt-filesystem-l1-1-0.dll\napi-ms-win-crt-heap-l1-1-0.dll\napi-ms-win-crt-locale-l1-1-0.dll\n'
+            'api-ms-win-crt-math-l1-1-0.dll\napi-ms-win-crt-runtime-l1-1-0.dll\napi-ms-win-crt-stdio-l1-1-0.dll\n'
+            'api-ms-win-crt-string-l1-1-0.dll\napi-ms-win-crt-time-l1-1-0.dll\napi-ms-win-crt-utility-l1-1-0.dll\n'
+            'KERNEL32.dll\nVCRUNTIME140.dll\n', p.stdout)
         self.assertFalse(p.stderr)
 
 

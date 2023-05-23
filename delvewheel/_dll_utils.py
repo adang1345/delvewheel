@@ -246,30 +246,21 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
     return None
 
 
-def get_direct_needed(lib_path: str, include_delay_imports: bool, lower: bool, verbose: int) -> set:
+def get_direct_needed(lib_path: str, verbose: int) -> set:
     """Given the path to a shared library, return a set containing the DLL
-    names of all its direct dependencies.
-
-    If include_delay_imports is True, delay-loaded dependencies are included.
-    Otherwise, they are not included.
-
-    If lower is True, the DLL names are all lowercase. Otherwise, they are in
-    the original case."""
+    names of all its direct dependencies. Regular and delay-load dependencies
+    are included. The DLL names are in the original case."""
     with PEContext(lib_path, None, True, verbose) as pe:
         imports = []
-        if include_delay_imports:
-            attrs = ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT')
-        else:
-            attrs = ('DIRECTORY_ENTRY_IMPORT',)
-        for attr in attrs:
+        for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             if hasattr(pe, attr):
                 imports = itertools.chain(imports, getattr(pe, attr))
+        lib_name_lower = os.path.basename(lib_path).lower()
         needed = set()
         for entry in imports:
             name = entry.dll.decode('utf-8')
-            if lower:
-                name = name.lower()
-            needed.add(name)
+            if lib_name_lower not in _dll_list.ignore_dependency or name.lower() not in _dll_list.ignore_dependency[lib_name_lower]:
+                needed.add(name)
     return needed
 
 
@@ -292,12 +283,14 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
         if not lib_arch:
             raise ValueError(f'{lib_path} has an unsupported CPU architecture')
         ignore_names = _dll_list.ignore_names[lib_arch]
+        lib_name_lower = os.path.basename(lib_path).lower()
         for entry in imports:
             dll_name = entry.dll.decode('utf-8').lower()
             if dll_name not in ignore_names and \
                     dll_name not in no_dlls and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                     dll_name not in no_mangles and \
+                    (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]) and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.no_mangle_regexes):
                 needed.append(dll_name)
     return needed
@@ -344,11 +337,13 @@ def get_all_needed(lib_path: str,
                 if not lib_arch:
                     raise ValueError(f'{lib_path} has an unsupported CPU architecture')
                 ignore_names = _dll_list.ignore_names[lib_arch]
+                lib_name_lower = os.path.basename(lib_path).lower()
                 for entry in imports:
                     dll_name = entry.dll.decode('utf-8').lower()
                     if dll_name not in ignore_names and \
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
-                            dll_name not in no_dlls:
+                            dll_name not in no_dlls and \
+                            (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
                         dll_path = find_library(dll_name, wheel_dirs, lib_arch)
                         if dll_path:
                             stack.append(dll_path)

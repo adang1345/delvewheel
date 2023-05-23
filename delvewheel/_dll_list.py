@@ -120,6 +120,16 @@ ignore_abi3 = {
     'cp312-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
+# Dependency relationships to ignore.
+ignore_dependency = {
+    # Some versions of msvcp140.dll have a delay-load dependency on
+    # concrt140.dll, apparently to support Windows XP
+    # (https://learn.microsoft.com/en-us/cpp/parallel/concrt/overview-of-the-concurrency-runtime?view=msvc-170#dlls).
+    # This dependency is unnecessary for our purposes because we target Windows
+    # 7 or higher.
+    'msvcp140.dll': {'concrt140.dll'}
+}
+
 # Set of regular expressions of DLLs whose names should not be mangled.
 no_mangle_regexes = {}
 
