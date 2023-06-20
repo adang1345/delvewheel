@@ -1,3 +1,8 @@
+## 1.3.8 <sub><sup>(_20 June 2023_)</sup></sub>
+- Remove unnecessary import from `__init__.py` patch.
+- Update tests to account for removal of attribute certificate table when name-mangling, a change that first appeared in release 1.3.3.
+- Ignore dependency from `msvcp140.dll` to `concrt140.dll` because this dependency appears to be unnecessary after Windows XP.
+
 ## 1.3.7 <sub><sup>(_16 May 2023_)</sup></sub>
 - Provide the C source code for a delay-load import hook.
 - Remove load order calculation. The `.load-order` file still exists to aid in loading DLLs for Python 3.7 or lower, but it no longer contains the DLLs in any particular order. This change was made previously in 1.3.3, was reverted in 1.3.4, and is now restored.
