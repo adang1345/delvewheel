@@ -3,6 +3,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import typing
 import unittest
 import zipfile
@@ -45,15 +46,15 @@ def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list
     if modules is None:
         modules = ['iknowpy']
     try:
-        check_call(['pip', 'install', '--force-reinstall', whl_path])
+        check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', whl_path])
         for module in modules:
-            check_call(['python', '-c', f'import {module}'])
+            check_call([sys.executable, '-c', f'import {module}'])
         return True
     except subprocess.CalledProcessError:
         return False
     finally:
         try:
-            check_call(['pip', 'uninstall', '-y', 'iknowpy'])
+            check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
         except subprocess.CalledProcessError:
             pass
         remove(whl_path)
@@ -75,18 +76,87 @@ def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[li
     if modules is None:
         modules = ['simpleext']
     try:
-        check_call(['pip', 'install', '--force-reinstall', whl_path])
+        check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', whl_path])
         for module in modules:
-            check_call(['python', '-c', f'import {module}'])
+            check_call([sys.executable, '-c', f'import {module}'])
         return True
     except subprocess.CalledProcessError:
         return False
     finally:
         try:
-            check_call(['pip', 'uninstall', '-y', 'simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
         except subprocess.CalledProcessError:
             pass
         remove(whl_path)
+
+
+class TestCase(unittest.TestCase):
+    def namespace_helper(self, whl: str, namespace_pkg: str, *,
+                         mangle: bool = True,
+                         patched: typing.Optional[typing.List[str]] = None,
+                         not_patched: typing.Optional[typing.List[str]] = None,
+                         exist: typing.Optional[typing.List[str]] = None,
+                         not_exist: typing.Optional[typing.List[str]] = None,
+                         importable: typing.Optional[typing.List[str]] = None):
+        """Run a test of namespace package support.
+
+        whl: path to the wheel to repair
+        namespace_pkg: the value to pass to the --namespace-pkg option during
+            repair
+        mangle: (optional) whether to mangle the DLL names, default True
+        patched: (optional) list of paths to files that should be patched,
+            relative to wheel root
+        not_patched: (optional) list of paths to files that should not be
+            created or patched, relative to wheel root
+        exist: (optional) list of paths that should exist after repair,
+            relative to wheel root
+        not_exist: (optional) list of paths that should not exist after repair,
+            relative to wheel root
+        importable: (optional) list of names that should be importable after
+            the repaired wheel is installed, must be None if testing on non-
+            Windows platform"""
+        repaired_whl = None
+        try:
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', *(() if mangle else ('--no-mangle-all',)), '--namespace-pkg', namespace_pkg, whl])
+            repaired_whl = os.path.join('wheelhouse', os.path.basename(whl))
+            with tempfile.TemporaryDirectory() as tempdir:
+                with zipfile.ZipFile(repaired_whl) as whl_file:
+                    whl_file.extractall(tempdir)
+                if patched:
+                    for item in patched:
+                        filepath = os.path.join(tempdir, item)
+                        self.assertTrue(os.path.isfile(filepath), f'{item} is patched')
+                        with open(filepath) as file:
+                            file_contents = file.read()
+                        self.assertIn('_delvewheel_patch_', file_contents, f'{item} is patched')
+                if not_patched:
+                    for item in not_patched:
+                        filepath = os.path.join(tempdir, item)
+                        if os.path.isfile(filepath):
+                            with open(filepath) as file:
+                                file_contents = file.read()
+                            self.assertNotIn('_delvewheel_patch_', file_contents, f'{item} is not patched')
+                if exist:
+                    for item in exist:
+                        self.assertTrue(os.path.exists(os.path.join(tempdir, item)), f'{item} exists')
+                if not_exist:
+                    for item in not_exist:
+                        self.assertFalse(os.path.exists(os.path.join(tempdir, item)), f'{item} does not exist')
+            if sys.platform == 'win32':
+                check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', repaired_whl])
+            if importable:
+                if sys.platform != 'win32':
+                    raise RuntimeError('Cannot test imports on non-Windows system')
+                for item in importable:
+                    check_call([sys.executable, '-c', f'import {item}'])
+        finally:
+            if sys.platform == 'win32':
+                try:
+                    check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
+                except subprocess.CalledProcessError:
+                    pass
+            if repaired_whl:
+                remove(repaired_whl)
 
 
 class ShowTestCase(unittest.TestCase):
@@ -126,7 +196,7 @@ class ShowTestCase(unittest.TestCase):
         self.assertIn('will be copied into the wheel.\n    None', output)
 
 
-class RepairTestCase(unittest.TestCase):
+class RepairTestCase(TestCase):
     """Tests for delvewheel repair"""
     def test_basic(self):
         """Basic repair for the iknowpy package"""
@@ -282,13 +352,13 @@ class RepairTestCase(unittest.TestCase):
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
                 self.assertTrue(path.name in ('.load-order-iknowpy-1.5.0', 'msvcp140.dll'))
         try:
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
             with self.assertRaises(subprocess.CalledProcessError):
-                check_call(['python', '-c', 'import iknowpy'])
-            check_call(['python', '-c', 'import os; os.add_dll_directory(os.path.abspath("iknowpy")); import iknowpy'])
+                check_call([sys.executable, '-c', 'import iknowpy'])
+            check_call([sys.executable, '-c', 'import os; os.add_dll_directory(os.path.abspath("iknowpy")); import iknowpy'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'iknowpy'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl')
@@ -479,11 +549,11 @@ class RepairTestCase(unittest.TestCase):
         """Repair a wheel targeting multiple Python versions"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
         try:
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl')
@@ -492,13 +562,13 @@ class RepairTestCase(unittest.TestCase):
         """Repair multiple wheels in a single command"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl', 'simpleext/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
         try:
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp310-cp36m.cp310-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
@@ -526,11 +596,11 @@ class RepairTestCase(unittest.TestCase):
                         vcruntime_found = True
                 self.assertTrue(simpledll_found)
                 self.assertFalse(vcruntime_found)
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl')
@@ -549,11 +619,11 @@ class RepairTestCase(unittest.TestCase):
                         vcruntime_found = True
                 self.assertTrue(simpledll_found)
                 self.assertFalse(vcruntime_found)
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp310-abi3-win_amd64.whl')
@@ -588,6 +658,334 @@ class RepairTestCase(unittest.TestCase):
         """PE header space is added correctly in name-mangling step."""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--test', 'not_enough_padding,header_space', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
+
+    def test_namespace0(self):
+        """basic test for namespace packages"""
+        for namespace_pkgs in ('ns0;ns1;ns2',
+                               'ns0;ns0;ns1;ns2',  # package specified twice
+                               'ns0;ns1;ns2;ns3'):  # nonexistent package
+            self.namespace_helper(
+                'simpleext/simpleext-0.0.1-0namespace-cp310-cp310-win_amd64.whl', namespace_pkgs,
+                patched=[
+                    'ns0/reg/__init__.py',
+                    'simpleext-0.0.1.data/platlib/ns1/reg/__init__.py',
+                    'simpleext-0.0.1.data/purelib/ns2/reg/__init__.py',
+                ],
+                not_patched=[
+                    'ns0/__init__.py',
+                    'simpleext-0.0.1.data/purelib/ns1/__init__.py',
+                    'simpleext-0.0.1.data/platlib/ns2/__init__.py',
+                ],
+                importable=[
+                    'ns0.reg.simpleext',
+                    'ns1.reg.simpleext',
+                    'ns2.reg.simpleext',
+                ],
+            )
+
+    def test_namespace1(self):
+        """.py file in a namespace package"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-1namespace-cp310-cp310-win_amd64.whl', 'ns',
+            patched=[
+                'ns/a.py',
+            ],
+            not_patched=[
+                'ns/__init__.py',
+            ],
+            importable=[
+                'simpleext',
+                'ns.a',
+            ],
+        )
+
+    def test_namespace2(self):
+        """.pyd file in a namespace package"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-2namespace-cp310-cp310-win_amd64.whl', 'ns',
+            mangle=False,
+            not_patched=[
+                'ns/__init__.py',
+            ],
+            exist=[
+                'simpleext.libs/simpledll.dll',
+                'ns/simpledll.dll',
+            ],
+            importable=[
+                'ns.simpleext',
+            ],
+        )
+
+    def test_namespace3(self):
+        """deeply nested namespace package"""
+        not_patched = ['ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/reg/a.py']
+        not_patched.extend('ns/' * x + '__init__.py' for x in range(1, not_patched[0].count('ns/') + 1))
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-3namespace-cp310-cp310-win_amd64.whl', 'ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns',
+            not_patched=not_patched,
+            patched=[
+                'ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/ns/reg/__init__.py',
+            ],
+            importable=[
+                'simpleext',
+                'ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.ns.reg.a'
+            ],
+        )
+
+    def test_namespace4(self):
+        """mixed namespace and regular packages"""
+        for namespace_pkgs in ('ns.ns',
+                               'ns;ns.ns',  # redundant, one package is subpackage of another
+                               'ns.ns;Reg'):  # case sensitive, Reg should not match reg
+            self.namespace_helper(
+                'simpleext/simpleext-0.0.1-4namespace-cp310-cp310-win_amd64.whl', namespace_pkgs,
+                not_patched=[
+                    'ns/__init__.py',
+                    'ns/ns/__init__.py',
+                    'ns/ns/reg/a.py',
+                ],
+                patched=[
+                    'reg/__init__.py',
+                    'ns/reg/__init__.py',
+                    'ns/ns/reg/__init__.py',
+                    'ns/ns/a.py',
+                ],
+                importable=[
+                    'simpleext',
+                    'reg',
+                    'ns.reg',
+                    'ns.ns.reg.a',
+                    'ns.ns.a',
+                ],
+            )
+
+    def test_namespace5(self):
+        """.py file with same name as folder that doesn't have __init__.py"""
+        importable = list('abcdefghijkl')
+        importable.extend('ns.' + x for x in importable[3:])
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-5namespace-cp310-cp310-win_amd64.whl', 'ns',
+            not_patched=[
+                'a.py',
+                'd.py',
+                'h.py',
+                'j.py',
+                'a/__init__.py',
+                'd/__init__.py',
+                'g/__init__.py',
+                'i/__init__.py',
+                'ns/__init__.py',
+                'ns/d/__init__.py',
+                'ns/g/__init__.py',
+                'ns/i/__init__.py',
+                'simpleext-0.0.1.data/platlib/b.py',
+                'simpleext-0.0.1.data/platlib/e.py',
+                'simpleext-0.0.1.data/platlib/g.py',
+                'simpleext-0.0.1.data/platlib/l.py',
+                'simpleext-0.0.1.data/platlib/b/__init__.py',
+                'simpleext-0.0.1.data/platlib/e/__init__.py',
+                'simpleext-0.0.1.data/platlib/h/__init__.py',
+                'simpleext-0.0.1.data/platlib/k/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/e/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/h/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/k/__init__.py',
+                'simpleext-0.0.1.data/purelib/c.py',
+                'simpleext-0.0.1.data/purelib/f.py',
+                'simpleext-0.0.1.data/purelib/i.py',
+                'simpleext-0.0.1.data/purelib/k.py',
+                'simpleext-0.0.1.data/purelib/c/__init__.py',
+                'simpleext-0.0.1.data/purelib/f/__init__.py',
+                'simpleext-0.0.1.data/purelib/j/__init__.py',
+                'simpleext-0.0.1.data/purelib/l/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/f/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/j/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/l/__init__.py',
+            ],
+            patched=[
+                'ns/d.py',
+                'ns/h.py',
+                'ns/j.py',
+                'simpleext-0.0.1.data/platlib/ns/e.py',
+                'simpleext-0.0.1.data/platlib/ns/g.py',
+                'simpleext-0.0.1.data/platlib/ns/l.py',
+                'simpleext-0.0.1.data/purelib/ns/f.py',
+                'simpleext-0.0.1.data/purelib/ns/i.py',
+                'simpleext-0.0.1.data/purelib/ns/k.py',
+            ],
+            importable=importable,
+        )
+
+    def test_namespace6(self):
+        """.py file with same name as folder that has __init__.py, which has
+        mixed case"""
+        importable = list('abcdefghijkl')
+        importable.extend('ns.' + x for x in importable[3:])
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-6namespace-cp310-cp310-win_amd64.whl', 'ns',
+            not_patched=[
+                'ns/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/__init__.py',
+                'a.py',
+                'd.py',
+                'h.py',
+                'j.py',
+                'simpleext-0.0.1.data/platlib/b.py',
+                'simpleext-0.0.1.data/platlib/e.py',
+                'simpleext-0.0.1.data/platlib/g.py',
+                'simpleext-0.0.1.data/platlib/l.py',
+                'simpleext-0.0.1.data/purelib/c.py',
+                'simpleext-0.0.1.data/purelib/f.py',
+                'simpleext-0.0.1.data/purelib/i.py',
+                'simpleext-0.0.1.data/purelib/k.py',
+            ],
+            patched=[
+                'a/__init__.pY',
+                'd/__iniT__.py',
+                'g/__init__.py',
+                'i/__init__.py',
+                'ns/d/__init__.py',
+                'ns/g/__init__.py',
+                'ns/i/__init__.py',
+                'ns/d.py',
+                'ns/h.py',
+                'ns/j.py',
+                'simpleext-0.0.1.data/platlib/b/__init__.py',
+                'simpleext-0.0.1.data/platlib/e/__init__.py',
+                'simpleext-0.0.1.data/platlib/h/__init__.py',
+                'simpleext-0.0.1.data/platlib/k/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/e/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/h/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/k/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/e.py',
+                'simpleext-0.0.1.data/platlib/ns/g.py',
+                'simpleext-0.0.1.data/platlib/ns/l.py',
+                'simpleext-0.0.1.data/purelib/c/__init__.py',
+                'simpleext-0.0.1.data/purelib/f/__init__.py',
+                'simpleext-0.0.1.data/purelib/j/__init__.py',
+                'simpleext-0.0.1.data/purelib/l/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/f/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/j/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/l/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/f.py',
+                'simpleext-0.0.1.data/purelib/ns/i.py',
+                'simpleext-0.0.1.data/purelib/ns/k.py',
+            ],
+            importable=importable,
+        )
+
+    def test_namespace7(self):
+        """.pyd file with same name as folder that doesn't have __init__.py"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-7namespace-cp310-cp310-win_amd64.whl', 'ns',
+            mangle=False,
+            not_patched=[
+                'ns/__init__.py',
+                'ns/simpleext/__init__.py',
+                'simpleext/__init__.py',
+            ],
+            exist=[
+                'simpleext-0.0.1.data/platlib/simpledll.dll',
+                'ns/simpledll.dll',
+            ],
+            importable=[
+                'simpleext',
+                'ns.simpleext',
+            ],
+        )
+
+    def test_namespace8(self):
+        """.py and .pyd files with same name but different case as folder that
+        doesn't have __init__.py"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-8namespace-cp310-cp310-win_amd64.whl', 'ns',
+            mangle=False,
+            not_patched=[
+                'ns/__init__.py',
+                'a.py',
+            ],
+            patched=[
+                'A/__init__.py',
+                'ns/A/__init__.py',
+                'ns/Simpleext/__init__.py',
+                'ns/a.py',
+                'Simpleext/__init__.py',
+            ],
+            exist=[
+                'simpleext-0.0.1.data/platlib/simpledll.dll',
+                'ns/simpledll.dll',
+            ],
+            importable=[
+                'A',
+                'ns.A',
+                'ns.Simpleext',
+                'ns.a',
+                'ns.simpleext',
+                'Simpleext',
+                'a',
+                'simpleext',
+            ],
+        )
+
+    def test_namespace9(self):
+        """pkgutil-style namespace package and pkg_resources-style namespace
+        package"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-9namespace-cp310-cp310-win_amd64.whl', 'pkgutil_style;pkg_resources_style',
+            mangle=False,
+            not_patched=[
+                'pkgutil_style/__init__.py',
+                'pkg_resources_style/__init__.py',
+            ],
+            patched=[
+                'pkgutil_style/reg/__init__.py',
+                'pkg_resources_style/reg/__init__.py',
+            ],
+            exist=[
+                'simpleext.libs/simpledll.dll',
+                'pkgutil_style/simpledll.dll',
+                'pkg_resources_style/simpledll.dll',
+            ],
+            importable=[
+                'pkgutil_style.simpleext',
+                'pkgutil_style.reg.simpleext',
+                'pkg_resources_style.simpleext',
+                'pkg_resources_style.reg.simpleext',
+            ],
+        )
+
+    def test_namespace10(self):
+        """extension modules are split across root, platlib, and purelib"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-10namespace-cp310-cp310-win_amd64.whl', 'ns;ns0',
+            mangle=False,
+            not_patched=[
+                'ns/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns0/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns0/__init__.py',
+            ],
+            exist=[
+                'simpleext.libs/simpledll.dll',
+                'ns/simpledll.dll',
+                'simpleext-0.0.1.data/platlib/ns0/simpledll.dll',
+            ],
+            not_exist=[
+                'simpleext-0.0.1.data/platlib/ns/simpledll.dll',
+                'simpleext-0.0.1.data/purelib/ns/simpledll.dll',
+                'simpleext-0.0.1.data/purelib/ns0/simpledll.dll',
+            ],
+            importable=[
+                'ns.simpleext',
+                'ns.simpleext0',
+                'ns.simpleext1',
+                'ns0.simpleext',
+                'ns0.simpleext0',
+            ],
+        )
 
 
 class NeededTestCase(unittest.TestCase):
@@ -635,11 +1033,11 @@ class Python37TestCase(unittest.TestCase):
     def test_repair_simpleext(self):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp37-cp37m-win_amd64.whl'])
         try:
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp37-cp37m-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp37-cp37m-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-cp37-cp37m-win_amd64.whl')
@@ -647,11 +1045,11 @@ class Python37TestCase(unittest.TestCase):
     def test_repair_iknowpy(self):
         try:
             check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl'])
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl'])
-            check_call(['python', '-c', 'import iknowpy'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import iknowpy'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'iknowpy'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/iknowpy-1.5.1-cp37-cp37m-win_amd64.whl')
@@ -670,11 +1068,11 @@ class PyPyTestCase(unittest.TestCase):
         """delvewheel can be run on PyPy and can repair a PyPy wheel"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl'])
         try:
-            check_call(['pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl'])
-            check_call(['python', '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
-                check_call(['pip', 'uninstall', '-y', 'simpleext'])
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
             remove('wheelhouse/simpleext-0.0.1-pp39-pypy39_pp73-win_amd64.whl')
@@ -684,7 +1082,7 @@ class PyPyTestCase(unittest.TestCase):
 
 
 @unittest.skipUnless(sys.platform == 'linux', 'platform is not Linux')
-class LinuxTestCase(unittest.TestCase):
+class LinuxTestCase(TestCase):
     """delvewheel can be run on Linux"""
     def test_show(self):
         check_call(['delvewheel', 'show', '--add-path', 'iknowpy', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
@@ -739,6 +1137,82 @@ class LinuxTestCase(unittest.TestCase):
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
+
+    def test_namespace6(self):
+        """namespace support where filename of __init__.py is case-
+        insensitive"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-6namespace-cp310-cp310-win_amd64.whl', 'ns',
+            not_patched=[
+                'ns/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/__init__.py',
+                'a.py',
+                'd.py',
+                'h.py',
+                'j.py',
+                'simpleext-0.0.1.data/platlib/b.py',
+                'simpleext-0.0.1.data/platlib/e.py',
+                'simpleext-0.0.1.data/platlib/g.py',
+                'simpleext-0.0.1.data/platlib/l.py',
+                'simpleext-0.0.1.data/purelib/c.py',
+                'simpleext-0.0.1.data/purelib/f.py',
+                'simpleext-0.0.1.data/purelib/i.py',
+                'simpleext-0.0.1.data/purelib/k.py',
+            ],
+            patched=[
+                'a/__init__.pY',
+                'd/__iniT__.py',
+                'g/__init__.py',
+                'i/__init__.py',
+                'ns/d/__init__.py',
+                'ns/g/__init__.py',
+                'ns/i/__init__.py',
+                'ns/d.py',
+                'ns/h.py',
+                'ns/j.py',
+                'simpleext-0.0.1.data/platlib/b/__init__.py',
+                'simpleext-0.0.1.data/platlib/e/__init__.py',
+                'simpleext-0.0.1.data/platlib/h/__init__.py',
+                'simpleext-0.0.1.data/platlib/k/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/e/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/h/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/k/__init__.py',
+                'simpleext-0.0.1.data/platlib/ns/e.py',
+                'simpleext-0.0.1.data/platlib/ns/g.py',
+                'simpleext-0.0.1.data/platlib/ns/l.py',
+                'simpleext-0.0.1.data/purelib/c/__init__.py',
+                'simpleext-0.0.1.data/purelib/f/__init__.py',
+                'simpleext-0.0.1.data/purelib/j/__init__.py',
+                'simpleext-0.0.1.data/purelib/l/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/f/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/j/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/l/__init__.py',
+                'simpleext-0.0.1.data/purelib/ns/f.py',
+                'simpleext-0.0.1.data/purelib/ns/i.py',
+                'simpleext-0.0.1.data/purelib/ns/k.py',
+            ],
+        )
+
+    def test_namespace9(self):
+        """namespace support where ':' is the path separator"""
+        self.namespace_helper(
+            'simpleext/simpleext-0.0.1-9namespace-cp310-cp310-win_amd64.whl', 'pkgutil_style:pkg_resources_style',
+            mangle=False,
+            not_patched=[
+                'pkgutil_style/__init__.py',
+                'pkg_resources_style/__init__.py',
+            ],
+            patched=[
+                'pkgutil_style/reg/__init__.py',
+                'pkg_resources_style/reg/__init__.py',
+            ],
+            exist=[
+                'simpleext.libs/simpledll.dll',
+                'pkgutil_style/simpledll.dll',
+                'pkg_resources_style/simpledll.dll',
+            ],
+        )
 
 
 if __name__ == '__main__':

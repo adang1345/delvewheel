@@ -6,6 +6,8 @@ if sys.maxsize > 2**32:
 else:
     library_dirs = ['simpledll/Release']
 
+n = ''  # change to build different module name
+
 setup(
     name='simpleext',
     version='0.0.1',
@@ -24,7 +26,7 @@ setup(
     python_requires='==3.10.*',
     zip_safe=False,
     ext_modules=[Extension(
-        'simpleext', ['simpleext.c'],
+        f'simpleext{n}', [f'simpleext{n}.c'],
         include_dirs=['simpledll'],
         libraries=['simpledll'],
         library_dirs=library_dirs
