@@ -1,3 +1,7 @@
+## 1.4.0 <sub><sup>(_20 July 2023_)</sup></sub>
+- Introduce support for namespace packages with the `--namespace-pkg` option.
+- Move "updating RECORD" message to verbose mode.
+
 ## 1.3.8 <sub><sup>(_20 June 2023_)</sup></sub>
 - Remove unnecessary import from `__init__.py` patch.
 - Update tests to account for removal of attribute certificate table when name-mangling, a change that first appeared in release 1.3.3.
