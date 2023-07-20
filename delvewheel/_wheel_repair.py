@@ -858,7 +858,8 @@ class WheelRepair:
 
         # update record file, which tracks wheel contents and their checksums
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
-        print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
+        if self._verbose >= 1:
+            print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
         filepath_list = []
         for root, _, files in os.walk(self._extract_dir):
             for file in files:
