@@ -26,9 +26,10 @@ setup(
     python_requires='==3.10.*',
     zip_safe=False,
     ext_modules=[Extension(
-        f'simpleext{n}', [f'simpleext{n}.c'],
+        f'simpleext{n}', [f'simpleext.c'],
         include_dirs=['simpledll'],
         libraries=['simpledll'],
-        library_dirs=library_dirs
+        library_dirs=library_dirs,
+        define_macros=[('SIMPLEEXT_INIT', f'PyInit_simpleext{n}'), ('SIMPLEEXT_MODNAME', f'"simpleext{n}"')],
     )]
 )

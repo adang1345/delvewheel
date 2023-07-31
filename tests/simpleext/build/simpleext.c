@@ -2,6 +2,13 @@
 #include <Python.h>
 #include "simpledll.h"
 
+#ifndef SIMPLEEXT_INIT
+#define SIMPLEEXT_INIT PyInit_simpleext
+#endif
+#ifndef SIMPLEEXT_MODNAME
+#define SIMPLEEXT_MODNAME "simpleext"
+#endif
+
 static PyObject *simpleext_helloworld(PyObject *self, PyObject *args)
 {
    helloworld();
@@ -15,13 +22,13 @@ static PyMethodDef SimpleExtMethods[] = {
 
 static struct PyModuleDef simpleextmodule = {
     PyModuleDef_HEAD_INIT,
-    "simpleext",
+    SIMPLEEXT_MODNAME,
     NULL,
     -1,
     SimpleExtMethods
 };
 
-PyMODINIT_FUNC PyInit_simpleext(void)
+PyMODINIT_FUNC SIMPLEEXT_INIT(void)
 {
     return PyModule_Create(&simpleextmodule);
 }
