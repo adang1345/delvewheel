@@ -34,14 +34,13 @@ from . import _version
 # oldest supported target Python version.
 #
 # To use the template, call str.format(), passing in
-# 0. '""""""' if the patch would be at the start of the file else ''
+# 0. '"""""" ' if the patch would be at the start of the file else ''
 # 1. an identifying string such as the delvewheel version
 # 2. a number of repeats of 'os.pardir, ' corresponding to the path depth of
 #    the file in site-packages upon wheel installation
 # 3. the name of the directory containing the vendored DLLs
 # 4. the name of the file containing the DLL load order.
-_patch_py_template = """
-
+_patch_py_template = """\
 {0}# start delvewheel patch
 def _delvewheel_patch_{1}():
     import ctypes
@@ -67,7 +66,6 @@ def _delvewheel_patch_{1}():
 _delvewheel_patch_{1}()
 del _delvewheel_patch_{1}
 # end delvewheel patch
-
 """
 
 # Template for patching a .py file for Python 3.10 and above. For these Python
@@ -77,13 +75,12 @@ del _delvewheel_patch_{1}
 # oldest supported target Python version.
 #
 # To use the template, call str.format(), passing in
-# 0. '""""""' if the patch would be at the start of the file else ''
+# 0. '"""""" ' if the patch would be at the start of the file else ''
 # 1. an identifying string such as the delvewheel version
 # 2. a number of repeats of 'os.pardir, ' corresponding to the path depth of
 #    the file in site-packages upon wheel installation
 # 3. the name of the directory containing the vendored DLLs
-_patch_py_template_v2 = """
-
+_patch_py_template_v2 = """\
 {0}# start delvewheel patch
 def _delvewheel_patch_{1}():
     import os
@@ -95,7 +92,6 @@ def _delvewheel_patch_{1}():
 _delvewheel_patch_{1}()
 del _delvewheel_patch_{1}
 # end delvewheel patch
-
 """
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -283,9 +279,9 @@ class WheelRepair:
         if self._min_supported_python is None or self._min_supported_python < (3, 10):
             if load_order_filename is None:
                 raise ValueError('load_order_filename cannot be None')
-            return _patch_py_template.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), 'os.pardir, ' * depth, libs_dir, load_order_filename)
+            return _patch_py_template.format('"""""" ' if at_start else '', _version.__version__.replace('.', '_'), 'os.pardir, ' * depth, libs_dir, load_order_filename)
         else:
-            return _patch_py_template_v2.format('""""""' if at_start else '', _version.__version__.replace('.', '_'), 'os.pardir, ' * depth, libs_dir)
+            return _patch_py_template_v2.format('"""""" ' if at_start else '', _version.__version__.replace('.', '_'), 'os.pardir, ' * depth, libs_dir)
 
     def _patch_py_file(self, py_path: str, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> None:
         """Given the path to a .py file, create or patch the file so that
@@ -329,16 +325,22 @@ class WheelRepair:
             patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
             py_contents_split = py_contents.splitlines(True)
             with open(py_path, 'w', newline=newline) as file:
-                file.write(''.join(py_contents_split[:future_import_lineno]))
-                file.write('\n')
+                file.write(''.join(py_contents_split[:future_import_lineno]).rstrip())
+                file.write('\n\n\n')
                 file.write(patch_py_contents)
-                file.write(''.join(py_contents_split[future_import_lineno:]))
+                remainder = ''.join(py_contents_split[future_import_lineno:]).lstrip()
+                if remainder:
+                    file.write('\n')
+                    file.write(remainder)
         elif docstring is None:
             # prepend patch
             patch_py_contents = self._patch_py_contents(True, libs_dir, load_order_filename, depth)
             with open(py_path, 'w', newline=newline) as file:
                 file.write(patch_py_contents)
-                file.write(py_contents)
+                remainder = py_contents.lstrip()
+                if remainder:
+                    file.write('\n')
+                    file.write(remainder)
         else:
             # place patch just after docstring
             patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
@@ -347,7 +349,9 @@ class WheelRepair:
                 raise ValueError(f'Error parsing {py_name}: docstring exists but is not the first element of the parse tree')
             if len(children) == 1:
                 # append patch
-                with open(py_path, 'a') as file:
+                with open(py_path, 'w', newline=newline) as file:
+                    file.write(py_contents.rstrip())
+                    file.write('\n\n\n')
                     file.write(patch_py_contents)
             else:
                 # insert patch after docstring
@@ -361,7 +365,7 @@ class WheelRepair:
                         break
                 double_quotes_index = py_contents.find('"""', docstring_search_start_index)
                 single_quotes_index = py_contents.find("'''", docstring_search_start_index)
-                if double_quotes_index == -1 and single_quotes_index == -1:
+                if double_quotes_index == single_quotes_index == -1:
                     raise ValueError(f'Error parsing {py_name}: docstring exists but does not start with triple quotes')
                 elif double_quotes_index == -1 or single_quotes_index != -1 and single_quotes_index < double_quotes_index:
                     docstring_start_index = single_quotes_index
@@ -380,10 +384,11 @@ class WheelRepair:
                 if extra_text and not extra_text.isspace():
                     raise ValueError(f'Error parsing {py_name}: extra text {extra_text!r} is on the line where the docstring ends. Move the extra text to a new line and try again.')
                 with open(py_path, 'w', newline=newline) as file:
-                    file.write(py_contents[:docstring_end_index])
-                    file.write('\n')
+                    file.write(py_contents[:docstring_end_index].rstrip())
+                    file.write('\n\n\n')
                     file.write(patch_py_contents)
-                    file.write(py_contents[docstring_end_index:])
+                    file.write('\n')
+                    file.write(py_contents[docstring_end_index:].lstrip())
 
         # verify that the file can be parsed properly
         with open(py_path) as file:
