@@ -378,8 +378,8 @@ def _are_characteristics_suitable(section: pefile.SectionStructure) -> bool:
 
 
 def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: typing.Iterable[bytes]) -> typing.Tuple[int, bool]:
-    """Determine the size of a PE file (excluding any trailing data) and
-    whether the file has enough padding for writing the elements of new_dlls.
+    """Determine the size of a PE file (excluding any overlay) and whether the
+    file has enough padding for writing the elements of new_dlls.
 
     Determining whether the file has enough padding is an instance of the NP-
     complete bin packing problem, so we use the Next Fit approximation
@@ -413,8 +413,8 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
     old_deps: a subset of the dependencies that lib_path has, in list form
     name_map: a dict that maps an old dependency name to a new name, must
         contain at least all the keys in old_deps
-    strip: whether to try to strip DLLs that contain trailing data if not
-        enough internal padding exists
+    strip: whether to try to strip DLLs that contain overlays if not enough
+        internal padding exists
     verbose: verbosity level, 0 to 2
     test: testing options for internal use"""
     if not old_deps:
@@ -423,9 +423,9 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
     name_map = {dep.lower().encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
         # keep only the DLLs that will be mangled
 
-    # If an attribute certificate table exists and is the only trailing data,
-    # remove the table. In this case, we end up removing all trailing data
-    # without needing to run strip.
+    # If an attribute certificate table exists and is the only thing in the
+    # overlay, remove the table. In this case, we end up removing the entire
+    # overlay without needing to run strip.
     with PEContext(lib_path, None, False, verbose) as pe:
         pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
         cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
@@ -438,18 +438,18 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
     # overwrite the bytes of the old dependency names. Determine whether the PE
     # file has enough usable internal padding to use to write the new
     # dependency names. If so, overwrite the padding. Otherwise, as long as the
-    # PE file contains no trailing data or the trailing data can be stripped,
-    # append a new PE section to store the new names. Determining whether
-    # enough internal padding exists is an instance of the bin packing problem
-    # in which the new dependency names are items and the contiguous padding
-    # runs are bins. The bin packing problem is NP-hard, so for simplicity, we
-    # use the Next Fit algorithm.
+    # PE file contains no overlay or the overlay can be stripped, append a new
+    # PE section to store the new names. Determining whether enough internal
+    # padding exists is an instance of the bin packing problem in which the new
+    # dependency names are items and the contiguous padding runs are bins. The
+    # bin packing problem is NP-hard, so for simplicity, we use the Next Fit
+    # algorithm.
     with PEContext(lib_path, None, False, verbose) as pe:
         pe_size, enough_padding = _get_pe_size_and_enough_padding(pe, name_map.values())
     if 'not_enough_padding' in test:
         enough_padding = False
     if not enough_padding and pe_size < os.path.getsize(lib_path) and strip:
-        # try to strip the trailing data
+        # try to strip the overlay
         try:
             subprocess.check_call(['strip', '-s', lib_path])
         except FileNotFoundError:
@@ -459,18 +459,17 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
 
     lib_name = os.path.basename(lib_path)
     if not enough_padding and pe_size < os.path.getsize(lib_path):
-        # cannot rename dependencies due to trailing data
+        # cannot rename dependencies due to overlay
         if strip:
             raise RuntimeError(textwrap.fill(
                 f'Unable to rename the dependencies of {lib_name} because '
                 'this DLL does not contain enough internal padding to fit the '
-                'new dependency names, and it contains trailing data after '
-                'the point where the DLL file specification ends. The GNU '
+                'new dependency names, and it contains an overlay. The GNU '
                 'strip utility was run automatically in attempt to remove the '
-                'trailing data but failed to remove all of it. Unless you '
-                'have knowledge to the contrary, you should assume that the '
-                'trailing data exist for an important reason and are not safe '
-                f'to remove. Include {os.pathsep.join(old_deps)} in the '
+                'overlay but failed to remove all of it. Unless you have '
+                'knowledge to the contrary, you should assume that the '
+                'overlay exists for an important reason and is not safe to '
+                f'remove. Include {os.pathsep.join(old_deps)} in the '
                 '--no-mangle flag to fix this error.',
                 initial_indent=' ' * len('RuntimeError: ')).lstrip())
         else:
@@ -478,23 +477,22 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
                 textwrap.fill(
                     f'Unable to rename the dependencies of {lib_name} because '
                     'this DLL does not contain enough internal padding to fit '
-                    'the new dependency names, and it contains trailing data '
-                    'after the point where the DLL file specification ends. '
-                    'Commonly, the trailing data consist of symbols that can '
-                    'be safely removed, although there exist situations where '
+                    'the new dependency names, and it contains an overlay. '
+                    'Commonly, the overlay consists of symbols that can be '
+                    'safely removed, although there exist situations where '
                     'the data must be present for the DLL to function '
                     'properly. Here are your options.',
                     initial_indent=' ' * len('RuntimeError: ')).lstrip(),
                 '\n',
                 textwrap.fill(
-                    '- Try to remove the trailing data using the GNU strip '
+                    '- Try to remove the overlay using the GNU strip '
                     f"utility with the command `strip -s {lib_name}'.",
                     subsequent_indent='  '
                 ),
                 '\n',
                 textwrap.fill(
                     '- Use the --strip flag to ask delvewheel to execute '
-                    'strip automatically when trailing data are detected.',
+                    'strip automatically when an overlay is detected.',
                     subsequent_indent='  '
                 ),
                 '\n',
