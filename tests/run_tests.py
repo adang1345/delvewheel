@@ -195,6 +195,10 @@ class ShowTestCase(unittest.TestCase):
         output = subprocess.check_output(['delvewheel', 'show', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
         self.assertIn('will be copied into the wheel.\n    None', output)
 
+    def test_ignore_data(self):
+        """Ignore .pyd file in .data/data directory."""
+        output = subprocess.check_output(['delvewheel', 'show', 'simpleext/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'], text=True)
+        self.assertIn('will be copied into the wheel.\n    None', output)
 
 class RepairTestCase(TestCase):
     """Tests for delvewheel repair"""
@@ -986,6 +990,11 @@ class RepairTestCase(TestCase):
                 'ns0.simpleext0',
             ],
         )
+
+    def test_ignore_data(self):
+        """Ignore .pyd file in .data/data directory."""
+        check_call(['delvewheel', 'repair', 'simpleext/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'])
+        self.assertFalse(os.path.exists('wheelhouse/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'))
 
 
 class NeededTestCase(unittest.TestCase):

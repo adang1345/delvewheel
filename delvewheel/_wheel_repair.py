@@ -221,7 +221,9 @@ class WheelRepair:
         # determine the CPU architecture of the wheel
         self._arch = _dll_list.MachineType.platform_tag_to_type(platform_tag)
         if not self._arch:
-            for root, _, filenames in os.walk(self._extract_dir):
+            for root, dirnames, filenames in os.walk(self._extract_dir):
+                if root == self._data_dir:
+                    dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
                 for filename in filenames:
                     if filename.lower().endswith('.pyd'):
                         arch = _dll_utils.get_arch(os.path.join(root, filename))
@@ -553,7 +555,9 @@ class WheelRepair:
         ignored_dll_names = set()
         not_found_dll_names = set()
         extension_module_paths = []
-        for root, _, filenames in os.walk(self._extract_dir):
+        for root, dirnames, filenames in os.walk(self._extract_dir):
+            if root == self._data_dir:
+                dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
@@ -642,7 +646,9 @@ class WheelRepair:
         ignored_dll_names = set()
         extension_module_paths = []
         has_top_level_ext_module = False
-        for root, _, filenames in os.walk(self._extract_dir):
+        for root, dirnames, filenames in os.walk(self._extract_dir):
+            if root == self._data_dir:
+                dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
