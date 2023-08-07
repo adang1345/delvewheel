@@ -996,6 +996,23 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', 'simpleext/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'])
         self.assertFalse(os.path.exists('wheelhouse/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'))
 
+    def test_include_symbols0(self):
+        """Simple test of the --include-symbols flag."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--include-symbols', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl') as whl_file:
+                whl_file.extractall(tempdir)
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
+
+    def test_include_symbols1(self):
+        """Two copies of symbol file exist if 2 copies of DLL exist"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--namespace-pkg', 'ns', '--include-symbols', 'simpleext/simpleext-0.0.1-2namespace-cp310-cp310-win_amd64.whl'])
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp310-cp310-win_amd64.whl') as whl_file:
+                whl_file.extractall(tempdir)
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.pdb')))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'ns/simpledll.pdb')))
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""

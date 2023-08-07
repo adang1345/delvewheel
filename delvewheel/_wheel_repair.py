@@ -562,7 +562,7 @@ class WheelRepair:
                 if filename.lower().endswith('.pyd'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', self._verbose)
+                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', False, self._verbose)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -570,9 +570,9 @@ class WheelRepair:
         # find extra dependencies specified with --add-dll
         extra_dependency_paths = set()
         for dll_name in self._add_dlls:
-            path = _dll_utils.find_library(dll_name, None, self._arch)
-            if path:
-                extra_dependency_paths.add(path)
+            dll_info = _dll_utils.find_library(dll_name, None, self._arch, False)
+            if dll_info:
+                extra_dependency_paths.add(dll_info[0])
             else:
                 not_found_dll_names.add(dll_name)
 
@@ -619,7 +619,7 @@ class WheelRepair:
         if not_found_dll_names:
             print('\nWarning: At least one dependent DLL needs to be copied into the wheel but was not found.')
 
-    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, strip: bool, lib_sdir: str, no_diagnostic: bool, namespace_pkgs: typing.Set[typing.Tuple[str]]) -> None:
+    def repair(self, target: str, no_mangles: set, no_mangle_all: bool, strip: bool, lib_sdir: str, no_diagnostic: bool, namespace_pkgs: typing.Set[typing.Tuple[str]], include_symbols: bool) -> None:
         """Repair the wheel in a manner similar to auditwheel.
         target is the target directory for storing the repaired wheel
         no_mangles is a set of lowercase DLL names that will not be mangled
@@ -631,7 +631,9 @@ class WheelRepair:
             DELVEWHEEL metadata file
         namespace_pkgs is a set of paths, relative to the wheel root,
             corresponding to the namespace packages. Each path is represented
-            as a tuple of path components"""
+            as a tuple of path components
+        include_symbols is True if .pdb symbol files should be included with
+            the vendored DLLs"""
         print(f'repairing {self._whl_path}')
 
         # check whether wheel has already been repaired
@@ -643,6 +645,7 @@ class WheelRepair:
         # find dependencies
         print('finding DLL dependencies')
         dependency_paths = set()
+        symbol_paths = set()
         ignored_dll_names = set()
         extension_module_paths = []
         has_top_level_ext_module = False
@@ -662,8 +665,9 @@ class WheelRepair:
                     elif self._verbose >= 1:
                         print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
-                    discovered, ignored = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', self._verbose)[:2]
+                    discovered, symbols, ignored = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', include_symbols, self._verbose)[:3]
                     dependency_paths |= discovered
+                    symbol_paths |= symbols
                     ignored_dll_names |= ignored
 
         # if --ignore-in-wheel is specified, ignore DLLs that were found inside
@@ -686,9 +690,11 @@ class WheelRepair:
         for dll_name in self._add_dlls:
             if dll_name in dependency_names_lower:
                 continue
-            path = _dll_utils.find_library(dll_name, None, self._arch)
-            if path:
-                extra_dependency_paths.add(path)
+            dll_info = _dll_utils.find_library(dll_name, None, self._arch, include_symbols)
+            if dll_info:
+                extra_dependency_paths.add(dll_info[0])
+                if dll_info[1]:
+                    symbol_paths.add(dll_info[1])
             else:
                 raise FileNotFoundError(f'{dll_name} not found')
         if not dependency_paths and not extra_dependency_paths:
@@ -730,6 +736,10 @@ class WheelRepair:
             if self._verbose >= 1:
                 print(f'copying {dependency_path} -> {os.path.join(libs_dir, os.path.basename(dependency_path))}')
             shutil.copy2(dependency_path, libs_dir)
+        for symbol_path in symbol_paths:
+            if self._verbose >= 1:
+                print(f'copying {symbol_path} -> {os.path.join(libs_dir, os.path.basename(symbol_path))}')
+            shutil.copy2(symbol_path, libs_dir)
 
         # mangle library names
         name_mangler = {}  # dict from lowercased old name to new name
@@ -825,11 +835,11 @@ class WheelRepair:
             for dirname in dirnames:
                 dirname_relative = self._get_site_packages_relpath(dirname)
                 if dirname_relative not in seen_relative:
-                    for lib_name in os.listdir(libs_dir):
-                        lib_path = os.path.join(libs_dir, lib_name)
+                    for filename in os.listdir(libs_dir):
+                        filepath = os.path.join(libs_dir, filename)
                         if self._verbose >= 1:
-                            print(f'copying {lib_path} -> {os.path.join(dirname, lib_name)}')
-                        shutil.copy2(lib_path, dirname)
+                            print(f'copying {filepath} -> {os.path.join(dirname, filename)}')
+                        shutil.copy2(filepath, dirname)
                     seen_relative.add(dirname_relative)
 
         if load_order_filename is not None:

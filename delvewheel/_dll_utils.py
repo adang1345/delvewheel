@@ -209,17 +209,25 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
 _translate_directory = _translate_directory()
 
 
-def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: MachineType) -> typing.Optional[str]:
-    """Given the name of a DLL, return the path to the DLL, or None if the DLL
-    cannot be found. DLL names are searched in a case-insensitive fashion. The
-    search goes in the following order and considers only the DLLs with the
-    given architecture.
+def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: MachineType, include_symbols: bool) -> typing.Optional[typing.Tuple[str, typing.Optional[str]]]:
+    """Given the name of a DLL, return a tuple where
+    - the 1st element is the path to the DLL
+    - the 2nd element is
+      - if include_symbols is False, then None
+      - if include_symbols is True, then the path to the .pdb symbol file next
+        to the DLL if it exists, None otherwise. Excluding the file extension,
+        the name of the symbol file is assumed to be the same as the name of
+        the DLL.
+    If the DLL cannot be found, then return None. DLL and symbol file names are
+    searched in a case-insensitive fashion. The search goes in the following
+    order and considers only the DLLs with the architecture arch.
 
-    1. If not None, the directories in wheel_dirs.
+    1. If not None, the directories in wheel_dirs. We never search for symbol
+       files in wheel_dirs.
     2. The PATH environment variable, with any applicable adjustments due to
-       the Windows file system redirector. (If we are on a case-sensitive file
+       the Windows file system redirector. If we are on a case-sensitive file
        system and a directory contains more than one DLL with the correct
-       architecture that differs by case only, then choose one arbitrarily.)"""
+       architecture that differs by case only, then choose one arbitrarily."""
     name = name.lower()
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
@@ -231,18 +239,31 @@ def find_library(name: str, wheel_dirs: typing.Optional[typing.Iterable], arch: 
                 if name == item.lower():
                     path = os.path.join(wheel_dir, item)
                     if os.path.isfile(path) and get_arch(path) == arch:
-                        return path
+                        return path, None
     for directory in os.environ['PATH'].split(os.pathsep):
         directory = _translate_directory(directory, arch)
         try:
             contents = os.listdir(directory)
         except FileNotFoundError:
             continue
+        dll_path = None
         for item in contents:
             if name == item.lower():
                 path = os.path.join(directory, item)
                 if os.path.isfile(path) and get_arch(path) == arch:
-                    return path
+                    dll_path = path
+                    break
+        symbol_path = None
+        if dll_path and include_symbols:
+            symbol_name = os.path.splitext(name)[0] + '.pdb'
+            for item in contents:
+                if symbol_name == item.lower():
+                    path = os.path.join(directory, item)
+                    if os.path.isfile(path):
+                        symbol_path = path
+                        break
+        if dll_path:
+            return dll_path, symbol_path
     return None
 
 
@@ -300,28 +321,33 @@ def get_all_needed(lib_path: str,
                    no_dlls: set,
                    wheel_dirs: typing.Optional[typing.Iterable],
                    on_error: str,
-                   verbose: int) -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str]]:
-    """Given the path to a shared library, return a 3-tuple of sets
-    (discovered, ignored, not_found).
-
-    discovered contains the original-case DLL paths of all direct and indirect
-    dependencies of that shared library that should be bundled into the wheel.
-    ignored contains the lowercased DLL names of all direct and indirect
-    dependencies of that shared library that will not be bundled into the wheel
-    because they are assumed to be on the target system.
-
-    If on_error is 'raise', FileNotFoundError is raised if a dependent library
-    cannot be found. If on_error is 'ignore', not_found contains the lowercased
-    DLL names of all dependent DLLs that cannot be found.
+                   include_symbols: bool,
+                   verbose: int) -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str], typing.Set[str]]:
+    """Given the path to a shared library, return a 4-tuple of sets
+    (discovered, symbols, ignored, not_found).
+    - discovered contains the original-case DLL paths of all direct and
+      indirect dependencies of that shared library that should be bundled into
+      the wheel.
+    - symbols contains the original-case paths of any .pdb symbol files
+      corresponding to the DLLs in discovered.
+    - ignored contains the lowercased DLL names of all direct and indirect
+      dependencies of that shared library that will not be bundled into the
+      wheel because they are assumed to be on the target system.
+    - If on_error is 'raise', FileNotFoundError is raised if a dependent
+      library cannot be found. If on_error is 'ignore', not_found contains the
+      lowercased DLL names of all dependent DLLs that cannot be found.
 
     no_dlls is a set of DLL names to force exclusion from the wheel. We do not
     search for dependencies of these DLLs.
 
     If wheel_dirs is not None, it is an iterable of directories in the wheel
-    where dependencies are searched first."""
+    where dependencies are searched first.
+
+    include_symbols specifies whether to search for .pdb symbol files"""
     first_lib_path = lib_path.lower()
     stack = [first_lib_path]
     discovered = set()
+    symbols = set()
     ignored = set()
     not_found = set()
     while stack:
@@ -344,9 +370,11 @@ def get_all_needed(lib_path: str,
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                             dll_name not in no_dlls and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
-                        dll_path = find_library(dll_name, wheel_dirs, lib_arch)
-                        if dll_path:
-                            stack.append(dll_path)
+                        dll_info = find_library(dll_name, wheel_dirs, lib_arch, include_symbols)
+                        if dll_info:
+                            stack.append(dll_info[0])
+                            if dll_info[1]:
+                                symbols.add(dll_info[1])
                         elif on_error == 'raise':
                             raise FileNotFoundError(f'Unable to find library: {dll_name}')
                         else:
@@ -354,7 +382,7 @@ def get_all_needed(lib_path: str,
                     else:
                         ignored.add(dll_name)
     discovered.remove(first_lib_path)
-    return discovered, ignored, not_found
+    return discovered, symbols, ignored, not_found
 
 
 def _round_to_next(size: int, alignment: int) -> int:
