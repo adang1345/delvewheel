@@ -1,3 +1,10 @@
+## 1.5.0 <sub><sup>(_8 August 2023_)</sup></sub>
+- Make whitespace around the `.py` patch prettier.
+- Use the term "overlay" in code and documentation to describe PE file trailing data.
+- Ignore `.pyd` files in `.data` directory outside of `.data/purelib` and `.data/platlib`.
+- Don't vendor debug versions of CPython DLLs (e.g. `python3_d.dll`).
+- Introduce the `--include-symbols` option to vendor debug symbol files along with DLLs.
+
 ## 1.4.0 <sub><sup>(_20 July 2023_)</sup></sub>
 - Introduce support for namespace packages with the `--namespace-pkg` option.
 - Move "updating RECORD" message to verbose mode.
