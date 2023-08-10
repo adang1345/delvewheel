@@ -369,8 +369,11 @@ class RepairTestCase(TestCase):
 
     def test_no_dll_all(self):
         """--no-dll that removes all DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
-        self.assertFalse(os.path.exists('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'))
+        try:
+            output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'], text=True)
+            self.assertIn('no external dependencies are needed', output)
+        finally:
+            remove('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl')
 
     def test_ignore_in_wheel_irrelevant(self):
         """--ignore-in-wheel when no DLLs are in the wheel"""
@@ -416,11 +419,11 @@ class RepairTestCase(TestCase):
         """--extract-dir"""
         try:
             check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-dll', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', '--extract-dir', 'temp', 'iknowpy/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'])
-            self.assertFalse(os.path.exists('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl'))
             self.assertTrue(os.path.exists('temp/iknowpy'))
         finally:
             if os.path.exists('temp'):
                 shutil.rmtree('temp')
+            remove('wheelhouse/iknowpy-1.5.0-cp310-cp310-win_amd64.whl')
 
     def test_wheel_dir_short(self):
         """-w"""
@@ -642,21 +645,34 @@ class RepairTestCase(TestCase):
             remove('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
 
     def test_pure_python(self):
-        """Repair is canceled if wheel is pure Python."""
-        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/more_itertools-9.0.0-py3-none-any.whl'], text=True)
-        self.assertIn('no external dependencies are needed', output)
+        """If wheel is pure Python, no repair happens, and the wheel is copied
+        as-is."""
+        try:
+            output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/more_itertools-9.0.0-py3-none-any.whl'], text=True)
+            self.assertIn('no external dependencies are needed', output)
+            self.assertTrue(os.path.isfile('wheelhouse/more_itertools-9.0.0-py3-none-any.whl'))
+        finally:
+            remove('wheelhouse/more_itertools-9.0.0-py3-none-any.whl')
 
     def test_no_external(self):
-        """Repair is canceled if wheel has an extension module that has no
-        external dependencies."""
-        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'], text=True)
-        self.assertIn('no external dependencies are needed', output)
+        """If wheel has an extension module that has no external dependencies,
+        no repair happens, and the wheel is copied as-is."""
+        try:
+            output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'], text=True)
+            self.assertIn('no external dependencies are needed', output)
+            self.assertTrue(os.path.isfile('wheelhouse/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'))
+        finally:
+            remove('wheelhouse/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl')
 
     def test_wrong_platform(self):
-        """Repair is canceled if wheel has an extension module that is not for
-        Windows."""
-        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
-        self.assertIn('no external dependencies are needed', output)
+        """If wheel has an extension module that is not for Windows, no repair
+        happens, and the wheel is copied as-is."""
+        try:
+            output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
+            self.assertIn('no external dependencies are needed', output)
+            self.assertTrue(os.path.isfile('wheelhouse/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'))
+        finally:
+            remove('wheelhouse/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl')
 
     def test_header_space(self):
         """PE header space is added correctly in name-mangling step."""
@@ -993,8 +1009,11 @@ class RepairTestCase(TestCase):
 
     def test_ignore_data(self):
         """Ignore .pyd file in .data/data directory."""
-        check_call(['delvewheel', 'repair', 'simpleext/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'])
-        self.assertFalse(os.path.exists('wheelhouse/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'))
+        try:
+            output = subprocess.check_output(['delvewheel', 'repair', 'simpleext/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'], text=True)
+            self.assertIn('no external dependencies are needed', output)
+        finally:
+            remove('wheelhouse/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl')
 
     def test_include_symbols0(self):
         """Simple test of the --include-symbols flag."""

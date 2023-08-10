@@ -699,6 +699,9 @@ class WheelRepair:
                 raise FileNotFoundError(f'{dll_name} not found')
         if not dependency_paths and not extra_dependency_paths:
             print('no external dependencies are needed')
+            os.makedirs(target, exist_ok=True)
+            shutil.copy2(self._whl_path, target)
+            print(f'wheel copied to {os.path.abspath(os.path.join(target, self._whl_name))}')
             return
 
         # Warn if namespace package does not exist
