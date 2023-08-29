@@ -288,8 +288,8 @@ class WheelRepair:
     def _patch_py_file(self, py_path: str, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> None:
         """Given the path to a .py file, create or patch the file so that
         vendored DLLs can be loaded at runtime. The patch is placed at the
-        topmost location after the docstring (if any) and any
-        "from __future__ import" statements.
+        topmost location after the shebang (if any), docstring or header
+        comments (if any), and any "from __future__ import" statements.
 
         py_path is the path to the .py file to create or patch
         libs_dir is the name of the directory where DLLs are stored.
@@ -334,16 +334,7 @@ class WheelRepair:
                 if remainder:
                     file.write('\n')
                     file.write(remainder)
-        elif docstring is None:
-            # prepend patch
-            patch_py_contents = self._patch_py_contents(True, libs_dir, load_order_filename, depth)
-            with open(py_path, 'w', newline=newline) as file:
-                file.write(patch_py_contents)
-                remainder = py_contents.lstrip()
-                if remainder:
-                    file.write('\n')
-                    file.write(remainder)
-        else:
+        elif docstring is not None:
             # place patch just after docstring
             patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
@@ -391,6 +382,53 @@ class WheelRepair:
                     file.write(patch_py_contents)
                     file.write('\n')
                     file.write(py_contents[docstring_end_index:].lstrip())
+        else:
+            py_contents_lines = py_contents.splitlines()
+            start = 0
+            if py_contents_lines and py_contents_lines[0].startswith('#!'):
+                start = 1
+            while start < len(py_contents_lines) and py_contents_lines[start].strip() in ('', '#'):
+                start += 1
+            if start < len(py_contents_lines) and py_contents_lines[start][:1] == '#':
+                # insert patch after header comments
+                end = start + 1
+                while end < len(py_contents_lines) and py_contents_lines[end][:1] == '#':
+                    end += 1
+                patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
+                with open(py_path, 'w', newline=newline) as file:
+                    file.write('\n'.join(py_contents_lines[:end]).rstrip())
+                    file.write('\n\n\n')
+                    file.write(patch_py_contents)
+                    remainder = '\n'.join(py_contents_lines[end:]).lstrip()
+                    if remainder:
+                        file.write('\n')
+                        file.write(remainder)
+                        if not remainder.endswith('\n'):
+                            file.write('\n')
+            elif py_contents_lines and py_contents_lines[0].startswith('#!'):
+                # insert patch after shebang
+                patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
+                with open(py_path, 'w', newline=newline) as file:
+                    file.write(py_contents_lines[0].rstrip())
+                    file.write('\n\n\n')
+                    file.write(patch_py_contents)
+                    remainder = '\n'.join(py_contents_lines[1:]).lstrip()
+                    if remainder:
+                        file.write('\n')
+                        file.write(remainder)
+                        if not remainder.endswith('\n'):
+                            file.write('\n')
+            else:
+                # prepend patch
+                patch_py_contents = self._patch_py_contents(True, libs_dir, load_order_filename, depth)
+                with open(py_path, 'w', newline=newline) as file:
+                    file.write(patch_py_contents)
+                    remainder = py_contents.lstrip()
+                    if remainder:
+                        file.write('\n')
+                        file.write(remainder)
+                        if not remainder.endswith('\n'):
+                            file.write('\n')
 
         # verify that the file can be parsed properly
         with open(py_path) as file:
