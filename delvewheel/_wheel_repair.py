@@ -301,6 +301,30 @@ class WheelRepair:
         print(f'patching {os.path.relpath(py_path, self._extract_dir)}')
 
         py_name = os.path.basename(py_path)
+        if py_name.lower() == '__init__.py':
+            package_dir = os.path.dirname(os.path.relpath(py_path, self._extract_dir))
+            if os.path.isfile(py_path):
+                search = (
+                    "__path__=__import__('pkgutil').extend_path(__path__,__name__)",
+                    '__path__=__import__("pkgutil").extend_path(__path__,__name__)',
+                    "__import__('pkg_resources').declare_namespace(__name__)",
+                    '__import__("pkg_resources").declare_namespace(__name__)'
+                )
+                with open(py_path) as file:
+                    for line in file:
+                        if line.rstrip().replace(' ', '') in search:
+                            warnings.warn(
+                                f'{package_dir} appears to be a namespace '
+                                f'package. If so, use the --namespace-pkg '
+                                f'option.', UserWarning)
+                            break
+            else:
+                warnings.warn(
+                    f'{package_dir} does not contain __init__.py. If it is a '
+                    f'namespace package, use the --namespace-pkg option. '
+                    f'Otherwise, create an empty __init__.py file to silence '
+                    f'this warning.', UserWarning)
+
         open(py_path, 'a+').close()  # create file if it doesn't exist
         with open(py_path, newline='') as file:
             line = file.readline()
