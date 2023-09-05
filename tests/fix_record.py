@@ -2,6 +2,7 @@
 is modified manually for testing purposes."""
 
 import base64
+import csv
 import hashlib
 import os
 import sys
@@ -35,14 +36,14 @@ filepath_list = []
 for root, _, files in os.walk(extract_dir):
     for file in files:
         filepath_list.append(os.path.join(root, file))
-with open(record_filepath, 'w') as record_file:
+with open(record_filepath, 'w', newline='\n') as record_file:
+    writer = csv.writer(record_file, lineterminator='\n')
     for file_path in filepath_list:
         if file_path == record_filepath:
-            record_file.write(os.path.relpath(record_filepath, extract_dir).replace('\\', '/'))
-            record_file.write(',,\n')
+            writer.writerow((os.path.relpath(record_filepath, extract_dir).replace('\\', '/'), '', ''))
         else:
-            record_line = '{},sha256={},{}\n'.format(os.path.relpath(file_path, extract_dir).replace('\\', '/'), *_rehash(file_path))
-            record_file.write(record_line)
+            hash, size = _rehash(file_path)
+            writer.writerow((os.path.relpath(file_path, extract_dir).replace('\\', '/'), f'sha256={hash}', size))
 
 # repackage wheel
 with zipfile.ZipFile(whl_path, 'w', zipfile.ZIP_DEFLATED) as whl_file:

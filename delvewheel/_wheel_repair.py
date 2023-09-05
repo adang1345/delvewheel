@@ -2,6 +2,7 @@
 
 import ast
 import base64
+import csv
 import hashlib
 import os
 import pathlib
@@ -951,13 +952,13 @@ class WheelRepair:
             for file in files:
                 filepath_list.append(os.path.join(root, file))
         with open(record_filepath, 'w', newline='\n') as record_file:
+            writer = csv.writer(record_file, lineterminator='\n')
             for file_path in filepath_list:
                 if file_path == record_filepath:
-                    record_file.write(os.path.relpath(record_filepath, self._extract_dir).replace('\\', '/'))
-                    record_file.write(',,\n')
+                    writer.writerow((os.path.relpath(record_filepath, self._extract_dir).replace('\\', '/'), '', ''))
                 else:
-                    record_line = '{},sha256={},{}\n'.format(os.path.relpath(file_path, self._extract_dir).replace('\\', '/'), *self._rehash(file_path))
-                    record_file.write(record_line)
+                    hash, size = self._rehash(file_path)
+                    writer.writerow((os.path.relpath(file_path, self._extract_dir).replace('\\', '/'), f'sha256={hash}', size))
 
         # repackage wheel
         print('repackaging wheel')

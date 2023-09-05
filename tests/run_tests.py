@@ -1040,6 +1040,16 @@ class RepairTestCase(TestCase):
             self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.pdb')))
             self.assertTrue(os.path.exists(os.path.join(tempdir, 'ns/simpledll.pdb')))
 
+    def test_filename_special_character(self):
+        """RECORD is fixed correctly when filename contains the ',' special
+        character."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0record-cp310-cp310-win_amd64.whl'])
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0record-cp310-cp310-win_amd64.whl') as whl_file:
+                whl_file.extractall(tempdir)
+            with open(os.path.join(tempdir, 'simpleext-0.0.1.dist-info/RECORD')) as file:
+                self.assertTrue(any(line.startswith('"simpleext-0.0.1.data/data/a,b.txt"') for line in file))
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
