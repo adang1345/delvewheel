@@ -1,3 +1,10 @@
+## 1.5.1 <sub><sup>(_14 September 2023_)</sup></sub>
+- Copy wheel as-is to destination if no external dependencies are needed.
+- Don't vendor DLLs required by `python_d.exe` for debug wheels.
+- Place `.py` patch after header comment and shebang if either exists.
+- Display warning if wheel seems to have a namespace package that's not specified in `--namespace-pkg`.
+- Fix handling of special characters in filenames in `RECORD` file.
+
 ## 1.5.0 <sub><sup>(_8 August 2023_)</sup></sub>
 - Make whitespace around the `.py` patch prettier.
 - Use the term "overlay" in code and documentation to describe PE file trailing data.
