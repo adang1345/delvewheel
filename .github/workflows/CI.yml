@@ -16,7 +16,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
       - name: download pip cache
