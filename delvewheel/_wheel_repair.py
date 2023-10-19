@@ -28,8 +28,9 @@ from . import _version
 # vendored DLLs is added to the DLL search path. For Python 3.7 or lower, this
 # function is unavailable, so we preload the DLLs. Whenever Python needs a
 # vendored DLL, it will use the already-loaded DLL instead of searching for it.
-# We also preload the DLLs for Anaconda Python < 3.10, which has a bug where
-# os.add_dll_directory() does not always take effect.
+# We also preload the DLLs for the versions of Anaconda Python < 3.10 that have
+# a bug where os.add_dll_directory() does not always take effect
+# (https://github.com/conda/conda/issues/10897).
 #
 # The template must produce Python code that is compatible with Python 2.6, the
 # oldest supported target Python version.
