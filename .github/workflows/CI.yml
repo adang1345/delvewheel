@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - '**.md'
       - 'delayload/**'
+      - 'scripts/**'
   pull_request:
   workflow_dispatch:
 
