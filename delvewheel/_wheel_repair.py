@@ -28,9 +28,16 @@ from . import _version
 # vendored DLLs is added to the DLL search path. For Python 3.7 or lower, this
 # function is unavailable, so we preload the DLLs. Whenever Python needs a
 # vendored DLL, it will use the already-loaded DLL instead of searching for it.
-# We also preload the DLLs for the versions of Anaconda Python < 3.10 that have
-# a bug where os.add_dll_directory() does not always take effect
+# We also preload the DLLs for the versions of Anaconda CPython < 3.10 that
+# have a bug where os.add_dll_directory() does not always take effect
 # (https://github.com/conda/conda/issues/10897).
+#
+# Strictly speaking, the is_conda_cpython variable in the patch does not always
+# correctly detect whether Anaconda CPython is in use because newer versions of
+# Anaconda CPython 3.8 and 3.9 no longer define the Anaconda_GetVersion()
+# function. However, these versions do not have the os.add_dll_directory() bug,
+# so we are still correctly detecting the versions of Anaconda Python that have
+# the bug. Anaconda PyPy does not have the bug.
 #
 # The template must produce Python code that is compatible with Python 2.6, the
 # oldest supported target Python version.
