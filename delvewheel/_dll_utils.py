@@ -149,7 +149,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
         return null_translator
 
     # determine architecture of interpreter and OS
-    kernel32 = ctypes.windll.kernel32
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
     interpreter_arch = get_interpreter_arch()
     if not interpreter_arch:
         # file system redirection rules are unknown
@@ -160,7 +160,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
         process_machine = ctypes.c_ushort()
         native_machine = ctypes.c_ushort()
         if not kernel32.IsWow64Process2(ctypes.c_void_p(kernel32.GetCurrentProcess()), ctypes.byref(process_machine), ctypes.byref(native_machine)):
-            raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError()}')
+            raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError(ctypes.get_last_error())}')
         if not process_machine.value:
             os_arch = interpreter_arch
         else:
@@ -170,7 +170,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
     elif hasattr(kernel32, 'IsWow64Process'):
         wow64_process = ctypes.c_int()
         if not kernel32.IsWow64Process(ctypes.c_void_p(kernel32.GetCurrentProcess()), ctypes.byref(wow64_process)):
-            raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError()}')
+            raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError(ctypes.get_last_error())}')
         os_arch = MachineType.AMD64 if wow64_process.value else interpreter_arch
     else:
         os_arch = MachineType.I386
