@@ -1,3 +1,8 @@
+## 1.5.2 <sub><sup>(_18 December 2023_)</sup></sub>
+- Improve internal and external documentation.
+- Fix `OSError: [Errno 22] Invalid argument` when using Windows Store version of Python.
+- Fix error handling when calling kernel32 functions.
+
 ## 1.5.1 <sub><sup>(_14 September 2023_)</sup></sub>
 - Copy wheel as-is to destination if no external dependencies are needed.
 - Don't vendor DLLs required by `python_d.exe` for debug wheels.
