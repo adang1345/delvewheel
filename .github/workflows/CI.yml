@@ -27,7 +27,7 @@ jobs:
           restore-keys: pipcache-run-
           path: ${{ env.PIP_CACHE_DIR }}
       - name: set up Python 3.10
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - name: build and install
@@ -40,7 +40,7 @@ jobs:
             echo VERSION_CHANGED=1 | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           }
       - name: upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: delvewheel
           path: ${{ github.workspace }}\dist\*
@@ -48,7 +48,7 @@ jobs:
         working-directory: ${{ github.workspace }}\tests
         run: python run_tests.py -v
       - name: set up Python 3.7
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.7'
       - name: run tests with Python 3.7
@@ -58,7 +58,7 @@ jobs:
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
           python run_tests.py -v Python37TestCase
       - name: set up PyPy3.9
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 'pypy3.9'
       - name: run tests with PyPy3.9
