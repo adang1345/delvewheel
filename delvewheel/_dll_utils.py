@@ -1,6 +1,7 @@
 """Utilities for analyzing and patching DLL files."""
 
 import ctypes
+import errno
 import io
 import itertools
 import os
@@ -81,6 +82,29 @@ def get_arch(path: str) -> typing.Optional[MachineType]:
     return MachineType.machine_field_to_type(machine)
 
 
+def get_interpreter_arch() -> MachineType:
+    """Return the architecture of the currently running interpreter.
+    Precondition: We are running on Windows."""
+    try:
+        return get_arch(sys.executable)
+    except OSError as e:
+        if e.errno != errno.EINVAL:
+            raise
+        # For Windows Store version of Python, sys.executable is an
+        # application execution alias that can't be read directly. Use
+        # GetModuleFileNameW() to get executable path instead.
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        size = 256
+        while size <= 32768:
+            filename = ctypes.create_unicode_buffer(size)
+            if not kernel32.GetModuleFileNameW(None, filename, size):
+                raise OSError(ctypes.FormatError(ctypes.get_last_error())) from None
+            elif ctypes.get_last_error() != 122:  # ERROR_INSUFFICIENT_BUFFER
+                return get_arch(filename.value)
+            size *= 2
+        raise OSError('Insufficient buffer size 32768 for GetModuleFileNameW()') from None
+
+
 def _translate_directory() -> typing.Callable[[str, MachineType], str]:
     """Closure that computes certain values once only for determining how to
     translate a directory when searching for DLLs on Windows.
@@ -126,7 +150,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
 
     # determine architecture of interpreter and OS
     kernel32 = ctypes.windll.kernel32
-    interpreter_arch = get_arch(sys.executable)
+    interpreter_arch = get_interpreter_arch()
     if not interpreter_arch:
         # file system redirection rules are unknown
         return null_translator
