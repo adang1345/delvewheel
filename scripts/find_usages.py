@@ -47,8 +47,17 @@ def find_delvewheel_packages(packages: list[str]):
                 break
             release_filename = release_file['filename']
             if any(release_filename.endswith(x) for x in ('win_amd64.whl', 'win32.whl', 'win_arm64.whl')):
+                for i in range(RETRIES):
+                    try:
+                        zip_response = urllib.request.urlopen(release_file['url'])
+                        break
+                    except:
+                        pass
+                else:
+                    print_safe(f'Failed to load {release_file['url']} after {RETRIES} tries')
+                    break
                 try:
-                    with io.BytesIO(urllib.request.urlopen(release_file['url']).read()) as zip_file:
+                    with io.BytesIO(zip_response.read()) as zip_file:
                         zip_path = zipfile.Path(zip_file, f'{release_filename[:release_filename.index('-')]}-{version}.dist-info/DELVEWHEEL')
                 except:
                     print_safe(f'Error opening zip file {release_filename}')
