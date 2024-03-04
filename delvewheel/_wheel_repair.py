@@ -3,6 +3,7 @@
 import ast
 import base64
 import csv
+import datetime
 import hashlib
 import os
 import pathlib
@@ -956,27 +957,43 @@ class WheelRepair:
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
         if self._verbose >= 1:
             print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
-        filepath_list = []
-        for root, _, files in os.walk(self._extract_dir):
-            for file in files:
-                filepath_list.append(os.path.join(root, file))
         with open(record_filepath, 'w', newline='\n') as record_file:
             writer = csv.writer(record_file, lineterminator='\n')
-            for file_path in filepath_list:
-                if file_path == record_filepath:
-                    writer.writerow((os.path.relpath(record_filepath, self._extract_dir).replace('\\', '/'), '', ''))
-                else:
-                    hash, size = self._rehash(file_path)
-                    writer.writerow((os.path.relpath(file_path, self._extract_dir).replace('\\', '/'), f'sha256={hash}', size))
+            for root, _, files in os.walk(self._extract_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    if file_path == record_filepath:
+                        writer.writerow((os.path.relpath(record_filepath, self._extract_dir).replace('\\', '/'), '', ''))
+                    else:
+                        hash, size = self._rehash(file_path)
+                        writer.writerow((os.path.relpath(file_path, self._extract_dir).replace('\\', '/'), f'sha256={hash}', size))
 
         # repackage wheel
         print('repackaging wheel')
+        if 'SOURCE_DATE_EPOCH' in os.environ:
+            date_time = datetime.datetime.fromtimestamp(int(os.environ['SOURCE_DATE_EPOCH']), tz=datetime.timezone.utc).timetuple()[:6]
+        else:
+            date_time = None
         os.makedirs(target, exist_ok=True)
         whl_dest_path = os.path.join(target, self._whl_name)
         with zipfile.ZipFile(whl_dest_path, 'w', zipfile.ZIP_DEFLATED) as whl_file:
-            for file_path in filepath_list:
-                relpath = os.path.relpath(file_path, self._extract_dir)
-                if self._verbose >= 1:
-                    print(f'adding {relpath}')
-                whl_file.write(file_path, relpath)
+            for root, dirs, files in os.walk(self._extract_dir):
+                for dir in dirs:
+                    dir_path = os.path.join(root, dir)
+                    zip_dir_name = os.path.relpath(dir_path, self._extract_dir).replace('\\', '/') + '/'
+                    zip_info = zipfile.ZipInfo.from_file(dir_path, zip_dir_name)
+                    if date_time is not None:
+                        zip_info.date_time = date_time
+                    whl_file.writestr(zip_info, b'')
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    relpath = os.path.relpath(file_path, self._extract_dir)
+                    zip_file_name = relpath.replace('\\', '/')
+                    zip_info = zipfile.ZipInfo.from_file(file_path, zip_file_name)
+                    if date_time is not None:
+                        zip_info.date_time = date_time
+                    if self._verbose >= 1:
+                        print(f'adding {relpath}')
+                    with open(file_path, 'rb') as f:
+                        whl_file.writestr(zip_info, f.read())
         print(f'fixed wheel written to {os.path.abspath(whl_dest_path)}')

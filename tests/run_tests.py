@@ -1,3 +1,4 @@
+import collections.abc
 import os
 import re
 import shutil
@@ -11,10 +12,17 @@ import zipfile
 DEBUG = False
 
 
-def check_call(args: list):
+def check_call(args: list, env: typing.Optional[collections.abc.Mapping] = None):
+    base_env = os.environ.copy()
+    if env is not None:
+        for var in env:
+            if env[var] is None:
+                base_env.pop(var, None)
+            else:
+                base_env[var] = env[var]
     if DEBUG:
-        return subprocess.check_call(args)
-    return subprocess.check_call(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return subprocess.check_call(args, env=base_env)
+    return subprocess.check_call(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=base_env)
 
 
 def is_mangled(filename: str) -> bool:
@@ -199,6 +207,7 @@ class ShowTestCase(unittest.TestCase):
         """Ignore .pyd file in .data/data directory."""
         output = subprocess.check_output(['delvewheel', 'show', 'simpleext/simpleext-0.0.1-0ignore-cp310-cp310-win_amd64.whl'], text=True)
         self.assertIn('will be copied into the wheel.\n    None', output)
+
 
 class RepairTestCase(TestCase):
     """Tests for delvewheel repair"""
@@ -1049,6 +1058,32 @@ class RepairTestCase(TestCase):
                 whl_file.extractall(tempdir)
             with open(os.path.join(tempdir, 'simpleext-0.0.1.dist-info/RECORD')) as file:
                 self.assertTrue(any(line.startswith('"simpleext-0.0.1.data/data/a,b.txt"') for line in file))
+
+    def test_source_date_epoch(self):
+        """The SOURCE_DATE_EPOCH environment variable can be used to have
+        reproducible builds."""
+        try:
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse1', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'], {'SOURCE_DATE_EPOCH': None})
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse2', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse3', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse4', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203202'})
+            with open('wheelhouse1/simpleext-0.0.1-cp310-cp310-win_amd64.whl', 'rb') as wheel1, \
+                open('wheelhouse2/simpleext-0.0.1-cp310-cp310-win_amd64.whl', 'rb') as wheel2, \
+                open('wheelhouse3/simpleext-0.0.1-cp310-cp310-win_amd64.whl', 'rb') as wheel3, \
+                open('wheelhouse4/simpleext-0.0.1-cp310-cp310-win_amd64.whl', 'rb') as wheel4:
+                contents1 = wheel1.read()
+                contents2 = wheel2.read()
+                contents3 = wheel3.read()
+                contents4 = wheel4.read()
+                self.assertNotEqual(contents1, contents2)
+                self.assertNotEqual(contents1, contents4)
+                self.assertEqual(contents2, contents3)
+                self.assertNotEqual(contents2, contents4)
+        finally:
+            remove('wheelhouse1/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
+            remove('wheelhouse2/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
+            remove('wheelhouse3/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
+            remove('wheelhouse4/simpleext-0.0.1-cp310-cp310-win_amd64.whl')
 
 
 class NeededTestCase(unittest.TestCase):
