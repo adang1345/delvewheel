@@ -545,7 +545,8 @@ class RepairTestCase(TestCase):
         16. 1 double-quote
         17. 1 single-quote
         18. 1 double-quote with line continuation
-        19: 1 double-quote with function docstring"""
+        19: 1 double-quote with function docstring
+        20: r-string"""
         with zipfile.ZipFile('simpleext/simpleext-0.0.1-0init-cp310-cp310-win_amd64.whl') as wheel:
             cases = 1 + max(int(re.fullmatch(r'simpleext(\d+)', x.name)[1]) for x in zipfile.Path(wheel).iterdir() if re.fullmatch(r'simpleext(\d+)', x.name))
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0init-cp310-cp310-win_amd64.whl'])
