@@ -535,13 +535,17 @@ class RepairTestCase(TestCase):
         6. multiple future imports
         7. docstring and multiple future imports
         8. escaped quotes at docstring end
-        9. comment after docstring
+        9. comment before docstring
         10. comment without docstring
         11. blank line, multiline comment, no docstring
         12. comment, no docstring, code
         13. shebang
         14. shebang, comment, code
-        15. shebang, split comments, code"""
+        15. shebang, split comments, code
+        16. 1 double-quote
+        17. 1 single-quote
+        18. 1 double-quote with line continuation
+        19: 1 double-quote with function docstring"""
         with zipfile.ZipFile('simpleext/simpleext-0.0.1-0init-cp310-cp310-win_amd64.whl') as wheel:
             cases = 1 + max(int(re.fullmatch(r'simpleext(\d+)', x.name)[1]) for x in zipfile.Path(wheel).iterdir() if re.fullmatch(r'simpleext(\d+)', x.name))
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0init-cp310-cp310-win_amd64.whl'])

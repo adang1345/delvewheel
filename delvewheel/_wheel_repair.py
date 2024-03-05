@@ -391,20 +391,14 @@ class WheelRepair:
                         docstring_search_start_index += len(line)
                     else:
                         break
-                double_quotes_index = py_contents.find('"""', docstring_search_start_index)
-                single_quotes_index = py_contents.find("'''", docstring_search_start_index)
-                if double_quotes_index == single_quotes_index == -1:
-                    raise ValueError(f'Error parsing {py_name}: docstring exists but does not start with triple quotes')
-                elif double_quotes_index == -1 or single_quotes_index != -1 and single_quotes_index < double_quotes_index:
-                    docstring_start_index = single_quotes_index
-                    quotes = "'''"
-                else:
-                    docstring_start_index = double_quotes_index
-                    quotes = '"""'
-                docstring_end_index = py_contents.find(quotes, docstring_start_index + 3)
-                if docstring_end_index == -1:
-                    raise ValueError(f'Error parsing {py_name}: docstring exists but does not end with triple quotes')
-                docstring_end_index += 3
+                pattern = (r'"""([^\\]|\\.)*?"""|'  # 3 double quotes
+                           r"'''([^\\]|\\.)*?'''|"  # 3 single quotes
+                           r'"([^\\\n]|\\.)*?"|'  # 1 double quote
+                           r"'([^\\\n]|\\.)*?'")  # 1 single quote
+                match = re.search(pattern, py_contents[docstring_search_start_index:], re.DOTALL)
+                if not match:
+                    raise ValueError(f'Error parsing {py_name}: docstring exists but was not found')
+                docstring_end_index = docstring_search_start_index + match.end()
                 docstring_end_line = py_contents.find('\n', docstring_end_index)
                 if docstring_end_line == -1:
                     docstring_end_line = len(py_contents)
