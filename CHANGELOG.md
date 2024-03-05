@@ -1,3 +1,7 @@
+## 1.5.3 <sub><sup>(_5 March 2024_)</sup></sub>
+- Support `SOURCE_DATE_EPOCH` environment variable for reproducible builds.
+- Support docstrings delimited using 1 double-quote or 1 single-quote when inserting the `.py` patch.
+
 ## 1.5.2 <sub><sup>(_18 December 2023_)</sup></sub>
 - Improve internal and external documentation.
 - Fix `OSError: [Errno 22] Invalid argument` when using Windows Store version of Python.
