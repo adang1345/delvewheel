@@ -984,6 +984,7 @@ class WheelRepair:
                     relpath = os.path.relpath(file_path, self._extract_dir)
                     zip_file_name = relpath.replace('\\', '/')
                     zip_info = zipfile.ZipInfo.from_file(file_path, zip_file_name)
+                    zip_info.compress_type = zipfile.ZIP_DEFLATED
                     if date_time is not None:
                         zip_info.date_time = date_time
                     if self._verbose >= 1:

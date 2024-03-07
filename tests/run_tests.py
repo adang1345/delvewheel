@@ -505,8 +505,13 @@ class RepairTestCase(TestCase):
         self.assertTrue(import_iknowpy_successful('0normalpurelibplatlib', ['iknowpy', 'iknowpy2', 'iknowpy3']))
 
     def test_top_level(self):
-        """Top-level extension module in root directory"""
+        """Top-level extension module in root directory
+
+        Also check that the contents are compressed"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl') as whl:
+            zip_info = whl.getinfo('simpleext.cp310-win_amd64.pyd')
+            self.assertGreater(zip_info.file_size, zip_info.compress_size)
         self.assertTrue(import_simpleext_successful())
 
     def test_top_level_purelib(self):
