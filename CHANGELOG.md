@@ -1,3 +1,7 @@
+## 1.5.4 <sub><sup>(_7 March 2024_)</sup></sub>
+- Support abi3 wheels for Python 3.9 and 3.10 for Windows ARM64.
+- Fix regression where wheel contents were not compressed.
+
 ## 1.5.3 <sub><sup>(_5 March 2024_)</sup></sub>
 - Support `SOURCE_DATE_EPOCH` environment variable for reproducible builds.
 - Support docstrings delimited using 1 double-quote or 1 single-quote when inserting the `.py` patch.
