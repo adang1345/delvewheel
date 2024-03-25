@@ -57,6 +57,7 @@ def main():
     parser_repair.add_argument('--namespace-pkg', default='', metavar='PKGS', type=_namespace_pkgs, help=f'namespace package(s), {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-diagnostic', action='store_true', help=argparse.SUPPRESS)  # don't write diagnostic information to DELVEWHEEL metadata file
     parser_repair.add_argument('--include-symbols', action='store_true', help='include .pdb symbol files with vendored DLLs')
+    parser_repair.add_argument('--include-imports', action='store_true', help='include .lib import library files with the vendored DLLs')
     parser_needed.add_argument('file', help='path to a DLL or PYD file')
     parser_needed.add_argument('-v', action='count', default=0, help='verbosity')
     args = parser.parse_args()
@@ -81,7 +82,7 @@ def main():
             else:  # args.command == 'repair'
                 no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
                 namespace_pkgs = set(tuple(namespace_pkg.split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg)
-                wr.repair(args.target, no_mangles, args.no_mangle_all, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols)
+                wr.repair(args.target, no_mangles, args.no_mangle_all, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports)
     else:  # args.command == 'needed'
         for dll_name in sorted(_dll_utils.get_direct_needed(args.file, args.v), key=str.lower):
             print(dll_name)

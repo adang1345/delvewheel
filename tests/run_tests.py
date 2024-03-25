@@ -1050,6 +1050,7 @@ class RepairTestCase(TestCase):
             with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl') as whl_file:
                 whl_file.extractall(tempdir)
             self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
+            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.lib')))
 
     def test_include_symbols1(self):
         """Two copies of symbol file exist if 2 copies of DLL exist"""
@@ -1058,7 +1059,38 @@ class RepairTestCase(TestCase):
             with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp310-cp310-win_amd64.whl') as whl_file:
                 whl_file.extractall(tempdir)
             self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.pdb')))
+            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.lib')))
             self.assertTrue(os.path.exists(os.path.join(tempdir, 'ns/simpledll.pdb')))
+            self.assertFalse(os.path.exists(os.path.join(tempdir, 'ns/simpledll.lib')))
+
+    def test_include_imports0(self):
+        """Simple test of the --include-imports flag."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--include-imports', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl') as whl_file:
+                whl_file.extractall(tempdir)
+            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.lib')))
+
+    def test_include_imports1(self):
+        """Two copies of import library file exist if 2 copies of DLL exist"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--namespace-pkg', 'ns', '--include-imports', 'simpleext/simpleext-0.0.1-2namespace-cp310-cp310-win_amd64.whl'])
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp310-cp310-win_amd64.whl') as whl_file:
+                whl_file.extractall(tempdir)
+            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.pdb')))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.lib')))
+            self.assertFalse(os.path.exists(os.path.join(tempdir, 'ns/simpledll.pdb')))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'ns/simpledll.lib')))
+
+    def test_include_symbols_imports(self):
+        """--include-symbols and --include-imports flags in combination."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--include-symbols', '--include-imports', 'simpleext/simpleext-0.0.1-cp310-cp310-win_amd64.whl'])
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp310-cp310-win_amd64.whl') as whl_file:
+                whl_file.extractall(tempdir)
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.lib')))
 
     def test_filename_special_character(self):
         """RECORD is fixed correctly when filename contains the ',' special

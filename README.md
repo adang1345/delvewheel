@@ -67,6 +67,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
   - `--namespace-pkg package1` declares `package1` as a namespace package.
   - On Windows, `--namespace-pkg package1.package2;package3` declares `package1`, `package1\package2`, and `package3` as namespace packages.
 - `--include-symbols`: include `.pdb` symbol files with the vendored DLLs. To be included, a symbol file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.pdb`.
+- `--include-imports`: include `.lib` import library files with the vendored DLLs. To be included, an import library file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.lib`.
 
 ## Limitations
 
