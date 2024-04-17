@@ -1,3 +1,6 @@
+## 1.6.0 <sub><sup>(_17 April 2024_)</sup></sub>
+- Introduce the `--include-imports` flag to vendor `.lib` import library files along with DLLs.
+
 ## 1.5.4 <sub><sup>(_7 March 2024_)</sup></sub>
 - Support abi3 wheels for Python 3.9 and 3.10 for Windows ARM64.
 - Fix regression where wheel contents were not compressed.
