@@ -26,10 +26,10 @@ jobs:
           key: pipcache-run-${{ github.run_number}}
           restore-keys: pipcache-run-
           path: ${{ env.PIP_CACHE_DIR }}
-      - name: set up Python 3.10
+      - name: set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
       - name: build and install
         working-directory: ${{ github.workspace }}
         run: |
@@ -44,9 +44,11 @@ jobs:
         with:
           name: delvewheel
           path: ${{ github.workspace }}\dist\*
-      - name: run tests with Python 3.10
+      - name: run tests with Python 3.12
         working-directory: ${{ github.workspace }}\tests
-        run: python run_tests.py -v
+        run: |
+          pip install setuptools
+          python run_tests.py -v
       - name: set up Python 3.7
         uses: actions/setup-python@v5
         with:
@@ -57,11 +59,11 @@ jobs:
           pip install wheel
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
           python run_tests.py -v Python37TestCase
-      - name: set up PyPy3.9
+      - name: set up PyPy3.10
         uses: actions/setup-python@v5
         with:
-          python-version: 'pypy3.9'
-      - name: run tests with PyPy3.9
+          python-version: 'pypy3.10'
+      - name: run tests with PyPy3.10
         working-directory: ${{ github.workspace }}\tests
         run: |
           pip install wheel
