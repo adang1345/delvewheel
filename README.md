@@ -69,11 +69,41 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `--include-symbols`: include `.pdb` symbol files with the vendored DLLs. To be included, a symbol file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.pdb`.
 - `--include-imports`: include `.lib` import library files with the vendored DLLs. To be included, an import library file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.lib`.
 
+## Name Mangling
+
+This section describes in detail how and why `delvewheel` mangles the vendored DLL filenames by default. It is faily technical, so feel free to skip it if it's not relevant to you.
+
+Suppose you install two Python extension modules `A.pyd` and `B.pyd` into a single Python environment, where the modules come from separate projects. Each module depends on a DLL named `C.dll`, so each project ships its own `C.dll`. Because of how the Windows DLL loader works, if `A.pyd` is loaded before `B.pyd`, then both modules end up using `A.pyd`'s version of `C.dll`. Windows does not allow two DLLs with the same name to be loaded in a single process (unless you have a private SxS assembly, but that's a complicated topic that's best avoided in my opinion). This is a problem if `B.pyd` is not compatible with `A.pyd`'s version of `C.dll`. Maybe `B.pyd` requires a newer version of `C.dll` than `A.pyd`. Or maybe the two `C.dll`s are completely unrelated, and the two project authors by chance chose the same DLL name. This situation is known as DLL hell.
+
+To avoid this issue, `delvewheel` renames the vendored DLLs. For each DLL, `delvewheel` computes a hash based on the DLL contents and the wheel distribution name and appends the hash to the DLL name. For example, if the authors of `A.pyd` and `B.pyd` both decided to use `delvewheel` as part of their projects, then `A.pyd`'s version of `C.dll` could be renamed to `C-a55e90393a19a36b45c623ef23fe3f4a.dll`, while `B.pyd`'s version of `C.dll` could be renamed to `C-b7f2aeead421653280728b792642e14f.dll`. Now that the two DLLs have different names, they can both be loaded into a single Python process. Even if only one of the two projects decided to use `delvewheel`, then the two DLLs would have different names, and DLL hell would be avoided.
+
+Simply renaming the DLLs is not enough, though because `A.pyd` is still looking for `C.dll`. To fix this, `delvewheel` goes into `A.pyd` and finds its [import directory table](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#import-directory-table), which tells the Windows loader the names of the DLL dependencies. This table contains an entry with a pointer to the string `"C.dll"`, which is embedded somewhere in `A.pyd`. `delvewheel` then finds a suitable location in `A.pyd` to write the string `"C-a55e90393a19a36b45c623ef23fe3f4a.dll"` and edits the import directory table entry to point to this string. Now, when `A.pyd` is loaded, it knows to look for `C-a55e90393a19a36b45c623ef23fe3f4a.dll`.
+
+So far, we have described the simplest possible example where there exists one Python extension module with one DLL dependency. In the real world, DLL dependency relationships are often more complicated, and `delvewheel` can handle them as well. For example, suppose a project has the following properties.
+
+- There are two extension modules `D.pyd` and `E.pyd`.
+- `D.pyd` depends on `F.dll` and `G.dll`.
+- `F.dll` depends on `G.dll` and `H.dll`.
+- `E.pyd` depends on `I.dll`.
+- `I.dll` depends on `H.dll` and `J.dll`.
+
+`delvewheel` would execute the following when name-mangling.
+
+- Edit the import directory table of `D.pyd` to point to `F-c070a14b5ebd1ef22dc434b34bcbb0ae.dll` and `G-38752d7e43f7175f4f5e7e906bbeaac7.dll`.
+- Edit the import directory table of `E.pyd` to point to `I-348818deee8c8bfbc462c6ba9c8e1898.dll`.
+- Edit the import directory table of `F.dll` to point to `G-38752d7e43f7175f4f5e7e906bbeaac7.dll` and `H-43c80d2389f603a00e22dd9862246dba.dll`.
+- Edit the import directory table of `I.dll` to point to `H-43c80d2389f603a00e22dd9862246dba.dll` and `J-9f50744ed67c3a6e5b24b39c08b2b207.dll`.
+- Rename `F.dll` to `F-c070a14b5ebd1ef22dc434b34bcbb0ae.dll`.
+- Rename `G.dll` to `G-38752d7e43f7175f4f5e7e906bbeaac7.dll`.
+- Rename `H.dll` to `H-43c80d2389f603a00e22dd9862246dba.dll`.
+- Rename `I.dll` to `I-348818deee8c8bfbc462c6ba9c8e1898.dll`.
+- Rename `J.dll` to `J-9f50744ed67c3a6e5b24b39c08b2b207.dll`.
+
 ## Limitations
 
 - `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using `ctypes`/`cffi` (from Python) or `LoadLibrary` (from C/C++) will be missed. You can, however, specify additional DLLs to vendor into the wheel using the `--add-dll` option. If you elect to do this, it is your responsibility to ensure that the additional DLL is found at load time.
 - Wheels created using `delvewheel` are not guaranteed to work on systems older than Windows 7 SP1. We avoid vendoring system libraries that are provided by Windows 7 SP1 or later. If you intend to create a wheel for an older Windows system that requires an extra DLL, use the `--add-dll` flag to vendor additional DLLs into the wheel.
-- To avoid DLL hell, we mangle the file names of most DLLs that are vendored into the wheel. This way, a Python process that tries loading a vendored DLL does not end up using a different DLL with the same name. Due to a limitation in how name-mangling is performed, `delvewheel` is unable to name-mangle DLLs whose dependents contain insufficient internal padding to fit the mangled names and contain an overlay at the end of the binary. An exception will be raised if such a DLL is encountered. Commonly, the overlay consists of symbols that can be safely removed using the GNU `strip` utility, although there exist situations where the data must be present for the DLL to function properly. To remove the overlay, execute `strip -s EXAMPLE.dll` or use the `--strip` flag. To keep the overlay and skip name mangling, use the `--no-mangle` or `--no-mangle-all` flag.
+- Due to a limitation in how name-mangling is performed, `delvewheel` is unable to name-mangle DLLs whose dependents contain insufficient internal padding to fit the mangled names and contain an overlay at the end of the binary. An exception will be raised if such a DLL is encountered. Commonly, the overlay consists of symbols that can be safely removed using the GNU `strip` utility, although there exist situations where the data must be present for the DLL to function properly. To remove the overlay, execute `strip -s EXAMPLE.dll` or use the `--strip` flag. To keep the overlay and skip name mangling, use the `--no-mangle` or `--no-mangle-all` flag.
 - Any DLL containing an Authenticode signature will have its signature cleared if its dependencies are name-mangled.
 - `delvewheel` cannot repair a wheel that contains extension modules targeting more than one CPU architecture (e.g. both `win32` and `win_amd64`). You should create a separate wheel for each CPU architecture and repair each individually.
 - If your project has a [delay-load DLL dependency](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls), you must use a custom delay-load import hook when building the DLL that has the delay-load dependency. This ensures that the directory containing the vendored DLLs is included in the DLL search path when delay-loading. For convenience, we provide a suitable hook for Microsoft Visual C/C++ at [delayload/delayhook.c](delayload/delayhook.c). Add the file to your C/C++ project when building your DLL.
