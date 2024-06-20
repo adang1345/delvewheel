@@ -44,6 +44,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs unless another included DLL depends on them. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
+- `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity
   - `-v`: level 1, some diagnostic information
   - `-vv`: level 2, include warnings from `pefile`
@@ -54,6 +55,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `--add-dll`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs unless another included DLL depends on them. We do not mangle the names of these DLLs or their direct dependencies. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
 - `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. Don't mangle the names of these DLLs or their direct dependencies. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
+- `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. These dependencies are name-mangled by default. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity
   - `-v`: level 1, some diagnostic information
   - `-vv`: level 2, include warnings from `pefile`
@@ -101,7 +103,11 @@ So far, we have described the simplest possible example where there exists one P
 
 ## Limitations
 
-- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using `ctypes`/`cffi` (from Python) or `LoadLibrary` (from C/C++) will be missed. You can, however, specify additional DLLs to vendor into the wheel using the `--add-dll` option. If you elect to do this, it is your responsibility to ensure that the additional DLL is found at load time.
+- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using `ctypes`/`cffi` (from Python) or `LoadLibrary` (from C/C++) will be missed. Support for runtime-loaded DLLs is limited; however, the following options are available.
+  - Specify additional DLLs to vendor into the wheel using the `--add-dll` option.
+  - Include the runtime-loaded DLL into the wheel yourself, and use the `--analyze-existing` option.
+
+  If you use any of these options, it is your responsibility to ensure that the runtime-loaded DLLs are found at load time.
 - Wheels created using `delvewheel` are not guaranteed to work on systems older than Windows 7 SP1. We avoid vendoring system libraries that are provided by Windows 7 SP1 or later. If you intend to create a wheel for an older Windows system that requires an extra DLL, use the `--add-dll` flag to vendor additional DLLs into the wheel.
 - Due to a limitation in how name-mangling is performed, `delvewheel` is unable to name-mangle DLLs whose dependents contain insufficient internal padding to fit the mangled names and contain an overlay at the end of the binary. An exception will be raised if such a DLL is encountered. Commonly, the overlay consists of symbols that can be safely removed using the GNU `strip` utility, although there exist situations where the data must be present for the DLL to function properly. To remove the overlay, execute `strip -s EXAMPLE.dll` or use the `--strip` flag. To keep the overlay and skip name mangling, use the `--no-mangle` or `--no-mangle-all` flag.
 - Any DLL containing an Authenticode signature will have its signature cleared if its dependencies are name-mangled.

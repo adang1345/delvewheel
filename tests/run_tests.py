@@ -208,6 +208,12 @@ class ShowTestCase(unittest.TestCase):
         output = subprocess.check_output(['delvewheel', 'show', 'simpleext/simpleext-0.0.1-0ignore-cp312-cp312-win_amd64.whl'], text=True)
         self.assertIn('will be copied into the wheel.\n    None', output)
 
+    def test_analyze_existing(self):
+        """--analyze-existing shows dependencies of existing DLLs"""
+        output = subprocess.check_output(['delvewheel', 'show', '--add-path', 'simpleext/x64;iknowpy', '--analyze-existing', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('icudt74.dll', output)
+        self.assertIn('msvcp140.dll', output)
+
 
 class RepairTestCase(TestCase):
     """Tests for delvewheel repair"""
@@ -404,6 +410,23 @@ class RepairTestCase(TestCase):
                 else:
                     self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         self.assertTrue(import_iknowpy_successful('0ignore'))
+
+    def test_analyze_existing(self):
+        """--analyze-existing vendors in dependencies of existing icuuc74.dll"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64;iknowpy', '--analyze-existing', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl') as wheel:
+            i = 0
+            for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir():
+                self.assertTrue(any(path.name.startswith(x) for x in ('icudt74', 'msvcp140', 'simpledll')))
+                self.assertTrue(is_mangled(path.name))
+                i += 1
+            self.assertEqual(3, i)
+
+    def test_analyze_existing2(self):
+        """--analyze-existing with --no-mangle-all"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64;iknowpy', '--analyze-existing', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl') as wheel:
+            self.assertEqual({'icudt74.dll', 'msvcp140.dll', 'simpledll.dll'}, set(path.name for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir()))
 
     def test_ignore_in_wheel(self):
         """--ignore-in-wheel is an alias for --ignore-existing"""

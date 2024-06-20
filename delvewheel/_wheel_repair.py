@@ -126,6 +126,7 @@ class WheelRepair:
     _no_dlls: typing.Set[str]  # DLLs to exclude
     _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
+    _analyze_existing: bool  # whether to analyze and vendor in dependencies of DLLs that are already in the wheel
     _arch: _dll_list.MachineType  # CPU architecture of wheel
     _min_supported_python: typing.Optional[typing.Tuple[int, int]]
         # minimum supported Python version based on Python tags (ignoring the
@@ -137,6 +138,7 @@ class WheelRepair:
                  add_dlls: typing.Optional[typing.Set[str]],
                  no_dlls: typing.Optional[typing.Set[str]],
                  ignore_existing: bool,
+                 analyze_existing: bool,
                  verbose: int,
                  test: typing.List[str]) -> None:
         """Initialize a wheel repair object.
@@ -147,6 +149,7 @@ class WheelRepair:
         no_dlls: Set of lowercase DLL names to force exclusion from wheel
             (cannot overlap with add_dlls)
         ignore_existing: whether to ignore DLLs that are already in the wheel
+        analyze_existing: whether to analyze and vendor in dependencies of DLLs that are already in the wheel
         verbose: verbosity level, 0 to 2
         test: testing options for internal use"""
         if not os.path.isfile(whl_path):
@@ -229,6 +232,8 @@ class WheelRepair:
             self._wheel_dirs = None
         self._ignore_existing = ignore_existing
 
+        self._analyze_existing = analyze_existing
+
         # determine the CPU architecture of the wheel
         self._arch = _dll_list.MachineType.platform_tag_to_type(platform_tag)
         if not self._arch:
@@ -236,7 +241,8 @@ class WheelRepair:
                 if root == self._data_dir:
                     dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
                 for filename in filenames:
-                    if filename.lower().endswith('.pyd'):
+                    filename_lower = filename.lower()
+                    if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
                         arch = _dll_utils.get_arch(os.path.join(root, filename))
                         if not arch:
                             raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
@@ -626,7 +632,8 @@ class WheelRepair:
             if root == self._data_dir:
                 dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
-                if filename.lower().endswith('.pyd'):
+                filename_lower = filename.lower()
+                if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
                     discovered, _, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', False, False, self._verbose)
@@ -731,7 +738,8 @@ class WheelRepair:
             if root == self._data_dir:
                 dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
-                if filename.lower().endswith('.pyd'):
+                filename_lower = filename.lower()
+                if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
                     extension_module_path = os.path.join(root, filename)
                     dll_arch = _dll_utils.get_arch(extension_module_path)
                     if dll_arch != self._arch:

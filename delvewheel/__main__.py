@@ -46,6 +46,7 @@ def main():
         subparser.add_argument('--add-dll', default='', metavar='DLLS', type=_dll_names, help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--no-dll', default='', metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--ignore-existing', '--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
+        subparser.add_argument('--analyze-existing', action='store_true', help='analyze and vendor in dependencies of DLLs that are already in the wheel')
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
         subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
@@ -76,7 +77,7 @@ def main():
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
 
         for wheel in args.wheel:
-            wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.ignore_existing, args.v, args.test.split(','))
+            wr = WheelRepair(wheel, args.extract_dir, add_dlls, no_dlls, args.ignore_existing, args.analyze_existing, args.v, args.test.split(','))
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
