@@ -384,14 +384,29 @@ class RepairTestCase(TestCase):
         finally:
             remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
 
-    def test_ignore_in_wheel_irrelevant(self):
-        """--ignore-in-wheel when no DLLs are in the wheel"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-in-wheel', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+    def test_ignore_existing_irrelevant(self):
+        """--ignore-existing when no DLLs are in the wheel"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
-    def test_ignore_in_wheel(self):
-        """--ignore-in-wheel ignores iKnowEngine.dll and does not mangle it or
+    def test_ignore_existing(self):
+        """--ignore-existing ignores iKnowEngine.dll and does not mangle it or
         its direct dependencies"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if any(path.name.startswith(x) for x in ('iKnowBase', 'iKnowShell', 'iKnowCore', 'iKnowALI', 'msvcp140')):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                elif path.name.startswith('iKnowEngine'):
+                    self.fail('iKnowEngine.dll is ignored')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(import_iknowpy_successful('0ignore'))
+
+    def test_ignore_in_wheel(self):
+        """--ignore-in-wheel is an alias for --ignore-existing"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-in-wheel', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
@@ -405,11 +420,11 @@ class RepairTestCase(TestCase):
                     self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         self.assertTrue(import_iknowpy_successful('0ignore'))
 
-    def test_ignore_in_wheel_override(self):
-        """--ignore-in-wheel would ignore iKnowEngine.dll, but --add-dll
+    def test_ignore_existing_override(self):
+        """--ignore-existing would ignore iKnowEngine.dll, but --add-dll
         overrides this and prevents it and its direct dependencies from name-
         mangling."""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-in-wheel', '--add-dll', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--add-dll', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
         iknowengine_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():

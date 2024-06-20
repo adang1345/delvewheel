@@ -125,7 +125,7 @@ class WheelRepair:
     _add_dlls: typing.Set[str]  # additional DLLs to addd
     _no_dlls: typing.Set[str]  # DLLs to exclude
     _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
-    _ignore_in_wheel: bool  # whether to ignore DLLs that are already inside wheel
+    _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
     _arch: _dll_list.MachineType  # CPU architecture of wheel
     _min_supported_python: typing.Optional[typing.Tuple[int, int]]
         # minimum supported Python version based on Python tags (ignoring the
@@ -136,7 +136,7 @@ class WheelRepair:
                  extract_dir: typing.Optional[str],
                  add_dlls: typing.Optional[typing.Set[str]],
                  no_dlls: typing.Optional[typing.Set[str]],
-                 ignore_in_wheel: bool,
+                 ignore_existing: bool,
                  verbose: int,
                  test: typing.List[str]) -> None:
         """Initialize a wheel repair object.
@@ -146,7 +146,7 @@ class WheelRepair:
         add_dlls: Set of lowercase DLL names to force inclusion into the wheel
         no_dlls: Set of lowercase DLL names to force exclusion from wheel
             (cannot overlap with add_dlls)
-        ignore_in_wheel: whether to ignore DLLs that are already in the wheel
+        ignore_existing: whether to ignore DLLs that are already in the wheel
         verbose: verbosity level, 0 to 2
         test: testing options for internal use"""
         if not os.path.isfile(whl_path):
@@ -217,17 +217,17 @@ class WheelRepair:
                     break
             self._no_dlls |= ignore_abi3
 
-        # If ignore_in_wheel is True, save list of all directories in the
+        # If ignore_existing is True, save list of all directories in the
         # wheel. These directories will be used to search for DLLs that are
         # already in the wheel.
-        if ignore_in_wheel:
+        if ignore_existing:
             self._wheel_dirs = [self._extract_dir]
             for root, dirnames, _ in os.walk(self._extract_dir):
                 for dirname in dirnames:
                     self._wheel_dirs.append(os.path.join(root, dirname))
         else:
             self._wheel_dirs = None
-        self._ignore_in_wheel = ignore_in_wheel
+        self._ignore_existing = ignore_existing
 
         # determine the CPU architecture of the wheel
         self._arch = _dll_list.MachineType.platform_tag_to_type(platform_tag)
@@ -643,7 +643,7 @@ class WheelRepair:
             else:
                 not_found_dll_names.add(dll_name)
 
-        if self._ignore_in_wheel:
+        if self._ignore_existing:
             dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
             for path in dependency_paths_in_wheel.copy():
                 if os.path.basename(path).lower() in self._add_dlls:
@@ -666,7 +666,7 @@ class WheelRepair:
         else:
             print('    None')
 
-        if self._ignore_in_wheel:
+        if self._ignore_existing:
             print('\nThe following DLLs are already in the wheel and will not be copied.')
             if dependency_paths_in_wheel:
                 for dependency_path in dependency_paths_in_wheel:
@@ -750,7 +750,7 @@ class WheelRepair:
 
         # if --ignore-in-wheel is specified, ignore DLLs that were found inside
         # the wheel unless they are specified with --add-dll
-        if self._ignore_in_wheel:
+        if self._ignore_existing:
             dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
