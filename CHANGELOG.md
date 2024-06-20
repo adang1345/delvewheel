@@ -1,3 +1,10 @@
+## 1.7.0 <sub><sup>(_20 June 2024_)</sup></sub>
+- Update tests to use Python 3.12.
+- Describe name-mangling in more detail in the README.
+- Rename `--ignore-in-wheel` to `--ignore-existing`. `--ignore-in-wheel` will continue to be supported
+as an alias.
+- Introduce the `--analyze-existing` option to vendor dependencies of DLLs that already exist in the wheel.
+
 ## 1.6.0 <sub><sup>(_17 April 2024_)</sup></sub>
 - Introduce the `--include-imports` flag to vendor `.lib` import library files along with DLLs.
 
