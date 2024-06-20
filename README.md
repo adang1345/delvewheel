@@ -71,7 +71,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 
 ## Name Mangling
 
-This section describes in detail how and why `delvewheel` mangles the vendored DLL filenames by default. It is faily technical, so feel free to skip it if it's not relevant to you.
+This section describes in detail how and why `delvewheel` mangles the vendored DLL filenames by default. It is fairly technical, so feel free to skip it if it's not relevant to you.
 
 Suppose you install two Python extension modules `A.pyd` and `B.pyd` into a single Python environment, where the modules come from separate projects. Each module depends on a DLL named `C.dll`, so each project ships its own `C.dll`. Because of how the Windows DLL loader works, if `A.pyd` is loaded before `B.pyd`, then both modules end up using `A.pyd`'s version of `C.dll`. Windows does not allow two DLLs with the same name to be loaded in a single process (unless you have a private SxS assembly, but that's a complicated topic that's best avoided in my opinion). This is a problem if `B.pyd` is not compatible with `A.pyd`'s version of `C.dll`. Maybe `B.pyd` requires a newer version of `C.dll` than `A.pyd`. Or maybe the two `C.dll`s are completely unrelated, and the two project authors by chance chose the same DLL name. This situation is known as DLL hell.
 
