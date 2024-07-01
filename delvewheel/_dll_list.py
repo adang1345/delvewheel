@@ -113,6 +113,18 @@ ignore_by_abi_platform = {
     'cp312d-win_amd64': {'vcruntime140d.dll', 'ucrtbased.dll'},
     'cp312-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp312d-win_arm64': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp313-win32': {'vcruntime140.dll'},
+    'cp313t-win32': {'vcruntime140.dll'},
+    'cp313d-win32': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp313dt-win32': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp313-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp313t-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp313d-win_amd64': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp313dt-win_amd64': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp313-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp313t-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp313d-win_arm64': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp313dt-win_arm64': {'vcruntime140d.dll', 'ucrtbased.dll'},
 }
 
 # DLLs to ignore based on Python tag and platform tag for a wheel that uses the
@@ -140,6 +152,9 @@ ignore_abi3 = {
     'cp312-win32': {'vcruntime140.dll'},
     'cp312-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp312-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp313-win32': {'vcruntime140.dll'},
+    'cp313-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
+    'cp313-win_arm64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 }
 
 # Dependency relationships to ignore.
