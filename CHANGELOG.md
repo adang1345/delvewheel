@@ -1,3 +1,6 @@
+## 1.7.1 <sub><sup>(_3 July 2024_)</sup></sub>
+- Support for Python 3.13, including experimental free-threaded wheels.
+
 ## 1.7.0 <sub><sup>(_20 June 2024_)</sup></sub>
 - Update tests to use Python 3.12.
 - Describe name-mangling in more detail in the README.
