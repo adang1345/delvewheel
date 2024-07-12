@@ -1,8 +1,6 @@
 import datetime
 import threading
-import urllib.request
-import urllib.error
-import json
+import requests
 import re
 import io
 import zipfile
@@ -24,12 +22,12 @@ def find_delvewheel_packages(packages: list[str]):
         package_exists = True
         for i in range(RETRIES):
             try:
-                json_data = json.load(urllib.request.urlopen(f'https://pypi.org/pypi/{package}/json'))
-                break
-            except urllib.error.HTTPError as e:
-                if e.code == 404:
+                r = requests.get(f'https://pypi.org/pypi/{package}/json')
+                if r.status_code == 404:
                     package_exists = False
                     break
+                json_data = requests.get(f'https://pypi.org/pypi/{package}/json').json()
+                break
             except:
                 pass
             else:
@@ -49,7 +47,7 @@ def find_delvewheel_packages(packages: list[str]):
             if any(release_filename.endswith(x) for x in ('win_amd64.whl', 'win32.whl', 'win_arm64.whl')):
                 for i in range(RETRIES):
                     try:
-                        zip_response = urllib.request.urlopen(release_file['url'])
+                        zip_response = requests.get(release_file['url']).content
                         break
                     except:
                         pass
@@ -57,7 +55,7 @@ def find_delvewheel_packages(packages: list[str]):
                     print_safe(f'Failed to load {release_file['url']} after {RETRIES} tries')
                     break
                 try:
-                    with io.BytesIO(zip_response.read()) as zip_file:
+                    with io.BytesIO(zip_response) as zip_file:
                         zip_path = zipfile.Path(zip_file, f'{release_filename[:release_filename.index('-')]}-{version}.dist-info/DELVEWHEEL')
                 except:
                     print_safe(f'Error opening zip file {release_filename}')
@@ -70,7 +68,7 @@ def find_delvewheel_packages(packages: list[str]):
 
 # get list of all PyPI packages
 print('Getting list of all PyPI packages ... ', end='', flush=True)
-html = urllib.request.urlopen('https://pypi.org/simple/').read().decode('utf-8')
+html = requests.get('https://pypi.org/simple/').text
 pattern = re.compile(r'>([^<]+)</a>')
 all_packages = [match[1] for match in re.finditer(pattern, html)]
 # all_packages = ('numpy',)
