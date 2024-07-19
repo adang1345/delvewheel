@@ -201,8 +201,10 @@ class WheelRepair:
         ignore_by_abi_platform = set().union(*_dll_list.ignore_by_abi_platform.values())
         for abi_tag in abi_tags:
             abi_platform = f'{abi_tag}-{platform_tag}'
-            if abi_platform in _dll_list.ignore_by_abi_platform:
-                ignore_by_abi_platform &= _dll_list.ignore_by_abi_platform[abi_platform]
+            for abi_platform_re in _dll_list.ignore_by_abi_platform:
+                if re.fullmatch(abi_platform_re, abi_platform):
+                    ignore_by_abi_platform &= _dll_list.ignore_by_abi_platform[abi_platform_re]
+                    break
             else:
                 ignore_by_abi_platform = set()
                 break
@@ -213,8 +215,10 @@ class WheelRepair:
             ignore_abi3 = set().union(*_dll_list.ignore_abi3.values())
             for python_tag in python_tags:
                 python_platform = f'{python_tag}-{platform_tag}'
-                if python_platform in _dll_list.ignore_abi3:
-                    ignore_abi3 &= _dll_list.ignore_abi3[python_platform]
+                for python_platform_re in _dll_list.ignore_abi3:
+                    if re.fullmatch(python_platform_re, python_platform):
+                        ignore_abi3 &= _dll_list.ignore_abi3[python_platform_re]
+                        break
                 else:
                     ignore_abi3 = set()
                     break
