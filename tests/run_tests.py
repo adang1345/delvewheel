@@ -27,7 +27,7 @@ def check_call(args: list, env: typing.Optional[collections.abc.Mapping] = None)
 
 def is_mangled(filename: str) -> bool:
     """Return True if filename is a name-mangled DLL name, False otherwise."""
-    return re.match(r'^[^-]+-[0-9a-f]{32}\.dll$', filename.lower()) is not None
+    return re.fullmatch(r'[^-]+-[0-9a-f]{32}\.dll', filename.lower()) is not None
 
 
 def remove(path: str) -> None:
