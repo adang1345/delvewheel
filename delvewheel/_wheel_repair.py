@@ -760,7 +760,7 @@ class WheelRepair:
                     associated_paths |= associated
                     ignored_dll_names |= ignored
 
-        # if --ignore-in-wheel is specified, ignore DLLs that were found inside
+        # if --ignore-existing is specified, ignore DLLs that were found inside
         # the wheel unless they are specified with --add-dll
         if self._ignore_existing:
             dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
