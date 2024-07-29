@@ -71,6 +71,10 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `--include-symbols`: include `.pdb` symbol files with the vendored DLLs. To be included, a symbol file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.pdb`.
 - `--include-imports`: include `.lib` import library files with the vendored DLLs. To be included, an import library file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.lib`.
 
+## Version Scheme
+
+[Semanic versioning](https://semver.org/) is used.
+
 ## Name Mangling
 
 This section describes in detail how and why `delvewheel` mangles the vendored DLL filenames by default. It is fairly technical, so feel free to skip it if it's not relevant to you.
