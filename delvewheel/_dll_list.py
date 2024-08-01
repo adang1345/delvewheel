@@ -95,7 +95,22 @@ ignore_dependency = {
 }
 
 # Set of regular expressions of DLLs whose names should not be mangled.
-no_mangle_regexes = {}
+# Currently, these consist of the Microsoft Visual C++ runtime redistributable
+# files. Mangling these offers questionable benefit, as they are meant to be
+# shared among different applications, and most have a version number in the
+# filename. Also, if one of these DLLs uses process-global state, then having 2
+# versions of that DLL loaded into the same process could cause issues.
+no_mangle_regexes = {
+    re.compile(r'vcruntime\d.*\.dll'),  # Microsoft C runtime
+    re.compile(r'vccorlib\d.*\.dll'),  # Microsoft VC WinRT core
+    re.compile(r'msvcp[\d_].*\.dll'),  # Microsoft C/C++ runtime
+    re.compile(r'msvcr(t|\d.*)\.dll'),  # Microsoft C runtime
+    re.compile(r'concrt\d.*\.dll'),  # Microsoft concurrency runtime
+    re.compile(r'mfcm?\d.*\.dll'),  # Microsoft Foundation Class
+    re.compile(r'vcamp\d.*\.dll'),  # Microsoft C++ AMP runtime
+    re.compile(r'vcomp(\d.*|)\.dll'),  # Microsoft C/C++ OpenMP runtime
+    re.compile(r'ucrtbase(d|_.*|)\.dll'),  # Microsoft C runtime
+}
 
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all
