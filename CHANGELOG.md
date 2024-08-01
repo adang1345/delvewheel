@@ -1,3 +1,8 @@
+## 1.7.2 <sub><sup>(_1 August 2024_)</sup></sub>
+- Improve analysis of wheel tags. This improves support for future versions of Python through 3.99. It is expected that for most future Python releases, no explicit support will need to be implemented. 
+- Add Documentation and Changelog links to PyPI.
+- Don't mangle Visual C++ runtime redistributable DLLs. Mangling of these DLLs was added in version 1.3.3. More recent considerations have indicated that mangling these DLLs offers questionable benefit. Also, it is believed that at least one of these DLLs uses process-global state, and having 2 versions in the same process can cause DLL load errors.
+
 ## 1.7.1 <sub><sup>(_3 July 2024_)</sup></sub>
 - Support for Python 3.13, including experimental free-threaded wheels.
 
