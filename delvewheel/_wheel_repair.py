@@ -847,24 +847,30 @@ class WheelRepair:
                     with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
                         root = f'{root}-{self._hashfile(lib_file)}'
                     name_mangler[lib_name.lower()] = root + ext
-            for extension_module_path in extension_module_paths:
+        for extension_module_path in extension_module_paths:
+            if no_mangle_all:
+                needed = []
+            else:
                 extension_module_name = os.path.basename(extension_module_path)
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
-                _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
-            for lib_name in dependency_names:
+            _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
+        for lib_name in dependency_names:
+            lib_path = os.path.join(libs_dir, lib_name)
+            if no_mangle_all:
+                needed = []
+            else:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
                     if lib_name.lower() in name_mangler:
                         print(f'repairing {lib_name} -> {name_mangler[lib_name.lower()]}')
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
-                lib_path = os.path.join(libs_dir, lib_name)
                 needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
-                _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose, self._test)
-                if lib_name.lower() in name_mangler:
-                    os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
+            _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose, self._test)
+            if lib_name.lower() in name_mangler:
+                os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
 
         if self._min_supported_python is None or self._min_supported_python < (3, 10):
             load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'

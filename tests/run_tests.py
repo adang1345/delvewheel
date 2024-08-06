@@ -1170,6 +1170,23 @@ class RepairTestCase(TestCase):
             remove('wheelhouse3/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
             remove('wheelhouse4/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
 
+    def test_debug_load_flag(self):
+        """/DEPENDENTLOADFLAG:0x800 is cleared in vendored DLL when name-
+        mangling is disabled"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/DEBUGLOADFLAG', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful())
+
+    def test_debug_load_flag2(self):
+        """/DEPENDENTLOADFLAG:0x800 is cleared in vendored DLL when name-
+        mangling is enabled"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/DEBUGLOADFLAG', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful())
+
+    def test_debug_load_flag3(self):
+        """/DEPENDENTLOADFLAG:0x800 is cleared in .pyd file"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0dlf-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful('0dlf'))
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
