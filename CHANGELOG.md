@@ -1,3 +1,8 @@
+## 1.7.3 <sub><sup>(_6 August 2024_)</sup></sub>
+- Don't vendor the free-threaded Python DLL, e.g. `python313t.dll`.
+- Restore mangling of Visual C++ runtime redistributable DLLs. The problem this was meant to solve has been found to have a different cause.
+- Clear the `/DEPENDENTLOADFLAG` value for any `.pyd` or vendored DLLs (except those added with `--add-dll`). This ensures that the default DLL search path for Python extension modules is not overridden.
+
 ## 1.7.2 <sub><sup>(_1 August 2024_)</sup></sub>
 - Improve analysis of wheel tags. This improves support for future versions of Python through 3.99. It is expected that for most future Python releases, no explicit support will need to be implemented. 
 - Add Documentation and Changelog links to PyPI.
