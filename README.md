@@ -73,7 +73,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 
 ## Version Scheme
 
-[Semanic versioning](https://semver.org/) is used.
+[Semantic versioning](https://semver.org/) is used.
 
 ## Name Mangling
 
