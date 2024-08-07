@@ -1,3 +1,6 @@
+## 1.7.4 <sub><sup>(_7 August 2024_)</sup></sub>
+- Fix `OSError: Error loading *.dll; The operation completed successfully.` Previously, this error occurred intermittently when importing packages for Python <= 3.7 or Conda Python <= 3.9.
+
 ## 1.7.3 <sub><sup>(_6 August 2024_)</sup></sub>
 - Don't vendor the free-threaded Python DLL, e.g. `python313t.dll`.
 - Restore mangling of Visual C++ runtime redistributable DLLs. The problem this was meant to solve has been found to have a different cause.
