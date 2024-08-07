@@ -8,8 +8,8 @@ wheelhouse/
 *.vcxproj.user
 /tests/wheelhouse*
 /tests/temp
+/tests/simpleext/build/simpledll/Win32
 /tests/simpleext/build/simpledll/x64
-/tests/simpleext/build/simpledll/Release
 /tests/simpleext/build/simpledll/simpledll
 /tests/simpleext/build/build
 /tests/simpleext/build/simpleext.egg-info
