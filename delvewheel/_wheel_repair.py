@@ -70,6 +70,7 @@ def _delvewheel_patch_{1}():
             for lib in load_order:
                 lib_path = os.path.join(os.path.join(libs_dir, lib))
                 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+                kernel32.LoadLibraryExW.restype = ctypes.c_void_p
                 if os.path.isfile(lib_path) and not kernel32.LoadLibraryExW(ctypes.c_wchar_p(lib_path), None, 0x00000008):
                     raise OSError('Error loading {{}}; {{}}'.format(lib, ctypes.FormatError(ctypes.get_last_error())))
 

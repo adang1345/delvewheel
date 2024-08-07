@@ -1257,6 +1257,20 @@ class Python37TestCase(unittest.TestCase):
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
 
+    def test_fixed_address(self):
+        """Vendored DLL loads properly when base address is a multiple of
+        2**32. For this test, the address is 0x300000000."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/FixedAddress', 'simpleext/simpleext-0.0.1-0fixed-cp37-cp37m-win_amd64.whl'])
+        try:
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-0fixed-cp37-cp37m-win_amd64.whl'])
+            check_call([sys.executable, '-c', 'import simpleext.simpleext'])
+        finally:
+            try:
+                check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
+            except subprocess.CalledProcessError:
+                pass
+            remove('wheelhouse/simpleext-0.0.1-0fixed-cp37-cp37m-win_amd64.whl')
+
 
 @unittest.skipUnless(sys.implementation.name == 'pypy', 'Python implementation is not PyPy')
 class PyPyTestCase(unittest.TestCase):
