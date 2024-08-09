@@ -218,7 +218,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
                 end_dir = redirect_map_system32_to_sysnative[start_dir] + directory[len(start_dir):]
                 return end_dir
         if directory.lower().startswith(lastgood_system32.lower()):
-            warnings.warn(f'{lastgood_system32} is ignored in DLL search path due to technical limitations', RuntimeWarning)
+            warnings.warn(f'{lastgood_system32} is ignored in DLL search path due to technical limitations')
         return directory
 
     if os_arch is MachineType.AMD64 and interpreter_arch is MachineType.I386:

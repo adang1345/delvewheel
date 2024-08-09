@@ -338,14 +338,14 @@ class WheelRepair:
                             warnings.warn(
                                 f'{package_dir} appears to be a namespace '
                                 f'package. If so, use the --namespace-pkg '
-                                f'option.', UserWarning)
+                                f'option.')
                             break
             else:
                 warnings.warn(
                     f'{package_dir} does not contain __init__.py. If it is a '
                     f'namespace package, use the --namespace-pkg option. '
                     f'Otherwise, create an empty __init__.py file to silence '
-                    f'this warning.', UserWarning)
+                    f'this warning.')
 
         open(py_path, 'a+').close()  # create file if it doesn't exist
         with open(py_path, newline='') as file:
@@ -805,7 +805,7 @@ class WheelRepair:
                 f'{"s" if len(not_found_namespace_pkgs) > 1 else ""} '
                 f'{not_found_namespace_pkgs} w'
                 f'{"as" if len(not_found_namespace_pkgs) == 1 else "ere"} '
-                f'not found', UserWarning)
+                f'not found')
 
         if self._verbose >= 1:
             to_copy = set(os.path.basename(p) for p in dependency_paths | extra_dependency_paths)
@@ -927,7 +927,7 @@ class WheelRepair:
                 f'{"an " if len(dirnames) == 1 else ""}extra '
                 f'cop{"ies" if len(dirnames) > 1 else "y"} of the '
                 'vendored DLLs. To avoid duplicate DLLs, move extension '
-                'modules into regular (non-namespace) packages.', UserWarning)
+                'modules into regular (non-namespace) packages.')
             dirnames = list(set(map(os.path.dirname, namespace_root_ext_modules)))
             dirnames.sort(key=self._namespace_pkg_sortkey)
             seen_relative = set()
