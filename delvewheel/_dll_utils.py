@@ -6,6 +6,7 @@ import io
 import itertools
 import os
 import pathlib
+import re
 import struct
 import subprocess
 import sys
@@ -417,6 +418,16 @@ def get_all_needed(lib_path: str,
                         if dll_info:
                             stack.append(dll_info[0])
                             associated.update(dll_info[1])
+                            if re.fullmatch(_dll_list.vc_redist, dll_name):
+                                # warn if potentially incompatible MSVC++
+                                # library is found
+                                linker_version = pe.OPTIONAL_HEADER.MajorLinkerVersion, pe.OPTIONAL_HEADER.MinorLinkerVersion
+                                with PEContext(dll_info[0], None, False, verbose) as pe2:
+                                    vc_redist_version = pe2.OPTIONAL_HEADER.MajorLinkerVersion, pe2.OPTIONAL_HEADER.MinorLinkerVersion
+                                if linker_version > vc_redist_version:
+                                    linker_version = f'{linker_version[0]}.{linker_version[1]}'
+                                    vc_redist_version = f'{vc_redist_version[0]}.{vc_redist_version[1]}'
+                                    warnings.warn(f'{os.path.basename(lib_path)} was built with a newer Microsoft Visual C++ runtime ({linker_version}) than the discovered {os.path.basename(dll_info[0])} ({vc_redist_version}). This may cause compatibility issues.')
                         elif on_error == 'raise':
                             raise FileNotFoundError(f'Unable to find library: {dll_name}')
                         else:

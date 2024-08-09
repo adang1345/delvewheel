@@ -97,6 +97,10 @@ ignore_dependency = {
 # Set of regular expressions of DLLs whose names should not be mangled.
 no_mangle_regexes = {}
 
+# Regular expression that matches Microsoft Visual C++ runtime redistributable
+# files
+vc_redist = re.compile(r'((vcruntime\d.*)|(vccorlib\d.*)|(msvcp[\d_].*)|(msvcr(t|\d.*))|(concrt\d.*)|(mfc(m(ifc)?)?\d.*)|(vcamp\d.*)|(vcomp(\d.*|))|ucrtbase(d|_.*|))\.dll')
+
 # ignore_names_x86 is a set containing the lowercase names of all DLLs that can
 # be assumed to be present on 32-bit x86 Windows 7 SP1 or later. These are all
 # the files with extension .dll or .drv found in C:\Windows\SysWOW64 on vanilla
