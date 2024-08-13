@@ -124,7 +124,7 @@ class WheelRepair:
     _purelib_dir: str  # extracted path to .data/purelib directory, is set even if directory does not exist
     _platlib_dir: str  # extracted path to .data/platlib directory, is set even if directory does not exist
     _include: typing.Set[str]  # additional DLLs to include
-    _no_dlls: typing.Set[str]  # DLLs to exclude
+    _exclude: typing.Set[str]  # DLLs to exclude
     _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
     _analyze_existing: bool  # whether to analyze and vendor in dependencies of DLLs that are already in the wheel
@@ -137,7 +137,7 @@ class WheelRepair:
                  whl_path: str,
                  extract_dir: typing.Optional[str],
                  include: typing.Optional[typing.Set[str]],
-                 no_dlls: typing.Optional[typing.Set[str]],
+                 exclude: typing.Optional[typing.Set[str]],
                  ignore_existing: bool,
                  analyze_existing: bool,
                  verbose: int,
@@ -147,10 +147,11 @@ class WheelRepair:
         extract_dir: Directory where wheel is extracted. If None, a temporary
             directory is created.
         include: Set of lowercase DLL names to force inclusion into the wheel
-        no_dlls: Set of lowercase DLL names to force exclusion from wheel
+        exclude: Set of lowercase DLL names to force exclusion from wheel
             (cannot overlap with include)
         ignore_existing: whether to ignore DLLs that are already in the wheel
-        analyze_existing: whether to analyze and vendor in dependencies of DLLs that are already in the wheel
+        analyze_existing: whether to analyze and vendor in dependencies of DLLs
+            that are already in the wheel
         verbose: verbosity level, 0 to 2
         test: testing options for internal use"""
         if not os.path.isfile(whl_path):
@@ -191,9 +192,9 @@ class WheelRepair:
         self._platlib_dir = os.path.join(self._data_dir, 'platlib')
 
         self._include = set() if include is None else include
-        self._no_dlls = set() if no_dlls is None else no_dlls
+        self._exclude = set() if exclude is None else exclude
 
-        # Modify self._no_dlls to include those that are already part of every
+        # Modify self._exclude to include those that are already part of every
         # Python distribution the wheel targets.
         abi_tags = whl_name_split[-2].split('.')
         platform_tag = whl_name_split[-1]
@@ -209,7 +210,7 @@ class WheelRepair:
             else:
                 ignore_by_abi_platform = set()
                 break
-        self._no_dlls |= ignore_by_abi_platform
+        self._exclude |= ignore_by_abi_platform
 
         python_tags = whl_name_split[-3].split('.')
         if abi_tags == ['abi3']:
@@ -223,7 +224,7 @@ class WheelRepair:
                 else:
                     ignore_abi3 = set()
                     break
-            self._no_dlls |= ignore_abi3
+            self._exclude |= ignore_abi3
 
         # If ignore_existing is True, save list of all directories in the
         # wheel. These directories will be used to search for DLLs that are
@@ -641,7 +642,7 @@ class WheelRepair:
                 if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
-                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'ignore', False, False, self._verbose)
+                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._exclude, self._wheel_dirs, 'ignore', False, False, self._verbose)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -756,7 +757,7 @@ class WheelRepair:
                     elif self._verbose >= 1:
                         print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
-                    discovered, associated, ignored = _dll_utils.get_all_needed(extension_module_path, self._no_dlls, self._wheel_dirs, 'raise', include_symbols, include_imports, self._verbose)[:3]
+                    discovered, associated, ignored = _dll_utils.get_all_needed(extension_module_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports, self._verbose)[:3]
                     dependency_paths |= discovered
                     associated_paths |= associated
                     ignored_dll_names |= ignored
@@ -768,7 +769,7 @@ class WheelRepair:
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
                 no_mangles.add(name_lower)
-                no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
+                no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._exclude, no_mangles, self._verbose))
                 if name_lower not in self._include:
                     ignored_dll_names.add(name_lower)
             dependency_paths = dependency_paths_outside_wheel
@@ -855,7 +856,7 @@ class WheelRepair:
                 extension_module_name = os.path.basename(extension_module_path)
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
-                needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._no_dlls, no_mangles, self._verbose)
+                needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._exclude, no_mangles, self._verbose)
             _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
         for lib_name in dependency_names:
             lib_path = os.path.join(libs_dir, lib_name)
@@ -868,7 +869,7 @@ class WheelRepair:
                         print(f'repairing {lib_name} -> {name_mangler[lib_name.lower()]}')
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
-                needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._no_dlls, no_mangles, self._verbose)
+                needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._exclude, no_mangles, self._verbose)
             _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose, self._test)
             if lib_name.lower() in name_mangler:
                 os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))

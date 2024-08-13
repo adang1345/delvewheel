@@ -325,12 +325,12 @@ def get_direct_needed(lib_path: str, verbose: int) -> set:
     return needed
 
 
-def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, verbose: int) -> list:
+def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, verbose: int) -> list:
     """Given the path to a shared library, return a deterministically-ordered
     list containing the lowercase DLL names of all direct dependencies that
     belong in the wheel and should be name-mangled.
 
-    no_dlls is a set of lowercase additional DLL names that do not belong in
+    exclude is a set of lowercase additional DLL names that do not belong in
     the wheel.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
@@ -348,7 +348,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
         for entry in imports:
             dll_name = entry.dll.decode('utf-8').lower()
             if dll_name not in ignore_names and \
-                    dll_name not in no_dlls and \
+                    dll_name not in exclude and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                     dll_name not in no_mangles and \
                     (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]) and \
@@ -358,7 +358,7 @@ def get_direct_mangleable_needed(lib_path: str, no_dlls: set, no_mangles: set, v
 
 
 def get_all_needed(lib_path: str,
-                   no_dlls: set,
+                   exclude: set,
                    wheel_dirs: typing.Optional[typing.Iterable],
                    on_error: str,
                    include_symbols: bool,
@@ -378,7 +378,7 @@ def get_all_needed(lib_path: str,
       library cannot be found. If on_error is 'ignore', not_found contains the
       lowercased DLL names of all dependent DLLs that cannot be found.
 
-    no_dlls is a set of DLL names to force exclusion from the wheel. We do not
+    exclude is a set of DLL names to force exclusion from the wheel. We do not
     search for dependencies of these DLLs.
 
     If wheel_dirs is not None, it is an iterable of directories in the wheel
@@ -412,7 +412,7 @@ def get_all_needed(lib_path: str,
                     dll_name = entry.dll.decode('utf-8').lower()
                     if dll_name not in ignore_names and \
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
-                            dll_name not in no_dlls and \
+                            dll_name not in exclude and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
                         dll_info = find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports)
                         if dll_info:

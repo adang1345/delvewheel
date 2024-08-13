@@ -42,7 +42,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 `delvewheel show`
 - `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
 - `--include`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs unless another included DLL depends on them. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
-- `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
+- `--exclude`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity
@@ -53,7 +53,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 `delvewheel repair`
 - `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
 - `--include`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs unless another included DLL depends on them. We do not mangle the names of these DLLs or their direct dependencies. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
-- `--no-dll`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
+- `--exclude`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. Don't mangle the names of these DLLs or their direct dependencies. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. These dependencies are name-mangled by default. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity

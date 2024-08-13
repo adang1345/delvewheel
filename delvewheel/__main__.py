@@ -44,7 +44,7 @@ def main():
         subparser.add_argument('wheel', nargs='+', help='wheel(s) to show or repair')
         subparser.add_argument('--add-path', default='', metavar='PATHS', help=f'additional path(s) to search for DLLs, {os.pathsep!r}-delimited')
         subparser.add_argument('--include', '--add-dll', default='', metavar='DLLS', type=_dll_names, help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
-        subparser.add_argument('--no-dll', default='', metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
+        subparser.add_argument('--exclude', '--no-dll', default='', metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--ignore-existing', '--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('--analyze-existing', action='store_true', help='analyze and vendor in dependencies of DLLs that are already in the wheel')
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
@@ -67,9 +67,9 @@ def main():
     if args.command in ('show', 'repair'):
         add_paths = dict.fromkeys(os.path.abspath(path) for path in args.add_path.split(os.pathsep) if path)
         include = set(dll_name.lower() for dll_name in args.include.split(os.pathsep) if dll_name)
-        no_dlls = set(dll_name.lower() for dll_name in args.no_dll.split(os.pathsep) if dll_name)
+        exclude = set(dll_name.lower() for dll_name in args.exclude.split(os.pathsep) if dll_name)
 
-        intersection = include & no_dlls
+        intersection = include & exclude
         if intersection:
             raise ValueError(f'Cannot force both inclusion and exclusion of {intersection}')
 
@@ -77,7 +77,7 @@ def main():
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
 
         for wheel in args.wheel:
-            wr = WheelRepair(wheel, args.extract_dir, include, no_dlls, args.ignore_existing, args.analyze_existing, args.v, args.test.split(','))
+            wr = WheelRepair(wheel, args.extract_dir, include, exclude, args.ignore_existing, args.analyze_existing, args.v, args.test.split(','))
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
