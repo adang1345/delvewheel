@@ -258,6 +258,19 @@ class RepairTestCase(TestCase):
                     self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         self.assertTrue(import_iknowpy_successful())
 
+    def test_no_mangle_3(self):
+        """--no-mangle for 2 DLLs, flag specified twice"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll', '--no-mangle', 'iKnowBase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.startswith('iKnowEngine') or path.name.startswith('iKnowBase'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(import_iknowpy_successful())
+
     def test_no_mangle_all(self):
         """--no-mangle for all DLLs"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
@@ -276,6 +289,13 @@ class RepairTestCase(TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_iknowpy_successful())
+
+    def test_add_path_2(self):
+        """--add-path specified twice"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1', '--add-path', 'iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1', '--add-path', 'iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
     def test_strip_2(self):
@@ -364,6 +384,27 @@ class RepairTestCase(TestCase):
         self.assertTrue(kernelbase_found, 'kernelbase.dll found')
         self.assertTrue(import_iknowpy_successful())
 
+    def test_include_3(self):
+        """--include for 2 DLLs, flag specified twice"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll', '--include', 'kernelbase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        kernel32_found = False
+        kernelbase_found = False
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.lower().startswith('kernel32'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                    kernel32_found = True
+                elif path.name.lower().startswith('kernelbase'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                    kernelbase_found = True
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(kernel32_found, 'kernel32.dll found')
+        self.assertTrue(kernelbase_found, 'kernelbase.dll found')
+        self.assertTrue(import_iknowpy_successful())
+
     def test_include_exclude_overlap(self):
         """overlap between --include and --exclude generates an error"""
         with self.assertRaises(subprocess.CalledProcessError):
@@ -420,6 +461,14 @@ class RepairTestCase(TestCase):
         """--exclude that removes all DLLs"""
         try:
             output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
+            self.assertIn('no external dependencies are needed', output)
+        finally:
+            remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
+
+    def test_exclude_all_2(self):
+        """--exclude that removes all DLLs, flag specified twice"""
+        try:
+            output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '--exclude', 'msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
             self.assertIn('no external dependencies are needed', output)
         finally:
             remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')

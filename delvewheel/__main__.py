@@ -42,16 +42,16 @@ def main():
     parser_needed = subparsers.add_parser('needed', help=parser_needed_description, description=parser_needed_description)
     for subparser in (parser_show, parser_repair):
         subparser.add_argument('wheel', nargs='+', help='wheel(s) to show or repair')
-        subparser.add_argument('--add-path', default='', metavar='PATHS', help=f'additional path(s) to search for DLLs, {os.pathsep!r}-delimited')
-        subparser.add_argument('--include', '--add-dll', default='', metavar='DLLS', type=_dll_names, help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
-        subparser.add_argument('--exclude', '--no-dll', default='', metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
+        subparser.add_argument('--add-path', action='append', default=[], metavar='PATHS', help=f'additional path(s) to search for DLLs, {os.pathsep!r}-delimited')
+        subparser.add_argument('--include', '--add-dll', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
+        subparser.add_argument('--exclude', '--no-dll', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--ignore-existing', '--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('--analyze-existing', action='store_true', help='analyze and vendor in dependencies of DLLs that are already in the wheel')
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
         subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
-    parser_repair.add_argument('--no-mangle', default='', metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
+    parser_repair.add_argument('--no-mangle', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     parser_repair.add_argument('--strip', action='store_true', help='strip DLLs that contain trailing data when name-mangling')
     parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
@@ -65,9 +65,9 @@ def main():
 
     # handle command
     if args.command in ('show', 'repair'):
-        add_paths = dict.fromkeys(os.path.abspath(path) for path in args.add_path.split(os.pathsep) if path)
-        include = set(dll_name.lower() for dll_name in args.include.split(os.pathsep) if dll_name)
-        exclude = set(dll_name.lower() for dll_name in args.exclude.split(os.pathsep) if dll_name)
+        add_paths = dict.fromkeys(os.path.abspath(path) for path in os.pathsep.join(args.add_path).split(os.pathsep) if path)
+        include = set(dll_name.lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name)
+        exclude = set(dll_name.lower() for dll_name in os.pathsep.join(args.exclude).split(os.pathsep) if dll_name)
 
         intersection = include & exclude
         if intersection:
@@ -81,7 +81,7 @@ def main():
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
-                no_mangles = set(dll_name.lower() for dll_name in args.no_mangle.split(os.pathsep) if dll_name)
+                no_mangles = set(dll_name.lower() for dll_name in os.pathsep.join(args.no_mangle).split(os.pathsep) if dll_name)
                 namespace_pkgs = set(tuple(namespace_pkg.split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg)
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports)
     else:  # args.command == 'needed'
