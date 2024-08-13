@@ -123,7 +123,7 @@ class WheelRepair:
     _data_dir: str  # extracted path to .data directory, is set even if directory does not exist
     _purelib_dir: str  # extracted path to .data/purelib directory, is set even if directory does not exist
     _platlib_dir: str  # extracted path to .data/platlib directory, is set even if directory does not exist
-    _add_dlls: typing.Set[str]  # additional DLLs to addd
+    _include: typing.Set[str]  # additional DLLs to include
     _no_dlls: typing.Set[str]  # DLLs to exclude
     _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
@@ -136,7 +136,7 @@ class WheelRepair:
     def __init__(self,
                  whl_path: str,
                  extract_dir: typing.Optional[str],
-                 add_dlls: typing.Optional[typing.Set[str]],
+                 include: typing.Optional[typing.Set[str]],
                  no_dlls: typing.Optional[typing.Set[str]],
                  ignore_existing: bool,
                  analyze_existing: bool,
@@ -146,9 +146,9 @@ class WheelRepair:
         whl_path: Path to the wheel to repair
         extract_dir: Directory where wheel is extracted. If None, a temporary
             directory is created.
-        add_dlls: Set of lowercase DLL names to force inclusion into the wheel
+        include: Set of lowercase DLL names to force inclusion into the wheel
         no_dlls: Set of lowercase DLL names to force exclusion from wheel
-            (cannot overlap with add_dlls)
+            (cannot overlap with include)
         ignore_existing: whether to ignore DLLs that are already in the wheel
         analyze_existing: whether to analyze and vendor in dependencies of DLLs that are already in the wheel
         verbose: verbosity level, 0 to 2
@@ -190,7 +190,7 @@ class WheelRepair:
         self._purelib_dir = os.path.join(self._data_dir, 'purelib')
         self._platlib_dir = os.path.join(self._data_dir, 'platlib')
 
-        self._add_dlls = set() if add_dlls is None else add_dlls
+        self._include = set() if include is None else include
         self._no_dlls = set() if no_dlls is None else no_dlls
 
         # Modify self._no_dlls to include those that are already part of every
@@ -646,9 +646,9 @@ class WheelRepair:
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
 
-        # find extra dependencies specified with --add-dll
+        # find extra dependencies specified with --include
         extra_dependency_paths = set()
-        for dll_name in self._add_dlls:
+        for dll_name in self._include:
             dll_info = _dll_utils.find_library(dll_name, None, self._arch, False, False)
             if dll_info:
                 extra_dependency_paths.add(dll_info[0])
@@ -658,7 +658,7 @@ class WheelRepair:
         if self._ignore_existing:
             dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
             for path in dependency_paths_in_wheel.copy():
-                if os.path.basename(path).lower() in self._add_dlls:
+                if os.path.basename(path).lower() in self._include:
                     dependency_paths_in_wheel.remove(path)
             dependency_paths_in_wheel = list(dependency_paths_in_wheel)
             dependency_paths_in_wheel.sort()
@@ -762,23 +762,23 @@ class WheelRepair:
                     ignored_dll_names |= ignored
 
         # if --ignore-existing is specified, ignore DLLs that were found inside
-        # the wheel unless they are specified with --add-dll
+        # the wheel unless they are specified with --include
         if self._ignore_existing:
             dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
                 no_mangles.add(name_lower)
                 no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._no_dlls, no_mangles, self._verbose))
-                if name_lower not in self._add_dlls:
+                if name_lower not in self._include:
                     ignored_dll_names.add(name_lower)
             dependency_paths = dependency_paths_outside_wheel
 
-        # find extra dependencies specified with --add-dll that have not yet
+        # find extra dependencies specified with --include that have not yet
         # been found
         dependency_names = {os.path.basename(p) for p in dependency_paths}  # this is NOT lowercased
         dependency_names_lower = {name.lower() for name in dependency_names}
         extra_dependency_paths = set()
-        for dll_name in self._add_dlls:
+        for dll_name in self._include:
             if dll_name in dependency_names_lower:
                 continue
             dll_info = _dll_utils.find_library(dll_name, None, self._arch, include_symbols, include_imports)

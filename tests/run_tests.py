@@ -285,8 +285,8 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
-    def test_add_dll_1(self):
-        """--add-dll for 1 DLL, case-insensitive"""
+    def test_add_dll(self):
+        """--add-dll is alias for --include"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             kernel32_found = False
@@ -301,19 +301,9 @@ class RepairTestCase(TestCase):
         self.assertTrue(kernel32_found, 'kernel32.dll found')
         self.assertTrue(import_iknowpy_successful())
 
-    def test_add_dll_1_exist(self):
-        """-add-dll for 1 DLL that's being added anyway"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
-        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
-            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
-                if path.name in ('.load-order-iknowpy-1.5.3',):
-                    continue
-                self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
-        self.assertTrue(import_iknowpy_successful())
-
-    def test_add_dll_2_repeat(self):
-        """--add-dll for 2 DLLs that are the same"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernel32.dll;kernel32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+    def test_include_1(self):
+        """--include for 1 DLL, case-insensitive"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
@@ -327,9 +317,35 @@ class RepairTestCase(TestCase):
         self.assertTrue(kernel32_found, 'kernel32.dll found')
         self.assertTrue(import_iknowpy_successful())
 
-    def test_add_dll_2(self):
-        """--add-dll for 2 DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernel32.dll;kernelbase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+    def test_include_1_exist(self):
+        """-include for 1 DLL that's being added anyway"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(import_iknowpy_successful())
+
+    def test_include_2_repeat(self):
+        """--include for 2 DLLs that are the same"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll;kernel32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
+            kernel32_found = False
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.startswith('kernel32'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                    kernel32_found = True
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(kernel32_found, 'kernel32.dll found')
+        self.assertTrue(import_iknowpy_successful())
+
+    def test_include_2(self):
+        """--include for 2 DLLs"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll;kernelbase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         kernel32_found = False
         kernelbase_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
@@ -348,10 +364,10 @@ class RepairTestCase(TestCase):
         self.assertTrue(kernelbase_found, 'kernelbase.dll found')
         self.assertTrue(import_iknowpy_successful())
 
-    def test_add_dll_no_dll_overlap(self):
-        """overlap between --add-dll and --no-dll generates an error"""
+    def test_include_no_dll_overlap(self):
+        """overlap between --include and --no-dll generates an error"""
         with self.assertRaises(subprocess.CalledProcessError):
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernel32.dll', '--no-dll', 'Kernel32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll', '--no-dll', 'Kernel32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
 
     def test_no_dll_irrelevant(self):
         """--no-dll for DLL that's not included anyway"""
@@ -444,10 +460,10 @@ class RepairTestCase(TestCase):
         self.assertTrue(import_iknowpy_successful('0ignore'))
 
     def test_ignore_existing_override(self):
-        """--ignore-existing would ignore iKnowEngine.dll, but --add-dll
+        """--ignore-existing would ignore iKnowEngine.dll, but --include
         overrides this and prevents it and its direct dependencies from name-
         mangling."""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--add-dll', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--include', 'iKnowEngine.dll', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
         iknowengine_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
@@ -1334,9 +1350,9 @@ class LinuxTestCase(TestCase):
                 else:
                     self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
 
-    def test_add_dll_1(self):
-        """--add-dll for 1 DLL, case-insensitive"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--add-dll', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+    def test_include_1(self):
+        """--include for 1 DLL, case-insensitive"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernEl32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
