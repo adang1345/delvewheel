@@ -44,6 +44,7 @@ jobs:
         with:
           name: delvewheel
           path: ${{ github.workspace }}\dist\*
+          compression-level: 0
       - name: run tests with Python 3.12
         working-directory: ${{ github.workspace }}\tests
         run: |
