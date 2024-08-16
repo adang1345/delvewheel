@@ -1,3 +1,10 @@
+## 1.8.0 <sub><sup>(_16 August 2024_)</sup></sub>
+- Improve performance when the `.load-order` file is used for Python <= 3.7 or Conda Python <= 3.9.
+- Warn if the vendored Microsoft Visual C++ runtime DLLs are too old. These DLLs do not provide forward compatibility, and compatibility issues may result if the vendored Microsoft Visual C++ runtime DLLs are older than those that the application was built against.
+- Rename `--add-dll` to `--include`. `--add-dll` will continue to be supported as an alias.
+- Rename `--no-dll` to `--exclude`. `--no-dll` will continue to be supported as an alias.
+- Allow `--add-path`, `--include`, `--exclude`, and `--no-mangle` to be specified multiple times. When specified multiple times, values are combined.
+
 ## 1.7.4 <sub><sup>(_7 August 2024_)</sup></sub>
 - Fix `OSError: Error loading *.dll; The operation completed successfully.` Previously, this error occurred intermittently when importing packages for Python <= 3.7 or Conda Python <= 3.9.
 
