@@ -3,7 +3,7 @@
 
 ## 1.7.3 <sub><sup>(_6 August 2024_)</sup></sub>
 - Don't vendor the free-threaded Python DLL, e.g. `python313t.dll`.
-- Restore mangling of Visual C++ runtime redistributable DLLs. The problem this was meant to solve has been found to have a different cause.
+- Restore mangling of Visual C++ runtime redistributable DLLs. The problem this was meant to solve has been found to have a different cause. Plus, it has been discovered that mangling these DLLs does have a benefit. These DLLs do not provide forward compatibility, and lack of name mangling can cause compatibility issues if a Python module ends up using an older version of a Visual C++ runtime redistributable DLL than the version it was built against.
 - Clear the `/DEPENDENTLOADFLAG` value for any `.pyd` or vendored DLLs (except those added with `--add-dll`). This ensures that the default DLL search path for Python extension modules is not overridden.
 
 ## 1.7.2 <sub><sup>(_1 August 2024_)</sup></sub>
