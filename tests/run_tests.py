@@ -1270,6 +1270,28 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0dlf-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_simpleext_successful('0dlf'))
 
+    def test_header_checksum(self):
+        """PE header checksum is handled when name-mangling is enabled"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0checksum-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful('0checksum'))
+
+    def test_header_checksum2(self):
+        """PE header checksum is handled when name-mangling is disabled"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0checksum-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful('0checksum'))
+
+    def test_dependent_load_flag_and_header_checksum(self):
+        """PE header checksum is handled when name-mangling is enabled and
+        /DEPENDENTLOADFLAG:0x800 is specified"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0dlf_cs-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful('0dlf_cs'))
+
+    def test_dependent_load_flag_and_header_checksum2(self):
+        """PE header checksum is handled when name-mangling is disabled and
+        /DEPENDENTLOADFLAG:0x800 is specified"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0dlf_cs-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful('0dlf_cs'))
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""

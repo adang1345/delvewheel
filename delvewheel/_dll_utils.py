@@ -462,14 +462,18 @@ def clear_dependent_load_flag(lib_path: str, verbose: int):
         cert_table.VirtualAddress = 0
         cert_table.Size = 0
 
+        fix_checksum = bool(pe.OPTIONAL_HEADER.CheckSum)
         lib_data = pe.write()
+
     if truncate:
         lib_data = lib_data[:pe_size]
-
-    # fix the checksum
-    with PEContext(None, lib_data, False, verbose) as pe:
-        pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
-        pe.write(lib_path)
+    if fix_checksum:
+        with PEContext(None, lib_data, False, verbose) as pe:
+            pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
+            pe.write(lib_path)
+    else:
+        with open(lib_path, 'wb') as f:
+            f.write(lib_data)
 
 
 def _round_to_next(size: int, alignment: int) -> int:
@@ -727,6 +731,7 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
             pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1 = 0
 
         # all changes to headers are done; serialize the PE file
+        fix_checksum = bool(pe.OPTIONAL_HEADER.CheckSum)
         lib_data = pe.write()
 
         if not enough_padding:
@@ -756,7 +761,10 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
                 new_lib_data.write(b'\x00' * (new_section_data_padded_size - new_section_data_size))
                 lib_data = new_lib_data.getvalue()
 
-    # fix the checksum
-    with PEContext(None, lib_data, False, verbose) as pe:
-        pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
-        pe.write(lib_path)
+    if fix_checksum:
+        with PEContext(None, lib_data, False, verbose) as pe:
+            pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
+            pe.write(lib_path)
+    else:
+        with open(lib_path, 'wb') as f:
+            f.write(lib_data)
