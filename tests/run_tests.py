@@ -1292,6 +1292,11 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0dlf_cs-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_simpleext_successful('0dlf_cs'))
 
+    def test_signed(self):
+        """Authenticode signature is removed"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0sign-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(import_simpleext_successful('0sign'))
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""
