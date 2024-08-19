@@ -438,20 +438,19 @@ def get_all_needed(lib_path: str,
     return discovered, associated, ignored, not_found
 
 
-def clear_dependent_load_flag(lib_path: str, verbose: int):
-    """If the DLL given by lib_path was built with a non-0 value for
-    /DEPENDENTLOADFLAG, then modify the DLL as if /DEPENDENTLOADFLAG was 0, fix
-    the PE checksum, and clear any signatures.
+def clear_dependent_load_flags(lib_path: str, verbose: int):
+    """If the DLL given by lib_path has a non-0 value for DependentLoadFlags,
+    then set the value to 0, fix the PE checksum, and clear any signatures.
 
     lib_path: path to the DLL
     verbose: verbosity level, 0 to 2"""
     with PEContext(lib_path, None, False, verbose) as pe:
         pe.parse_data_directories([pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']])
-        if not hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') or not pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1:
+        if not hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') or not pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:
             return
         if verbose >= 1:
-            print(f'clearing /DEPENDENTLOADFLAG={pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1:#x} for {os.path.basename(lib_path)}')
-        pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1 = 0
+            print(f'clearing DependentLoadFlags={pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:#x} for {os.path.basename(lib_path)}')
+        pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags = 0
 
         # determine whether to remove signatures from overlay
         pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
@@ -528,13 +527,12 @@ def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: typing.Iterable[byt
 
 def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.Dict[str, str], strip: bool, verbose: int, test: typing.List[str]) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
-    with those in name_map. Also, if the DLL was built with a value other than
-    0 for /DEPENDENTLOADFLAG, then modify the DLL as if /DEPENDENTLOADFLAG was
-    0.
+    with those in name_map. Also, if the DLL has a non-0 value for
+    DependentLoadFlags, then set the value to 0
 
     old_deps: a subset of the dependencies that lib_path has, in list form. Can
         be empty, in which case the only thing we do is clear the
-        /DEPENDENTLOADFLAG value if it's non-0.
+        DependentLoadFlags value if it's non-0.
     name_map: a dict that maps an old dependency name to a new name, must
         contain at least all the keys in old_deps
     strip: whether to try to strip DLLs that contain overlays if not enough
@@ -543,7 +541,7 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
     test: testing options for internal use"""
     if not old_deps:
         # no dependency names to change
-        clear_dependent_load_flag(lib_path, verbose)
+        clear_dependent_load_flags(lib_path, verbose)
         return
     name_map = {dep.lower().encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
         # keep only the DLLs that will be mangled
@@ -629,10 +627,7 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
             ]
             raise RuntimeError(''.join(error_text))
 
-    with open(lib_path, 'rb') as f:
-        # workaround for https://github.com/erocarrera/pefile/issues/356
-        lib_data = f.read()
-    with PEContext(None, lib_data, True, verbose) as pe:
+    with PEContext(lib_path, None, True, verbose) as pe:
         if enough_padding:
             # overwrite padding with new DLL names
             pe.sections.sort(key=lambda section: section.VirtualAddress)
@@ -723,12 +718,12 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
         cert_table.VirtualAddress = 0
         cert_table.Size = 0
 
-        # clear /DEPENDENTLOADFLAG value
+        # clear DependentLoadFlags value
         pe.parse_data_directories([pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']])
-        if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') and pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1:
+        if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') and pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:
             if verbose >= 1:
-                print(f'clearing /DEPENDENTLOADFLAG={pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1:#x} for {os.path.basename(lib_path)}')
-            pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.Reserved1 = 0
+                print(f'clearing DependentLoadFlags={pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:#x} for {os.path.basename(lib_path)}')
+            pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags = 0
 
         # all changes to headers are done; serialize the PE file
         fix_checksum = bool(pe.OPTIONAL_HEADER.CheckSum)
