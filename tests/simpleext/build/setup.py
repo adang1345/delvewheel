@@ -3,7 +3,7 @@ from setuptools import setup, Extension
 
 n = ''  # change to build different module name
 py_limited_api = False  # set to True and add --py-limited-api=cp3__ to command line to build with Python limited API
-debug_load_flag = '0'  # change to set a different /DEPENDENTLOADFLAG linker option
+dependent_load_flag = '0'  # change to set a different /DEPENDENTLOADFLAG linker option
 
 if sys.maxsize > 2**32:
     library_dirs = ['simpledll/x64/Release']
@@ -40,7 +40,7 @@ setup(
     ext_modules=[Extension(
         f'simpleext{n}', [f'simpleext.c'],
         include_dirs=['simpledll'],
-        extra_link_args=[f'/DEPENDENTLOADFLAG:{debug_load_flag}'],
+        extra_link_args=[f'/DEPENDENTLOADFLAG:{dependent_load_flag}'],
         libraries=['simpledll'],
         library_dirs=library_dirs,
         define_macros=define_macros,
