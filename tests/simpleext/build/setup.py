@@ -4,7 +4,7 @@ from setuptools import setup, Extension
 n = ''  # change to build different module name
 py_limited_api = False  # set to True and add --py-limited-api=cp3__ to command line to build with Python limited API
 dependent_load_flag = '0'  # change to set a different /DEPENDENTLOADFLAG linker option
-header_checksum = False  # change to True to set the PE header checksum
+checksum = False  # change to True to set the PE checksum
 
 if sys.maxsize > 2**32:
     library_dirs = ['simpledll/x64/Release']
@@ -22,7 +22,7 @@ if py_limited_api:
 else:
     python_requires = f"=={py_major}.{py_minor}.*"
 extra_link_args = [f'/DEPENDENTLOADFLAG:{dependent_load_flag}']
-if header_checksum:
+if checksum:
     extra_link_args.append('/RELEASE')
 
 setup(

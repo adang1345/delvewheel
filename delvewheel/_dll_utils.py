@@ -441,7 +441,7 @@ def get_all_needed(lib_path: str,
 def clear_dependent_load_flag(lib_path: str, verbose: int):
     """If the DLL given by lib_path was built with a non-0 value for
     /DEPENDENTLOADFLAG, then modify the DLL as if /DEPENDENTLOADFLAG was 0, fix
-    the PE header checksum, and clear any signatures.
+    the PE checksum, and clear any signatures.
 
     lib_path: path to the DLL
     verbose: verbosity level, 0 to 2"""
