@@ -1,3 +1,7 @@
+## 1.8.1 <sub><sup>(_27 August 2024_)</sup></sub>
+- To improve performance during name mangling, fix the PE checksum only if the checksum existed previously.
+- Require `pefile` >= 2024.8.26 and make the changes necessary to work with this version of `pefile`.
+
 ## 1.8.0 <sub><sup>(_16 August 2024_)</sup></sub>
 - Improve performance when the `.load-order` file is used for Python <= 3.7 or Conda Python <= 3.9.
 - Warn if the vendored Microsoft Visual C++ runtime DLLs are too old. These DLLs do not provide forward compatibility, and compatibility issues may result if the vendored Microsoft Visual C++ runtime DLLs are older than those that the application was built against.
