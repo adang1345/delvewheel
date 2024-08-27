@@ -1,6 +1,7 @@
 """Utilities for analyzing and patching DLL files."""
 
 import ctypes
+import ctypes.wintypes
 import errno
 import io
 import itertools
@@ -95,6 +96,9 @@ def get_interpreter_arch() -> MachineType:
         # application execution alias that can't be read directly. Use
         # GetModuleFileNameW() to get executable path instead.
         kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel32.GetModuleFileNameW.restype = ctypes.wintypes.DWORD
+        kernel32.GetModuleFileNameW.argtypes = ctypes.wintypes.HMODULE, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD
+
         size = 256
         while size <= 32768:
             filename = ctypes.create_unicode_buffer(size)
@@ -158,9 +162,12 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
     if interpreter_arch is MachineType.ARM64:
         os_arch = MachineType.ARM64
     elif hasattr(kernel32, 'IsWow64Process2'):
-        process_machine = ctypes.c_ushort()
-        native_machine = ctypes.c_ushort()
-        if not kernel32.IsWow64Process2(ctypes.c_void_p(kernel32.GetCurrentProcess()), ctypes.byref(process_machine), ctypes.byref(native_machine)):
+        process_machine = ctypes.wintypes.USHORT()
+        native_machine = ctypes.wintypes.USHORT()
+        kernel32.GetCurrentProcess.restype = ctypes.wintypes.HANDLE
+        kernel32.IsWow64Process2.restype = ctypes.wintypes.BOOL
+        kernel32.IsWow64Process2.argtypes = ctypes.wintypes.HANDLE, ctypes.wintypes.PUSHORT, ctypes.wintypes.PUSHORT
+        if not kernel32.IsWow64Process2(kernel32.GetCurrentProcess(), process_machine, native_machine):
             raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError(ctypes.get_last_error())}')
         if not process_machine.value:
             os_arch = interpreter_arch
@@ -169,8 +176,10 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
         if not os_arch:
             raise OSError(f'Unexpected native machine type 0x{native_machine.value:04X}')
     elif hasattr(kernel32, 'IsWow64Process'):
-        wow64_process = ctypes.c_int()
-        if not kernel32.IsWow64Process(ctypes.c_void_p(kernel32.GetCurrentProcess()), ctypes.byref(wow64_process)):
+        wow64_process = ctypes.wintypes.BOOL()
+        kernel32.IsWow64Process.restype = ctypes.wintypes.BOOL
+        kernel32.IsWow64Process.argtypes = ctypes.wintypes.HANDLE, ctypes.wintypes.PBOOL
+        if not kernel32.IsWow64Process(kernel32.GetCurrentProcess(), wow64_process):
             raise OSError(f'Unable to determine whether WOW64 is active, Error={ctypes.FormatError(ctypes.get_last_error())}')
         os_arch = MachineType.AMD64 if wow64_process.value else interpreter_arch
     else:

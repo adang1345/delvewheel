@@ -65,13 +65,15 @@ def _delvewheel_patch_{1}():
     else:
         load_order_filepath = os.path.join(libs_dir, {4!r})
         if os.path.isfile(load_order_filepath):
+            import ctypes.wintypes
             with open(os.path.join(libs_dir, {4!r})) as file:
                 load_order = file.read().split()
             kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-            kernel32.LoadLibraryExW.restype = ctypes.c_void_p
+            kernel32.LoadLibraryExW.restype = ctypes.wintypes.HMODULE
+            kernel32.LoadLibraryExW.argtypes = ctypes.wintypes.LPCWSTR, ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD
             for lib in load_order:
                 lib_path = os.path.join(os.path.join(libs_dir, lib))
-                if os.path.isfile(lib_path) and not kernel32.LoadLibraryExW(ctypes.c_wchar_p(lib_path), None, 8):
+                if os.path.isfile(lib_path) and not kernel32.LoadLibraryExW(lib_path, None, 8):
                     raise OSError('Error loading {{}}; {{}}'.format(lib, ctypes.FormatError(ctypes.get_last_error())))
 
 
