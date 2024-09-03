@@ -328,7 +328,7 @@ def get_direct_needed(lib_path: str, verbose: int) -> set:
         lib_name_lower = os.path.basename(lib_path).lower()
         needed = set()
         for entry in imports:
-            name = entry.dll.decode('utf-8')
+            name = entry.dll.decode()
             if lib_name_lower not in _dll_list.ignore_dependency or name.lower() not in _dll_list.ignore_dependency[lib_name_lower]:
                 needed.add(name)
     return needed
@@ -355,7 +355,7 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, v
         ignore_names = _dll_list.ignore_names[lib_arch]
         lib_name_lower = os.path.basename(lib_path).lower()
         for entry in imports:
-            dll_name = entry.dll.decode('utf-8').lower()
+            dll_name = entry.dll.decode().lower()
             if dll_name not in ignore_names and \
                     dll_name not in exclude and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
@@ -418,7 +418,7 @@ def get_all_needed(lib_path: str,
                 ignore_names = _dll_list.ignore_names[lib_arch]
                 lib_name_lower = os.path.basename(lib_path).lower()
                 for entry in imports:
-                    dll_name = entry.dll.decode('utf-8').lower()
+                    dll_name = entry.dll.decode().lower()
                     if dll_name not in ignore_names and \
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                             dll_name not in exclude and \
