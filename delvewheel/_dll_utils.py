@@ -366,6 +366,27 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, v
     return needed
 
 
+def _toolset_too_old(linker_version: typing.Tuple[int, int], vc_redist_linker_version: typing.Tuple[int, int]) -> bool:
+    """Given the linker version of a DLL and the linker version of a Visual C++
+    runtime redistributable DLL, return True iff the Visual C++ runtime
+    redistributable DLL comes from an older platform toolset than that which
+    was used to build the DLL.
+
+    There are certain linker versions where there is ambiguity. The DLL and the
+    Visual C++ runtime redistributable DLL might be associated with the same
+    platform toolset version. Or the DLL was built against the earliest release
+    of a platform toolset and the Visual C++ runtime redistributable DLL comes
+    from the latest release of the previous version of the platform toolset. In
+    this situation, assume that the toolset is not too old."""
+    # cutoffs obtained from https://github.com/abbodi1406/vcredist/blob/master/source_links/README.md
+    cutoffs = [
+        (14, 30),  # earliest for Visual Studio 2022
+        (14, 20),  # earliest for Visual Studio 2019, latest for 2017
+        (14, 10),  # earliest for Visual Studio 2017, latest for 2015
+    ]
+    return any(vc_redist_linker_version < cutoff <= linker_version for cutoff in cutoffs)
+
+
 def get_all_needed(lib_path: str,
                    exclude: set,
                    wheel_dirs: typing.Optional[typing.Iterable],
@@ -432,11 +453,11 @@ def get_all_needed(lib_path: str,
                                 # library is found
                                 linker_version = pe.OPTIONAL_HEADER.MajorLinkerVersion, pe.OPTIONAL_HEADER.MinorLinkerVersion
                                 with PEContext(dll_info[0], None, False, verbose) as pe2:
-                                    vc_redist_version = pe2.OPTIONAL_HEADER.MajorLinkerVersion, pe2.OPTIONAL_HEADER.MinorLinkerVersion
-                                if linker_version > vc_redist_version:
+                                    vc_redist_linker_version = pe2.OPTIONAL_HEADER.MajorLinkerVersion, pe2.OPTIONAL_HEADER.MinorLinkerVersion
+                                if _toolset_too_old(linker_version, vc_redist_linker_version):
                                     linker_version = f'{linker_version[0]}.{linker_version[1]}'
-                                    vc_redist_version = f'{vc_redist_version[0]}.{vc_redist_version[1]}'
-                                    warnings.warn(f'{os.path.basename(lib_path)} was built with a newer Microsoft Visual C++ runtime ({linker_version}) than the discovered {os.path.basename(dll_info[0])} ({vc_redist_version}). This may cause compatibility issues.')
+                                    vc_redist_linker_version = f'{vc_redist_linker_version[0]}.{vc_redist_linker_version[1]}'
+                                    warnings.warn(f'{os.path.basename(lib_path)} was built with a newer platform toolset ({linker_version}) than the discovered {os.path.basename(dll_info[0])} ({vc_redist_linker_version}). This may cause compatibility issues.')
                         elif on_error == 'raise':
                             raise FileNotFoundError(f'Unable to find library: {dll_name}')
                         else:
