@@ -1,3 +1,7 @@
+## 1.8.2 <sub><sup>(_19 September 2024_)</sup></sub>
+- Define the types for all `ctypes` function calls. This ensures that no information is lost from implicit downcasts.
+- Fix overzealous warnings if the vendored Microsoft Visual C++ runtime is too old. Now, the warning is issued only if the vendored Microsoft Visual C++ runtime comes from an older platform toolset than that which the application was built against.
+
 ## 1.8.1 <sub><sup>(_27 August 2024_)</sup></sub>
 - To improve performance during name mangling, fix the PE checksum only if the checksum existed previously.
 - Require `pefile` >= 2024.8.26 and make the changes necessary to work with this version of `pefile`.
