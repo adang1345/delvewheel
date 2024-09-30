@@ -1297,6 +1297,10 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0sign-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_simpleext_successful('0sign'))
 
+    def test_free_threaded(self):
+        """Free-threaded wheel can be repaired"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp313-cp313t-win_amd64.whl'])
+
 
 class NeededTestCase(unittest.TestCase):
     """Tests for delvewheel needed"""

@@ -5,6 +5,7 @@ n = ''  # change to build different module name
 py_limited_api = False  # set to True and add --py-limited-api=cp3__ to command line to build with Python limited API
 dependent_load_flags = '0'  # change to set a different /DEPENDENTLOADFLAG linker option
 checksum = False  # change to True to set the PE checksum
+free_threaded = False  # change to True to support free-threading
 
 if sys.maxsize > 2**32:
     library_dirs = ['simpledll/x64/Release']
@@ -21,6 +22,8 @@ if py_limited_api:
     python_requires = f">={py_major}.{py_minor}"
 else:
     python_requires = f"=={py_major}.{py_minor}.*"
+if free_threaded:
+    define_macros.append(('Py_GIL_DISABLED', '1'))
 extra_link_args = [f'/DEPENDENTLOADFLAG:{dependent_load_flags}']
 if checksum:
     extra_link_args.append('/RELEASE')
