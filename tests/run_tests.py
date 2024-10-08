@@ -1337,36 +1337,41 @@ class NeededTestCase(unittest.TestCase):
         self.assertFalse(p.stderr)
 
 
-@unittest.skipUnless(sys.version_info[:2] == (3, 7), 'Python version is not 3.7')
-class Python37TestCase(unittest.TestCase):
-    """delvewheel can be run on Python 3.7, the oldest supported version"""
+@unittest.skipUnless(sys.version_info[:2] == (3, 8), 'Python version is not 3.8')
+class Python38TestCase(unittest.TestCase):
+    """delvewheel can be run on Python 3.8, the oldest supported version"""
+
+    # mock the Conda-Forge distribution of Python 3.8 to test loading with
+    # LoadLibraryExW()
+    _patch = "import platform, sys; sys.version = '3.8.20 | packaged by conda-forge | (default, Sep 30 2024, 17:44:03) [MSC v.1929 64 bit (AMD64)]'; platform.python_implementation = lambda: 'CPython'; "
+
     def test_show(self):
-        """Wheel target is older than 3.7"""
+        """Wheel target is older"""
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
 
     def test_repair_simpleext(self):
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp37-cp37m-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp38-cp38-win_amd64.whl'])
         try:
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp37-cp37m-win_amd64.whl'])
-            check_call([sys.executable, '-c', 'import simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp38-cp38-win_amd64.whl'])
+            check_call([sys.executable, '-c', self._patch + 'import simpleext'])
         finally:
             try:
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-cp37-cp37m-win_amd64.whl')
+            remove('wheelhouse/simpleext-0.0.1-cp38-cp38-win_amd64.whl')
 
     def test_repair_iknowpy(self):
         try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp37-cp37m-win_amd64.whl'])
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.3-cp37-cp37m-win_amd64.whl'])
-            check_call([sys.executable, '-c', 'import iknowpy'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp38-cp38-win_amd64.whl'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.3-cp38-cp38-win_amd64.whl'])
+            check_call([sys.executable, '-c', self._patch + 'import iknowpy'])
         finally:
             try:
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/iknowpy-1.5.3-cp37-cp37m-win_amd64.whl')
+            remove('wheelhouse/iknowpy-1.5.3-cp38-cp38-win_amd64.whl')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
@@ -1374,16 +1379,16 @@ class Python37TestCase(unittest.TestCase):
     def test_fixed_address(self):
         """Vendored DLL loads properly when base address is a multiple of
         2**32. For this test, the address is 0x300000000."""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/FixedAddress', 'simpleext/simpleext-0.0.1-0fixed-cp37-cp37m-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/FixedAddress', 'simpleext/simpleext-0.0.1-0fixed-cp38-cp38-win_amd64.whl'])
         try:
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-0fixed-cp37-cp37m-win_amd64.whl'])
-            check_call([sys.executable, '-c', 'import simpleext.simpleext'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-0fixed-cp38-cp38-win_amd64.whl'])
+            check_call([sys.executable, '-c', self._patch + 'import simpleext.simpleext'])
         finally:
             try:
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-0fixed-cp37-cp37m-win_amd64.whl')
+            remove('wheelhouse/simpleext-0.0.1-0fixed-cp38-cp38-win_amd64.whl')
 
 
 @unittest.skipUnless(sys.implementation.name == 'pypy', 'Python implementation is not PyPy')
