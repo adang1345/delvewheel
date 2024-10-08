@@ -69,8 +69,7 @@ def main():
         include = set(dll_name.lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name)
         exclude = set(dll_name.lower() for dll_name in os.pathsep.join(args.exclude).split(os.pathsep) if dll_name)
 
-        intersection = include & exclude
-        if intersection:
+        if intersection := include & exclude:
             raise ValueError(f'Cannot force both inclusion and exclusion of {intersection}')
 
         if add_paths:

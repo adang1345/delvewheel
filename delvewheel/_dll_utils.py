@@ -155,8 +155,7 @@ def _translate_directory() -> typing.Callable[[str, MachineType], str]:
 
     # determine architecture of interpreter and OS
     kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-    interpreter_arch = get_interpreter_arch()
-    if not interpreter_arch:
+    if not (interpreter_arch := get_interpreter_arch()):
         # file system redirection rules are unknown
         return null_translator
     if interpreter_arch is MachineType.ARM64:
@@ -277,40 +276,31 @@ def find_library(
             except FileNotFoundError:
                 continue
             for item in contents:
-                if name == item.lower():
-                    path = os.path.join(wheel_dir, item)
-                    if os.path.isfile(path) and get_arch(path) == arch:
-                        return path, []
+                if name == item.lower() and os.path.isfile(path := os.path.join(wheel_dir, item)) and get_arch(path) == arch:
+                    return path, []
     for directory in os.environ['PATH'].split(os.pathsep):
-        directory = _translate_directory(directory, arch)
         try:
-            contents = os.listdir(directory)
+            contents = os.listdir(directory := _translate_directory(directory, arch))
         except FileNotFoundError:
             continue
         dll_path = None
         for item in contents:
-            if name == item.lower():
-                path = os.path.join(directory, item)
-                if os.path.isfile(path) and get_arch(path) == arch:
-                    dll_path = path
-                    break
+            if name == item.lower() and os.path.isfile(path := os.path.join(directory, item)) and get_arch(path) == arch:
+                dll_path = path
+                break
         associated_paths = []
         if include_symbols:
             symbol_name = os.path.splitext(name)[0] + '.pdb'
             for item in contents:
-                if symbol_name == item.lower():
-                    path = os.path.join(directory, item)
-                    if os.path.isfile(path):
-                        associated_paths.append(path)
-                        break
+                if symbol_name == item.lower() and os.path.isfile(path := os.path.join(directory, item)):
+                    associated_paths.append(path)
+                    break
         if include_imports:
             imports_name = os.path.splitext(name)[0] + '.lib'
             for item in contents:
-                if imports_name == item.lower():
-                    path = os.path.join(directory, item)
-                    if os.path.isfile(path):
-                        associated_paths.append(path)
-                        break
+                if imports_name == item.lower() and os.path.isfile(path := os.path.join(directory, item)):
+                    associated_paths.append(path)
+                    break
         if dll_path:
             return dll_path, associated_paths
     return None
@@ -349,8 +339,7 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, v
             if hasattr(pe, attr):
                 imports = itertools.chain(imports, getattr(pe, attr))
         needed = []
-        lib_arch = MachineType.machine_field_to_type(pe.FILE_HEADER.Machine)
-        if not lib_arch:
+        if not (lib_arch := MachineType.machine_field_to_type(pe.FILE_HEADER.Machine)):
             raise ValueError(f'{lib_path} has an unsupported CPU architecture')
         ignore_names = _dll_list.ignore_names[lib_arch]
         lib_name_lower = os.path.basename(lib_path).lower()
@@ -425,16 +414,14 @@ def get_all_needed(lib_path: str,
     ignored = set()
     not_found = set()
     while stack:
-        lib_path = stack.pop()
-        if lib_path not in discovered:
+        if (lib_path := stack.pop()) not in discovered:
             discovered.add(lib_path)
             with PEContext(lib_path, None, True, verbose) as pe:
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
                         imports = itertools.chain(imports, getattr(pe, attr))
-                lib_arch = MachineType.machine_field_to_type(pe.FILE_HEADER.Machine)
-                if not lib_arch:
+                if not (lib_arch := MachineType.machine_field_to_type(pe.FILE_HEADER.Machine)):
                     raise ValueError(f'{lib_path} has an unsupported CPU architecture')
                 ignore_names = _dll_list.ignore_names[lib_arch]
                 lib_name_lower = os.path.basename(lib_path).lower()
@@ -444,8 +431,7 @@ def get_all_needed(lib_path: str,
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                             dll_name not in exclude and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
-                        dll_info = find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports)
-                        if dll_info:
+                        if dll_info := find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports):
                             stack.append(dll_info[0])
                             associated.update(dll_info[1])
                             if re.fullmatch(_dll_list.vc_redist, dll_name):
@@ -691,13 +677,11 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
             pe.OPTIONAL_HEADER.SizeOfImage = _round_to_next(pe.sections[-1].VirtualAddress + pe.sections[-1].Misc_VirtualSize, pe.OPTIONAL_HEADER.SectionAlignment)
             if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                    old_dll = entry.dll.lower()
-                    if old_dll in new_dlls_rva_mapping:
+                    if (old_dll := entry.dll.lower()) in new_dlls_rva_mapping:
                         entry.struct.Name = new_dlls_rva_mapping[old_dll]
             if hasattr(pe, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                 for entry in pe.DIRECTORY_ENTRY_DELAY_IMPORT:
-                    old_dll = entry.dll.lower()
-                    if old_dll in new_dlls_rva_mapping:
+                    if (old_dll := entry.dll.lower()) in new_dlls_rva_mapping:
                         entry.struct.szName = new_dlls_rva_mapping[old_dll]
         else:  # not enough_padding
             # generate data containing strings for new DLL names
@@ -734,13 +718,11 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
             # update import tables
             if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                    old_dll = entry.dll.lower()
-                    if old_dll in new_section_offset_mapping:
+                    if (old_dll := entry.dll.lower()) in new_section_offset_mapping:
                         entry.struct.Name = new_section_rva + new_section_offset_mapping[old_dll]
             if hasattr(pe, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                 for entry in pe.DIRECTORY_ENTRY_DELAY_IMPORT:
-                    old_dll = entry.dll.lower()
-                    if old_dll in new_section_offset_mapping:
+                    if (old_dll := entry.dll.lower()) in new_section_offset_mapping:
                         entry.struct.szName = new_section_rva + new_section_offset_mapping[old_dll]
 
         # clear reference to attribute certificate table if it exists

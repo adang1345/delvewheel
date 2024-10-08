@@ -85,8 +85,8 @@ del _delvewheel_patch_{1}
 # Template for patching a .py file for Python 3.10 and above. For these Python
 # versions, os.add_dll_directory() is used as the exclusive strategy.
 #
-# The template must produce Python code that is compatible with Python 2.6, the
-# oldest supported target Python version.
+# The template must produce Python code that is compatible with Python 3.10 and
+# the oldest version of Python that can run delvewheel.
 #
 # To use the template, call str.format(), passing in
 # 0. '"""""" ' if the patch would be at the start of the file else ''
@@ -98,8 +98,7 @@ _patch_py_template_v2 = """\
 {0}# start delvewheel patch
 def _delvewheel_patch_{1}():
     import os
-    libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), {2}{3!r}))
-    if os.path.isdir(libs_dir):
+    if os.path.isdir(libs_dir := os.path.abspath(os.path.join(os.path.dirname(__file__), {2}{3!r}))):
         os.add_dll_directory(libs_dir)
 
 
@@ -249,10 +248,8 @@ class WheelRepair:
                 if root == self._data_dir:
                     dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
                 for filename in filenames:
-                    filename_lower = filename.lower()
-                    if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
-                        arch = _dll_utils.get_arch(os.path.join(root, filename))
-                        if not arch:
+                    if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
+                        if not (arch := _dll_utils.get_arch(os.path.join(root, filename))):
                             raise NotImplementedError('Wheels for architectures other than x86, x64, and arm64 are not supported')
                         elif self._arch and self._arch is not arch:
                             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
@@ -264,8 +261,7 @@ class WheelRepair:
             unknown = False
             python_versions = []
             for python_tag in python_tags:
-                match = re.fullmatch(r'^[A-Za-z]+([0-9])([0-9]*)$', python_tag)
-                if not match:
+                if not (match := re.fullmatch(r'^[A-Za-z]+([0-9])([0-9]*)$', python_tag)):
                     unknown = True
                     break
                 python_versions.append((int(match[1]), int(match[2]) if match[2] else 0))
@@ -287,10 +283,8 @@ class WheelRepair:
         """Hash the contents of an open file handle with SHA256. Return the
         first length characters of the hash."""
         hasher = hashlib.sha256(self._distribution_name.encode())
-        buf = afile.read(blocksize)
-        while len(buf) > 0:
+        while buf := afile.read(blocksize):
             hasher.update(buf)
-            buf = afile.read(blocksize)
         return hasher.hexdigest()[:length]
 
     def _patch_py_contents(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> str:
@@ -379,8 +373,7 @@ class WheelRepair:
                 file.write(''.join(py_contents_split[:future_import_lineno]).rstrip())
                 file.write('\n\n\n')
                 file.write(patch_py_contents)
-                remainder = ''.join(py_contents_split[future_import_lineno:]).lstrip()
-                if remainder:
+                if remainder := ''.join(py_contents_split[future_import_lineno:]).lstrip():
                     file.write('\n')
                     file.write(remainder)
         elif docstring is not None:
@@ -409,15 +402,13 @@ class WheelRepair:
                            r"'''([^\\]|\\.)*?'''|"  # 3 single quotes
                            r'"([^\\\n]|\\.)*?"|'  # 1 double quote
                            r"'([^\\\n]|\\.)*?'")  # 1 single quote
-                match = re.search(pattern, py_contents[docstring_search_start_index:], re.DOTALL)
-                if not match:
+                if not (match := re.search(pattern, py_contents[docstring_search_start_index:], re.DOTALL)):
                     raise ValueError(f'Error parsing {py_name}: docstring exists but was not found')
                 docstring_end_index = docstring_search_start_index + match.end()
                 docstring_end_line = py_contents.find('\n', docstring_end_index)
                 if docstring_end_line == -1:
                     docstring_end_line = len(py_contents)
-                extra_text = py_contents[docstring_end_index: docstring_end_line]
-                if extra_text and not extra_text.isspace():
+                if (extra_text := py_contents[docstring_end_index: docstring_end_line]) and not extra_text.isspace():
                     raise ValueError(f'Error parsing {py_name}: extra text {extra_text!r} is on the line where the docstring ends. Move the extra text to a new line and try again.')
                 with open(py_path, 'w', newline=newline) as file:
                     file.write(py_contents[:docstring_end_index].rstrip())
@@ -442,8 +433,7 @@ class WheelRepair:
                     file.write('\n'.join(py_contents_lines[:end]).rstrip())
                     file.write('\n\n\n')
                     file.write(patch_py_contents)
-                    remainder = '\n'.join(py_contents_lines[end:]).lstrip()
-                    if remainder:
+                    if remainder := '\n'.join(py_contents_lines[end:]).lstrip():
                         file.write('\n')
                         file.write(remainder)
                         if not remainder.endswith('\n'):
@@ -455,8 +445,7 @@ class WheelRepair:
                     file.write(py_contents_lines[0].rstrip())
                     file.write('\n\n\n')
                     file.write(patch_py_contents)
-                    remainder = '\n'.join(py_contents_lines[1:]).lstrip()
-                    if remainder:
+                    if remainder := '\n'.join(py_contents_lines[1:]).lstrip():
                         file.write('\n')
                         file.write(remainder)
                         if not remainder.endswith('\n'):
@@ -466,8 +455,7 @@ class WheelRepair:
                 patch_py_contents = self._patch_py_contents(True, libs_dir, load_order_filename, depth)
                 with open(py_path, 'w', newline=newline) as file:
                     file.write(patch_py_contents)
-                    remainder = py_contents.lstrip()
-                    if remainder:
+                    if remainder := py_contents.lstrip():
                         file.write('\n')
                         file.write(remainder)
                         if not remainder.endswith('\n'):
@@ -487,8 +475,7 @@ class WheelRepair:
 
         Precondition: dir is an existing directory"""
         for item in os.listdir(dir):
-            path = os.path.join(dir, item)
-            if item.lower() == '__init__.py' and os.path.isfile(path):
+            if item.lower() == '__init__.py' and os.path.isfile(path := os.path.join(dir, item)):
                 return path
         return None
 
@@ -511,10 +498,8 @@ class WheelRepair:
         namespace_root_ext_modules = set()
         if any(x[0] == package_name for x in namespace_pkgs):
             for item in os.listdir(package_dir):
-                item_path = os.path.join(package_dir, item)
-                if os.path.isfile(item_path):
-                    item_lower = item.lower()
-                    if item_lower.endswith('.py') and item_lower != '__init__.py':
+                if os.path.isfile(item_path := os.path.join(package_dir, item)):
+                    if (item_lower := item.lower()).endswith('.py') and item_lower != '__init__.py':
                         self._patch_py_file(item_path, libs_dir, load_order_filename, depth)
                     elif item_lower.endswith('.pyd'):
                         namespace_root_ext_modules.add(item_path)
@@ -530,11 +515,9 @@ class WheelRepair:
         version that performed the repair or '(unknown version)' if the version
         could not be determined. Return the empty string if the wheel has not
         been repaired."""
-        filename = os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')
-        if os.path.isfile(filename):
+        if os.path.isfile(filename := os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')):
             with open(filename) as file:
-                line = file.readline()
-                if line.startswith('Version: '):
+                if (line := file.readline()).startswith('Version: '):
                     return line[len('Version: '):].rstrip()
             return '(unknown version)'
         return ''
@@ -578,12 +561,10 @@ class WheelRepair:
         Precondition: path is to a folder that exists"""
         module_names = set()
         for top_level in (self._extract_dir, self._purelib_dir, self._platlib_dir):
-            search_dir = os.path.join(top_level, self._get_site_packages_relpath(path))
-            if os.path.isdir(search_dir):
-                filenames = os.listdir(search_dir)
-                for filename in filenames:
+            if os.path.isdir(search_dir := os.path.join(top_level, self._get_site_packages_relpath(path))):
+                for filename in os.listdir(search_dir):
                     if os.path.isfile(os.path.join(search_dir, filename)) and \
-                            (filename.lower().endswith('.py') or filename.lower().endswith('.pyd')):
+                            ((filename_lower := filename.lower()).endswith('.py') or filename_lower.endswith('.pyd')):
                         module_names.add(filename[:filename.index('.')])
         return module_names
 
@@ -626,8 +607,7 @@ class WheelRepair:
         print(f'Analyzing {self._whl_name}\n')
 
         # check whether wheel has already been repaired
-        repair_version = self._get_repair_version()
-        if repair_version:
+        if repair_version := self._get_repair_version():
             print(f'Delvewheel {repair_version} has already repaired this wheel.')
             return
 
@@ -640,8 +620,7 @@ class WheelRepair:
             if root == self._data_dir:
                 dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
-                filename_lower = filename.lower()
-                if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
+                if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
                     extension_module_path = os.path.join(root, filename)
                     extension_module_paths.append(extension_module_path)
                     discovered, _, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._exclude, self._wheel_dirs, 'ignore', False, False, self._verbose)
@@ -652,8 +631,7 @@ class WheelRepair:
         # find extra dependencies specified with --include
         extra_dependency_paths = set()
         for dll_name in self._include:
-            dll_info = _dll_utils.find_library(dll_name, None, self._arch, False, False)
-            if dll_info:
+            if dll_info := _dll_utils.find_library(dll_name, None, self._arch, False, False):
                 extra_dependency_paths.add(dll_info[0])
             else:
                 not_found_dll_names.add(dll_name)
@@ -730,8 +708,7 @@ class WheelRepair:
         print(f'repairing {self._whl_path}')
 
         # check whether wheel has already been repaired
-        repair_version = self._get_repair_version()
-        if repair_version:
+        if repair_version := self._get_repair_version():
             print(f'Delvewheel {repair_version} has already repaired this wheel.')
             return
 
@@ -746,11 +723,9 @@ class WheelRepair:
             if root == self._data_dir:
                 dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
-                filename_lower = filename.lower()
-                if filename_lower.endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
+                if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
                     extension_module_path = os.path.join(root, filename)
-                    dll_arch = _dll_utils.get_arch(extension_module_path)
-                    if dll_arch != self._arch:
+                    if _dll_utils.get_arch(extension_module_path) != self._arch:
                         raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} has a CPU architecture that is not compatible with this wheel')
                     if self._get_site_packages_relpath(root) == os.curdir:
                         if self._verbose >= 1:
@@ -784,8 +759,7 @@ class WheelRepair:
         for dll_name in self._include:
             if dll_name in dependency_names_lower:
                 continue
-            dll_info = _dll_utils.find_library(dll_name, None, self._arch, include_symbols, include_imports)
-            if dll_info:
+            if dll_info := _dll_utils.find_library(dll_name, None, self._arch, include_symbols, include_imports):
                 extra_dependency_paths.add(dll_info[0])
                 associated_paths.update(dll_info[1])
             else:
@@ -845,8 +819,9 @@ class WheelRepair:
             print('mangling DLL names')
             for lib_name in dependency_names:
                 # lib_name is NOT lowercased
-                if not any(r.fullmatch(lib_name.lower()) for r in _dll_list.no_mangle_regexes) and \
-                        lib_name.lower() not in no_mangles:
+                lib_name_lower = lib_name.lower()
+                if not any(r.fullmatch(lib_name_lower) for r in _dll_list.no_mangle_regexes) and \
+                        lib_name_lower not in no_mangles:
                     root, ext = os.path.splitext(lib_name)
                     with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
                         root = f'{root}-{self._hashfile(lib_file)}'
@@ -862,19 +837,20 @@ class WheelRepair:
             _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
         for lib_name in dependency_names:
             lib_path = os.path.join(libs_dir, lib_name)
+            lib_name_lower = lib_name.lower()
             if no_mangle_all:
                 needed = []
             else:
                 # lib_name is NOT lowercased
                 if self._verbose >= 1:
-                    if lib_name.lower() in name_mangler:
-                        print(f'repairing {lib_name} -> {name_mangler[lib_name.lower()]}')
+                    if lib_name_lower in name_mangler:
+                        print(f'repairing {lib_name} -> {name_mangler[lib_name_lower]}')
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._exclude, no_mangles, self._verbose)
             _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose, self._test)
-            if lib_name.lower() in name_mangler:
-                os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name.lower()]))
+            if lib_name_lower in name_mangler:
+                os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name_lower]))
 
         if self._min_supported_python is None or self._min_supported_python < (3, 10):
             load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
@@ -894,8 +870,7 @@ class WheelRepair:
         dist_info_foldername = f'{self._distribution_name}-{self._version}.dist-info'
         namespace_root_ext_modules = set()
         for item in os.listdir(self._extract_dir):
-            package_dir = os.path.join(self._extract_dir, item)
-            if os.path.isdir(package_dir) and \
+            if os.path.isdir(package_dir := os.path.join(self._extract_dir, item)) and \
                     item != dist_info_foldername and \
                     item != os.path.basename(self._data_dir) and \
                     item != libs_dir_name and \
@@ -904,8 +879,7 @@ class WheelRepair:
         for extra_dir in (self._purelib_dir, self._platlib_dir):
             if os.path.isdir(extra_dir):
                 for item in os.listdir(extra_dir):
-                    package_dir = os.path.join(extra_dir, item)
-                    if os.path.isdir(package_dir) and \
+                    if os.path.isdir(package_dir := os.path.join(extra_dir, item)) and \
                             (item not in self._root_level_module_names(self._extract_dir) or self._get_init(package_dir)):
                         namespace_root_ext_modules.update(self._patch_package(package_dir, namespace_pkgs, libs_dir_name, load_order_filename, 1))
 
@@ -935,8 +909,7 @@ class WheelRepair:
             dirnames.sort(key=self._namespace_pkg_sortkey)
             seen_relative = set()
             for dirname in dirnames:
-                dirname_relative = self._get_site_packages_relpath(dirname)
-                if dirname_relative not in seen_relative:
+                if (dirname_relative := self._get_site_packages_relpath(dirname)) not in seen_relative:
                     for filename in os.listdir(libs_dir):
                         filepath = os.path.join(libs_dir, filename)
                         if self._verbose >= 1:
@@ -953,17 +926,16 @@ class WheelRepair:
             # compatibility with re-bundling tools such as PyInstaller.
             for dependency_name in dependency_names.copy():
                 # dependency_name is NOT lowercased
-                if dependency_name.lower() in name_mangler:
+                if (dependency_name_lower := dependency_name.lower()) in name_mangler:
                     dependency_names.remove(dependency_name)
-                    dependency_names.add(name_mangler[dependency_name.lower()])
+                    dependency_names.add(name_mangler[dependency_name_lower])
             # If the wheel contains a top-level extension module, then the
             # load-order file will be installed directly into site-packages. To
             # avoid conflicts with load-order files from other distributions,
             # include the distribution name and version in the load-order
             # filename. Do this regardless of whether the wheel actually
             # contains a top-level extension module.
-            load_order_filepath = os.path.join(libs_dir, load_order_filename)
-            if os.path.exists(load_order_filepath):
+            if os.path.exists(load_order_filepath := os.path.join(libs_dir, load_order_filename)):
                 raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
             with open(os.path.join(libs_dir, load_order_filename), 'w', newline='\n') as file:
                 file.write('\n'.join(dependency_names))
@@ -987,8 +959,7 @@ class WheelRepair:
             writer = csv.writer(record_file, lineterminator='\n')
             for root, _, files in os.walk(self._extract_dir):
                 for file in files:
-                    file_path = os.path.join(root, file)
-                    if file_path == record_filepath:
+                    if (file_path := os.path.join(root, file)) == record_filepath:
                         writer.writerow((os.path.relpath(record_filepath, self._extract_dir).replace('\\', '/'), '', ''))
                     else:
                         hash, size = self._rehash(file_path)
