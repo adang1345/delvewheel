@@ -61,7 +61,7 @@ ignore_by_abi_platform = {
     # current and future Python versions through 3.99
     'cp3(9|1[0-2]|(1[3-9]|[2-9][0-9])t?)-win_a(md|rm)64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp3(9|1[0-2]|(1[3-9]|[2-9][0-9])t?)-win32': {'vcruntime140.dll'},
-    'cp3((9|1[0-2])d|(1[3-9]|[2-9][0-9])dt?)-win(32|_a(md|rm)64)': {'vcruntime140d.dll', 'ucrtbased.dll'},
+    'cp3((9|1[0-2])d|(1[3-9]|[2-9][0-9])t?d)-win(32|_a(md|rm)64)': {'vcruntime140d.dll', 'ucrtbased.dll'},
     'pypy3([7-9]|1[0-9]|[2-9][0-9])_pp73-win_amd64': {'vcruntime140.dll'},
 
     # older versions of Python
