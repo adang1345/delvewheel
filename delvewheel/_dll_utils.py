@@ -573,7 +573,7 @@ def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.D
         # no dependency names to change
         clear_dependent_load_flags(lib_path, verbose)
         return
-    name_map = {dep.lower().encode('utf-8'): name_map[dep].encode('utf-8') for dep in old_deps}
+    name_map = {dep.lower().encode(): name_map[dep].encode() for dep in old_deps}
         # keep only the DLLs that will be mangled
 
     # If an attribute certificate table exists and is the only thing in the
