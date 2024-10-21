@@ -6,11 +6,11 @@ from ._version import __version__
 from . import _dll_utils
 
 
-def _subdir_suffix(s: str) -> str:
-    """Helper for argument parser for validating a subdirectory suffix."""
+def _dir_suffix(s: str) -> str:
+    """Helper for argument parser for validating a directory suffix."""
     if not s or any(c in r'<>:"/\|?*' or ord(c) < 32 for c in s) or \
             any(s.endswith(x) for x in ('.dist-info', '.data', ' ', '.')):
-        raise argparse.ArgumentTypeError(f'Invalid subdirectory suffix {s!r}')
+        raise argparse.ArgumentTypeError(f'Invalid directory suffix {s!r}')
     return s
 
 
@@ -54,7 +54,7 @@ def main():
     parser_repair.add_argument('--no-mangle', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     parser_repair.add_argument('--strip', action='store_true', help='strip DLLs that contain trailing data when name-mangling')
-    parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_subdir_suffix, help='directory suffix in package to store vendored DLLs (default .libs)')
+    parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_dir_suffix, help='directory suffix to store vendored DLLs (default .libs)')
     parser_repair.add_argument('--namespace-pkg', default='', metavar='PKGS', type=_namespace_pkgs, help=f'namespace package(s), {os.pathsep!r}-delimited')
     parser_repair.add_argument('--no-diagnostic', action='store_true', help=argparse.SUPPRESS)  # don't write diagnostic information to DELVEWHEEL metadata file
     parser_repair.add_argument('--include-symbols', action='store_true', help='include .pdb symbol files with vendored DLLs')
