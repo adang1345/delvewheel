@@ -1,3 +1,5 @@
+"""Find all usages of delvewheel on PyPI"""
+
 import datetime
 import threading
 import requests
