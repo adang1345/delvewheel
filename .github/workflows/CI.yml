@@ -30,6 +30,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+#      - name: find instances of msvcp140.dll
+#        working-directory: ${{ github.workspace }}
+#        run: |
+#          pip install pefile
+#          python scripts\find_library.py
       - name: build and install
         working-directory: ${{ github.workspace }}
         run: |
