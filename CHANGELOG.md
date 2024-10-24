@@ -1,3 +1,8 @@
+## 1.8.3 <sub><sup>(_24 October 2024_)</sup></sub>
+- Detect the correct ABI tag (`cp313td`) for the debug free-threaded build of Python.
+- Bump the minimum supported Python version to 3.8 for running `delvewheel` itself. Wheels with a target Python version under 3.8 can still be repaired.
+- Improve documentation for the `-L` option.
+
 ## 1.8.2 <sub><sup>(_19 September 2024_)</sup></sub>
 - Define the types for all `ctypes` function calls. This ensures that no information is lost from implicit downcasts.
 - Fix overzealous warnings if the vendored Microsoft Visual C++ runtime is too old. Now, the warning is issued only if the vendored Microsoft Visual C++ runtime comes from an older platform toolset than that which the application was built against.
