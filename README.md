@@ -70,6 +70,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
   - On Windows, `--namespace-pkg package1.package2;package3` declares `package1`, `package1\package2`, and `package3` as namespace packages.
 - `--include-symbols`: include `.pdb` symbol files with the vendored DLLs. To be included, a symbol file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.pdb`.
 - `--include-imports`: include `.lib` import library files with the vendored DLLs. To be included, an import library file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.lib`.
+- `--custom-patch`: Normally, we inject a patch into `__init__.py` in each top-level package to add the vendored DLL location to the DLL search path at runtime. To precisely control where the DLL search path is modified, use this option to instead specify the exact location(s) to place the patch. When this option is enabled, every line in a `.py` file consisting of the unindented comment `# delvewheel: patch` is replaced with the patch.
 
 ## Version Scheme
 

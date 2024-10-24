@@ -1249,6 +1249,23 @@ class RepairTestCase(TestCase):
         """Free-threaded wheel can be repaired"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp313-cp313t-win_amd64.whl'])
 
+    def test_mutually_exclusive(self):
+        """--namespace-pkg and --custom-patch can't both be used"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--namespace-pkg', 'ns0', '--custom-patch', 'simpleext/simpleext-0.0.1-0namespace-cp312-cp312-win_amd64.whl'])
+
+    def test_custom_none(self):
+        """Exception is raised when --custom-patch is specified and no location
+        was found."""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--custom-patch', 'simpleext/simpleext-0.0.1-0custom-cp312-cp312-win_amd64.whl'])
+
+    def test_custom(self):
+        """--custom-patch with multiple locations"""
+        p = subprocess.run(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--custom-patch', 'simpleext/simpleext-0.0.1-1custom-cp312-cp312-win_amd64.whl'], capture_output=True, text=True, check=True)
+        self.assertEqual(8, p.stdout.count('patching '))
+        self.assertEqual(1, p.stdout.count(' (count 2)'))
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""

@@ -493,7 +493,8 @@ class WheelRepair:
         load_order_filename is the name of the .load-order file, or None if the
             file is not used
         depth is the number of parent directories to traverse to reach the
-            site-packages directory at runtime starting from package_dir"""
+            site-packages directory at runtime starting from inside
+            package_dir"""
         package_name = os.path.basename(package_dir)
         namespace_root_ext_modules = set()
         if any(x[0] == package_name for x in namespace_pkgs):
@@ -509,6 +510,44 @@ class WheelRepair:
         else:
             self._patch_py_file(self._get_init(package_dir) or os.path.join(package_dir, '__init__.py'), libs_dir, load_order_filename, depth)
         return namespace_root_ext_modules
+
+    def _patch_custom(self, item_path: str, libs_dir: str, load_order_filename: str, depth: int) -> bool:
+        """Patch a package or .py file so that vendored DLLs can be found at
+        runtime. The patch is placed at every line consisting of the comment
+        '# delvewheel: patch'. Return True iff the patch was applied at least
+        once.
+
+        item_path is the absolute path to the extracted package or .py file
+        libs_dir is the name of the directory where DLLs are stored.
+        load_order_filename is the name of the .load-order file, or None if the
+            file is not used
+        depth is the number of parent directories to traverse to reach the
+            site-packages directory at runtime starting from item_path"""
+        if os.path.isdir(item_path):
+            result = False
+            for item in os.listdir(item_path):
+                if os.path.isdir(new_item_path := os.path.join(item_path, item)) or \
+                        os.path.isfile(new_item_path) and item[-3:].lower() == '.py':
+                    result |= self._patch_custom(new_item_path, libs_dir, load_order_filename, depth + 1)
+            return result
+        with open(item_path) as file:
+            contents = file.read()
+        if not re.search(pattern := '^# *delvewheel *: *patch *$', contents, flags=re.MULTILINE):
+            return False
+        print(f'patching {os.path.relpath(item_path, self._extract_dir)}', end='')
+        with open(item_path, newline='') as file:
+            line = file.readline()
+        for newline in ('\r\n', '\r', '\n'):
+            if line.endswith(newline):
+                break
+        else:
+            newline = '\r\n'
+        patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth).rstrip()
+        contents, count = re.subn(pattern, patch_py_contents, contents, flags=re.MULTILINE)
+        with open(item_path, 'w', newline=newline) as file:
+            file.write(contents)
+        print(f' (count {count})' if count > 1 else '')
+        return True
 
     def _get_repair_version(self) -> str:
         """If this wheel has already been repaired, return the delvewheel
@@ -689,7 +728,8 @@ class WheelRepair:
             log_diagnostics: bool,
             namespace_pkgs: typing.Set[typing.Tuple[str]],
             include_symbols: bool,
-            include_imports: bool) -> None:
+            include_imports: bool,
+            custom_patch: bool) -> None:
         """Repair the wheel in a manner similar to auditwheel.
 
         target is the target directory for storing the repaired wheel
@@ -704,7 +744,9 @@ class WheelRepair:
             corresponding to the namespace packages. Each path is represented
             as a tuple of path components
         include_symbols is True if .pdb symbol files should be included with
-            the vendored DLLs"""
+            the vendored DLLs
+        custom_patch is True to indicate that the DLL patch location is
+            custom"""
         print(f'repairing {self._whl_path}')
 
         # check whether wheel has already been repaired
@@ -857,65 +899,81 @@ class WheelRepair:
         else:
             load_order_filename = None
 
-        # Patch each package to load dependent DLLs from correct location at
-        # runtime.
-        #
-        # However, if a module and a folder are next to each other and have the
-        # same name and case,
-        # - If the folder does not contain __init__.py, do not patch
-        #   the folder. Otherwise, the import resolution order of the module
-        #   and the folder may be swapped.
-        # - If the folder contains __init__.py, patch the module (if it is pure
-        #   Python) and the folder.
         dist_info_foldername = f'{self._distribution_name}-{self._version}.dist-info'
-        namespace_root_ext_modules = set()
-        for item in os.listdir(self._extract_dir):
-            if os.path.isdir(package_dir := os.path.join(self._extract_dir, item)) and \
-                    item != dist_info_foldername and \
-                    item != os.path.basename(self._data_dir) and \
-                    item != libs_dir_name and \
-                    (item not in self._root_level_module_names(self._extract_dir) or self._get_init(package_dir)):
-                namespace_root_ext_modules.update(self._patch_package(package_dir, namespace_pkgs, libs_dir_name, load_order_filename, 1))
-        for extra_dir in (self._purelib_dir, self._platlib_dir):
-            if os.path.isdir(extra_dir):
-                for item in os.listdir(extra_dir):
-                    if os.path.isdir(package_dir := os.path.join(extra_dir, item)) and \
-                            (item not in self._root_level_module_names(self._extract_dir) or self._get_init(package_dir)):
-                        namespace_root_ext_modules.update(self._patch_package(package_dir, namespace_pkgs, libs_dir_name, load_order_filename, 1))
+        if custom_patch:
+            # replace all instances of '# delvewheel: patch' with the patch
+            custom_patch_occurred = False
+            for item in os.listdir(self._extract_dir):
+                if os.path.isdir(item_path := os.path.join(self._extract_dir, item)) and item != dist_info_foldername and item != os.path.basename(self._data_dir) and item != libs_dir_name or \
+                        os.path.isfile(item_path) and item_path[-3:].lower() == '.py':
+                    custom_patch_occurred |= self._patch_custom(item_path, libs_dir_name, load_order_filename, 0)
+            for extra_dir in (self._purelib_dir, self._platlib_dir):
+                if os.path.isdir(extra_dir):
+                    for item in os.listdir(extra_dir):
+                        if os.path.isdir(item_path := os.path.join(extra_dir, item)) or \
+                                os.path.isfile(item_path) and item_path[-3:].lower() == '.py':
+                            custom_patch_occurred |= self._patch_custom(item_path, libs_dir_name, load_order_filename, 0)
+            if not custom_patch_occurred:
+                raise RuntimeError("'# delvewheel: patch' comment not found")
+        else:
+            # Patch each package to load dependent DLLs from correct location
+            # at runtime.
+            #
+            # However, if a module and a folder are next to each other and have
+            # the same name and case,
+            # - If the folder does not contain __init__.py, do not patch
+            #   the folder. Otherwise, the import resolution order of the
+            #   module and the folder may be swapped.
+            # - If the folder contains __init__.py, patch the module (if it is
+            #   pure Python) and the folder.
+            namespace_root_ext_modules = set()
+            for item in os.listdir(self._extract_dir):
+                if os.path.isdir(package_dir := os.path.join(self._extract_dir, item)) and \
+                        item != dist_info_foldername and \
+                        item != os.path.basename(self._data_dir) and \
+                        item != libs_dir_name and \
+                        (item not in self._root_level_module_names(self._extract_dir) or self._get_init(package_dir)):
+                    namespace_root_ext_modules.update(self._patch_package(package_dir, namespace_pkgs, libs_dir_name, load_order_filename, 1))
+            for extra_dir in (self._purelib_dir, self._platlib_dir):
+                if os.path.isdir(extra_dir):
+                    for item in os.listdir(extra_dir):
+                        if os.path.isdir(package_dir := os.path.join(extra_dir, item)) and \
+                                (item not in self._root_level_module_names(self._extract_dir) or self._get_init(package_dir)):
+                            namespace_root_ext_modules.update(self._patch_package(package_dir, namespace_pkgs, libs_dir_name, load_order_filename, 1))
 
-        # Copy libraries next to all extension modules that are at the root of
-        # a namespace package. If a namespace package contains extension
-        # modules that are split across at least 2 of the following:
-        # 1. the wheel root,
-        # 2. the platlib directory,
-        # 3. the purelib directory,
-        # then copy the libraries to the first in the above list containing
-        # this namespace package.
-        if namespace_root_ext_modules:
-            dirnames = set(self._get_site_packages_relpath(os.path.dirname(x)) for x in namespace_root_ext_modules)
-            filenames = set(map(os.path.basename, namespace_root_ext_modules))
-            warnings.warn(
-                f'Namespace package{"s" if len(dirnames) > 1 else ""} '
-                f'{os.pathsep.join(dirnames)} contain'
-                f'{"s" if len(dirnames) == 1 else ""} root-level extension '
-                f'module{"s" if len(filenames) > 1 else ""} '
-                f'{os.pathsep.join(filenames)} and need'
-                f'{"s" if len(dirnames) == 1 else ""} '
-                f'{"an " if len(dirnames) == 1 else ""}extra '
-                f'cop{"ies" if len(dirnames) > 1 else "y"} of the '
-                'vendored DLLs. To avoid duplicate DLLs, move extension '
-                'modules into regular (non-namespace) packages.')
-            dirnames = list(set(map(os.path.dirname, namespace_root_ext_modules)))
-            dirnames.sort(key=self._namespace_pkg_sortkey)
-            seen_relative = set()
-            for dirname in dirnames:
-                if (dirname_relative := self._get_site_packages_relpath(dirname)) not in seen_relative:
-                    for filename in os.listdir(libs_dir):
-                        filepath = os.path.join(libs_dir, filename)
-                        if self._verbose >= 1:
-                            print(f'copying {filepath} -> {os.path.join(dirname, filename)}')
-                        shutil.copy2(filepath, dirname)
-                    seen_relative.add(dirname_relative)
+            # Copy libraries next to all extension modules that are at the root of
+            # a namespace package. If a namespace package contains extension
+            # modules that are split across at least 2 of the following:
+            # 1. the wheel root,
+            # 2. the platlib directory,
+            # 3. the purelib directory,
+            # then copy the libraries to the first in the above list containing
+            # this namespace package.
+            if namespace_root_ext_modules:
+                dirnames = set(self._get_site_packages_relpath(os.path.dirname(x)) for x in namespace_root_ext_modules)
+                filenames = set(map(os.path.basename, namespace_root_ext_modules))
+                warnings.warn(
+                    f'Namespace package{"s" if len(dirnames) > 1 else ""} '
+                    f'{os.pathsep.join(dirnames)} contain'
+                    f'{"s" if len(dirnames) == 1 else ""} root-level '
+                    f'extension module{"s" if len(filenames) > 1 else ""} '
+                    f'{os.pathsep.join(filenames)} and need'
+                    f'{"s" if len(dirnames) == 1 else ""} '
+                    f'{"an " if len(dirnames) == 1 else ""}extra '
+                    f'cop{"ies" if len(dirnames) > 1 else "y"} of the '
+                    'vendored DLLs. To avoid duplicate DLLs, move extension '
+                    'modules into regular (non-namespace) packages.')
+                dirnames = list(set(map(os.path.dirname, namespace_root_ext_modules)))
+                dirnames.sort(key=self._namespace_pkg_sortkey)
+                seen_relative = set()
+                for dirname in dirnames:
+                    if (dirname_relative := self._get_site_packages_relpath(dirname)) not in seen_relative:
+                        for filename in os.listdir(libs_dir):
+                            filepath = os.path.join(libs_dir, filename)
+                            if self._verbose >= 1:
+                                print(f'copying {filepath} -> {os.path.join(dirname, filename)}')
+                            shutil.copy2(filepath, dirname)
+                        seen_relative.add(dirname_relative)
 
         if load_order_filename is not None:
             # Create .load-order file containing list of DLLs to load during
