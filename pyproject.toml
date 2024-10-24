@@ -1,6 +1,44 @@
 [build-system]
-requires = [
-    "setuptools >= 40.9.0",
-    "wheel",
-]
+requires = ["setuptools >= 70.1.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "delvewheel"
+dynamic = ["version", "readme"]
+authors = [{name = "Aohan Dang", email = "adang1345@gmail.com"}]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+description = "Self-contained wheels for Windows"
+requires-python = ">=3.8"
+dependencies = ["pefile >= 2024.8.26"]
+
+[project.scripts]
+delvewheel = "delvewheel.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/adang1345/delvewheel"
+Documentation = "https://github.com/adang1345/delvewheel/blob/master/README.md"
+Changelog = "https://github.com/adang1345/delvewheel/blob/master/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["delvewheel"]
+platforms = ["Windows"]
+
+[tool.setuptools.dynamic]
+version = {attr = "delvewheel._version.__version__"}
+readme = {file = ["README.md"], content-type = "text/markdown"}
