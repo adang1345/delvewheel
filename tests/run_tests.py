@@ -905,7 +905,7 @@ class RepairTestCase(TestCase):
         """mixed namespace and regular packages"""
         for namespace_pkgs in ('ns.ns',
                                'ns;ns.ns',  # redundant, one package is subpackage of another
-                               'ns.ns;Reg'):  # case sensitive, Reg should not match reg
+                               'ns.ns;Reg'):  # case-sensitive, Reg should not match reg
             self.namespace_helper(
                 'simpleext/simpleext-0.0.1-4namespace-cp312-cp312-win_amd64.whl', namespace_pkgs,
                 not_patched=[
