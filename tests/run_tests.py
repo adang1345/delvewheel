@@ -30,14 +30,6 @@ def is_mangled(filename: str) -> bool:
     return re.fullmatch(r'[^-]+-[0-9a-f]{32}\.dll', filename.lower()) is not None
 
 
-def remove(path: str) -> None:
-    """Version of os.remove() that ignores FileNotFoundError"""
-    try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
-
-
 def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
     """Return True iff wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl
     can be installed successfully, imported, uninstalled, and deleted.
@@ -65,7 +57,6 @@ def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list
             check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
         except subprocess.CalledProcessError:
             pass
-        remove(whl_path)
 
 
 def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
@@ -95,7 +86,6 @@ def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[li
             check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
         except subprocess.CalledProcessError:
             pass
-        remove(whl_path)
 
 
 class TestCase(unittest.TestCase):
@@ -123,7 +113,6 @@ class TestCase(unittest.TestCase):
         importable: (optional) list of names that should be importable after
             the repaired wheel is installed, must be None if testing on non-
             Windows platform"""
-        repaired_whl = None
         try:
             check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', *(() if mangle else ('--no-mangle-all',)), '--namespace-pkg', namespace_pkg, whl])
             repaired_whl = os.path.join('wheelhouse', os.path.basename(whl))
@@ -163,11 +152,17 @@ class TestCase(unittest.TestCase):
                     check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
                 except subprocess.CalledProcessError:
                     pass
-            if repaired_whl:
-                remove(repaired_whl)
+
+    @classmethod
+    def tearDownClass(cls):
+        if DEBUG:
+            return
+        for item in os.listdir('.'):
+            if os.path.isdir(item) and item.startswith('wheelhouse'):
+                shutil.rmtree(item)
 
 
-class ShowTestCase(unittest.TestCase):
+class ShowTestCase(TestCase):
     """Tests for delvewheel show"""
     def test_v(self):
         """-v"""
@@ -179,12 +174,9 @@ class ShowTestCase(unittest.TestCase):
 
     def test_already_repaired(self):
         """Show is canceled if wheel is already repaired."""
-        try:
-            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
-            output = subprocess.check_output(['delvewheel', 'show', 'wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], text=True)
-            self.assertIn('has already repaired', output)
-        finally:
-            remove('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        output = subprocess.check_output(['delvewheel', 'show', 'wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('has already repaired', output)
 
     def test_pure_python(self):
         """No dependencies needed if wheel is pure Python."""
@@ -436,7 +428,6 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
 
     def test_exclude_iknowengine(self):
         """--exclude for iKnowEngine.dll, which should eliminate all iKnow*.dll
@@ -455,23 +446,16 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
 
     def test_exclude_all(self):
         """--exclude that removes all DLLs"""
-        try:
-            output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
-            self.assertIn('no external dependencies are needed', output)
-        finally:
-            remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
+        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
 
     def test_exclude_all_2(self):
         """--exclude that removes all DLLs, flag specified twice"""
-        try:
-            output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '--exclude', 'msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
-            self.assertIn('no external dependencies are needed', output)
-        finally:
-            remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
+        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '--exclude', 'msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
 
     def test_ignore_existing_irrelevant(self):
         """--ignore-existing when no DLLs are in the wheel"""
@@ -551,27 +535,17 @@ class RepairTestCase(TestCase):
             check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', '--extract-dir', 'temp', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
             self.assertTrue(os.path.exists('temp/iknowpy'))
         finally:
-            if os.path.exists('temp'):
-                shutil.rmtree('temp')
-            remove('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl')
+            shutil.rmtree('temp', True)
 
     def test_wheel_dir_short(self):
         """-w"""
-        try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '-w', 'wheelhouse2', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
-            self.assertTrue(os.path.exists('wheelhouse2/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'))
-        finally:
-            if os.path.exists('wheelhouse2'):
-                shutil.rmtree('wheelhouse2')
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '-w', 'wheelhouse2', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(os.path.exists('wheelhouse2/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'))
 
     def test_wheel_dir_long(self):
         """--wheel-dir"""
-        try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '-w', 'wheelhouse2', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
-            self.assertTrue(os.path.exists('wheelhouse2/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'))
-        finally:
-            if os.path.exists('wheelhouse2'):
-                shutil.rmtree('wheelhouse2')
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll', '-w', 'wheelhouse2', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        self.assertTrue(os.path.exists('wheelhouse2/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'))
 
     def test_lib_sdir_short(self):
         """-L"""
@@ -712,7 +686,6 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-cp36.cp312-cp36m.cp312-win_amd64.whl')
 
     def test_multiple_wheels(self):
         """Repair multiple wheels in a single command"""
@@ -727,8 +700,6 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
-            remove('wheelhouse/simpleext-0.0.1-cp36.cp312-cp36m.cp312-win_amd64.whl')
 
     def test_v(self):
         """-v"""
@@ -759,7 +730,6 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl')
 
     def test_abi3_cp312(self):
         """Repair an abi3 wheel for CPython 3.12+."""
@@ -782,46 +752,33 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-cp312-abi3-win_amd64.whl')
 
     def test_already_repaired(self):
         """Repair is canceled if wheel is already repaired."""
-        try:
-            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
-            output = subprocess.check_output(['delvewheel', 'repair', 'wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], text=True)
-            self.assertIn('has already repaired', output)
-        finally:
-            remove('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        output = subprocess.check_output(['delvewheel', 'repair', 'wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('has already repaired', output)
 
     def test_pure_python(self):
         """If wheel is pure Python, no repair happens, and the wheel is copied
         as-is."""
-        try:
-            output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/more_itertools-9.0.0-py3-none-any.whl'], text=True)
-            self.assertIn('no external dependencies are needed', output)
-            self.assertTrue(os.path.isfile('wheelhouse/more_itertools-9.0.0-py3-none-any.whl'))
-        finally:
-            remove('wheelhouse/more_itertools-9.0.0-py3-none-any.whl')
+        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/more_itertools-9.0.0-py3-none-any.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
+        self.assertTrue(os.path.isfile('wheelhouse/more_itertools-9.0.0-py3-none-any.whl'))
 
     def test_no_external(self):
         """If wheel has an extension module that has no external dependencies,
         no repair happens, and the wheel is copied as-is."""
-        try:
-            output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'], text=True)
-            self.assertIn('no external dependencies are needed', output)
-            self.assertTrue(os.path.isfile('wheelhouse/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'))
-        finally:
-            remove('wheelhouse/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl')
+        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
+        self.assertTrue(os.path.isfile('wheelhouse/h3ronpy-0.16.0-cp38-abi3-win_amd64.whl'))
 
     def test_wrong_platform(self):
         """If wheel has an extension module that is not for Windows, no repair
         happens, and the wheel is copied as-is."""
-        try:
-            output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
-            self.assertIn('no external dependencies are needed', output)
-            self.assertTrue(os.path.isfile('wheelhouse/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'))
-        finally:
-            remove('wheelhouse/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl')
+        output = subprocess.check_output(['delvewheel', 'repair', 'no_dependencies/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
+        self.assertTrue(os.path.isfile('wheelhouse/h3ronpy-0.16.0-cp38-abi3-macosx_10_7_x86_64.whl'))
 
     def test_header_space(self):
         """PE header space is added correctly in name-mangling step."""
@@ -1162,11 +1119,8 @@ class RepairTestCase(TestCase):
 
     def test_ignore_data(self):
         """Ignore .pyd file in .data/data directory."""
-        try:
-            output = subprocess.check_output(['delvewheel', 'repair', 'simpleext/simpleext-0.0.1-0ignore-cp312-cp312-win_amd64.whl'], text=True)
-            self.assertIn('no external dependencies are needed', output)
-        finally:
-            remove('wheelhouse/simpleext-0.0.1-0ignore-cp312-cp312-win_amd64.whl')
+        output = subprocess.check_output(['delvewheel', 'repair', 'simpleext/simpleext-0.0.1-0ignore-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
 
     def test_include_symbols0(self):
         """Simple test of the --include-symbols flag."""
@@ -1230,28 +1184,22 @@ class RepairTestCase(TestCase):
     def test_source_date_epoch(self):
         """The SOURCE_DATE_EPOCH environment variable can be used to have
         reproducible builds."""
-        try:
-            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse1', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': None})
-            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse2', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
-            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse3', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
-            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse4', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203202'})
-            with open('wheelhouse1/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel1, \
-                open('wheelhouse2/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel2, \
-                open('wheelhouse3/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel3, \
-                open('wheelhouse4/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel4:
-                contents1 = wheel1.read()
-                contents2 = wheel2.read()
-                contents3 = wheel3.read()
-                contents4 = wheel4.read()
-                self.assertNotEqual(contents1, contents2)
-                self.assertNotEqual(contents1, contents4)
-                self.assertEqual(contents2, contents3)
-                self.assertNotEqual(contents2, contents4)
-        finally:
-            remove('wheelhouse1/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
-            remove('wheelhouse2/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
-            remove('wheelhouse3/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
-            remove('wheelhouse4/simpleext-0.0.1-cp312-cp312-win_amd64.whl')
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse1', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': None})
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse2', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse3', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse4', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203202'})
+        with open('wheelhouse1/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel1, \
+            open('wheelhouse2/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel2, \
+            open('wheelhouse3/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel3, \
+            open('wheelhouse4/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel4:
+            contents1 = wheel1.read()
+            contents2 = wheel2.read()
+            contents3 = wheel3.read()
+            contents4 = wheel4.read()
+            self.assertNotEqual(contents1, contents2)
+            self.assertNotEqual(contents1, contents4)
+            self.assertEqual(contents2, contents3)
+            self.assertNotEqual(contents2, contents4)
 
     def test_dependent_load_flags(self):
         """/DEPENDENTLOADFLAG:0x800 is cleared in vendored DLL when name-
@@ -1302,7 +1250,7 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp313-cp313t-win_amd64.whl'])
 
 
-class NeededTestCase(unittest.TestCase):
+class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""
     def test_iknowengine(self):
         p = subprocess.run(['delvewheel', 'needed', 'iknowpy/iKnowEngine.dll'], capture_output=True, text=True, check=True)
@@ -1338,7 +1286,7 @@ class NeededTestCase(unittest.TestCase):
 
 
 @unittest.skipUnless(sys.version_info[:2] == (3, 8), 'Python version is not 3.8')
-class Python38TestCase(unittest.TestCase):
+class Python38TestCase(TestCase):
     """delvewheel can be run on Python 3.8, the oldest supported version"""
 
     # mock the Conda-Forge distribution of Python 3.8 to test loading with
@@ -1359,7 +1307,6 @@ class Python38TestCase(unittest.TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-cp38-cp38-win_amd64.whl')
 
     def test_repair_iknowpy(self):
         try:
@@ -1371,7 +1318,6 @@ class Python38TestCase(unittest.TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/iknowpy-1.5.3-cp38-cp38-win_amd64.whl')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
@@ -1388,11 +1334,10 @@ class Python38TestCase(unittest.TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-0fixed-cp38-cp38-win_amd64.whl')
 
 
 @unittest.skipUnless(sys.implementation.name == 'pypy', 'Python implementation is not PyPy')
-class PyPyTestCase(unittest.TestCase):
+class PyPyTestCase(TestCase):
     """delvewheel can be run on PyPy"""
     def test_show(self):
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-pp310-pypy310_pp73-win_amd64.whl'])
@@ -1408,7 +1353,6 @@ class PyPyTestCase(unittest.TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
-            remove('wheelhouse/simpleext-0.0.1-pp310-pypy310_pp73-win_amd64.whl')
 
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
