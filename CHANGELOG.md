@@ -1,3 +1,6 @@
+## 1.9.0 <sub><sup>(_12 November 2024_)</sup></sub>
+- Introduce the `--custom-patch` option.
+
 ## 1.8.3 <sub><sup>(_24 October 2024_)</sup></sub>
 - Detect the correct ABI tag (`cp313td`) for the debug free-threaded build of Python.
 - Bump the minimum supported Python version to 3.8 for running `delvewheel` itself. Wheels with a target Python version under 3.8 can still be repaired.
