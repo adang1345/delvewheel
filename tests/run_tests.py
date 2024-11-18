@@ -1266,6 +1266,18 @@ class RepairTestCase(TestCase):
         self.assertEqual(8, p.stdout.count('patching '))
         self.assertEqual(1, p.stdout.count(' (count 2)'))
 
+    def test_remove_signature_jws(self):
+        """Remove RECORD.jws signature file"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-1sign-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-1sign-cp312-cp312-win_amd64.whl') as whl_file:
+            self.assertRaises(KeyError, whl_file.getinfo, 'simpleext-0.0.1.dist-info/RECORD.jws')
+
+    def test_remove_signature_p7s(self):
+        """Remove RECORD.p7s signature file"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-2sign-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2sign-cp312-cp312-win_amd64.whl') as whl_file:
+            self.assertRaises(KeyError, whl_file.getinfo, 'simpleext-0.0.1.dist-info/RECORD.p7s')
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""
