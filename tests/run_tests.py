@@ -1,10 +1,10 @@
 import collections.abc
+import io
 import os
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import typing
 import unittest
 import zipfile
@@ -96,7 +96,8 @@ class TestCase(unittest.TestCase):
                          exist: typing.Optional[typing.List[str]] = None,
                          not_exist: typing.Optional[typing.List[str]] = None,
                          importable: typing.Optional[typing.List[str]] = None):
-        """Run a test of namespace package support.
+        """Run a test of namespace package support. All paths must be specified
+        using forward slashes.
 
         whl: path to the wheel to repair
         namespace_pkg: the value to pass to the --namespace-pkg option during
@@ -116,29 +117,25 @@ class TestCase(unittest.TestCase):
         try:
             check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', *(() if mangle else ('--no-mangle-all',)), '--namespace-pkg', namespace_pkg, whl])
             repaired_whl = os.path.join('wheelhouse', os.path.basename(whl))
-            with tempfile.TemporaryDirectory() as tempdir:
-                with zipfile.ZipFile(repaired_whl) as whl_file:
-                    whl_file.extractall(tempdir)
+            with zipfile.ZipFile(repaired_whl) as whl_file:
                 if patched:
                     for item in patched:
-                        filepath = os.path.join(tempdir, item)
-                        self.assertTrue(os.path.isfile(filepath), f'{item} is patched')
-                        with open(filepath) as file:
-                            file_contents = file.read()
-                        self.assertIn('_delvewheel_patch_', file_contents, f'{item} is patched')
+                        with io.TextIOWrapper(whl_file.open(item)) as file:
+                            self.assertIn('_delvewheel_patch_', file.read(), f'{item} is patched')
                 if not_patched:
                     for item in not_patched:
-                        filepath = os.path.join(tempdir, item)
-                        if os.path.isfile(filepath):
-                            with open(filepath) as file:
-                                file_contents = file.read()
-                            self.assertNotIn('_delvewheel_patch_', file_contents, f'{item} is not patched')
+                        try:
+                            with io.TextIOWrapper(whl_file.open(item)) as file:
+                                self.assertNotIn('_delvewheel_patch_', file.read(), f'{item} is not patched')
+                        except KeyError:
+                            pass
                 if exist:
                     for item in exist:
-                        self.assertTrue(os.path.exists(os.path.join(tempdir, item)), f'{item} exists')
+                        whl_file.getinfo(item)
                 if not_exist:
                     for item in not_exist:
-                        self.assertFalse(os.path.exists(os.path.join(tempdir, item)), f'{item} does not exist')
+                        with self.assertRaises(KeyError, msg=f'{item} does not exist'):
+                            whl_file.getinfo(item)
             if sys.platform == 'win32':
                 check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', repaired_whl])
             if importable:
@@ -1125,60 +1122,48 @@ class RepairTestCase(TestCase):
     def test_include_symbols0(self):
         """Simple test of the --include-symbols flag."""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--include-symbols', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl_file:
-                whl_file.extractall(tempdir)
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
-            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.lib')))
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl_file:
+            whl_file.getinfo('simpleext-0.0.1.data/platlib/simpledll.pdb')
+            self.assertRaises(KeyError, whl_file.getinfo, 'simpleext-0.0.1.data/platlib/simpledll.lib')
 
     def test_include_symbols1(self):
         """Two copies of symbol file exist if 2 copies of DLL exist"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--namespace-pkg', 'ns', '--include-symbols', 'simpleext/simpleext-0.0.1-2namespace-cp312-cp312-win_amd64.whl'])
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp312-cp312-win_amd64.whl') as whl_file:
-                whl_file.extractall(tempdir)
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.pdb')))
-            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.lib')))
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'ns/simpledll.pdb')))
-            self.assertFalse(os.path.exists(os.path.join(tempdir, 'ns/simpledll.lib')))
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp312-cp312-win_amd64.whl') as whl_file:
+            whl_file.getinfo('simpleext.libs/simpledll.pdb')
+            self.assertRaises(KeyError, whl_file.getinfo, 'simpleext.libs/simpledll.lib')
+            whl_file.getinfo('ns/simpledll.pdb')
+            self.assertRaises(KeyError, whl_file.getinfo, 'ns/simpledll.lib')
 
     def test_include_imports0(self):
         """Simple test of the --include-imports flag."""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--include-imports', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl_file:
-                whl_file.extractall(tempdir)
-            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.lib')))
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl_file:
+            self.assertRaises(KeyError, whl_file.getinfo, 'simpleext-0.0.1.data/platlib/simpledll.pdb')
+            whl_file.getinfo('simpleext-0.0.1.data/platlib/simpledll.lib')
 
     def test_include_imports1(self):
         """Two copies of import library file exist if 2 copies of DLL exist"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--namespace-pkg', 'ns', '--include-imports', 'simpleext/simpleext-0.0.1-2namespace-cp312-cp312-win_amd64.whl'])
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp312-cp312-win_amd64.whl') as whl_file:
-                whl_file.extractall(tempdir)
-            self.assertFalse(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.pdb')))
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext.libs/simpledll.lib')))
-            self.assertFalse(os.path.exists(os.path.join(tempdir, 'ns/simpledll.pdb')))
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'ns/simpledll.lib')))
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2namespace-cp312-cp312-win_amd64.whl') as whl_file:
+            self.assertRaises(KeyError, whl_file.getinfo, 'simpleext.libs/simpledll.pdb')
+            whl_file.getinfo('simpleext.libs/simpledll.lib')
+            self.assertRaises(KeyError, whl_file.getinfo, 'ns/simpledll.pdb')
+            whl_file.getinfo('ns/simpledll.lib')
 
     def test_include_symbols_imports(self):
         """--include-symbols and --include-imports flags in combination."""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--include-symbols', '--include-imports', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl_file:
-                whl_file.extractall(tempdir)
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.pdb')))
-            self.assertTrue(os.path.exists(os.path.join(tempdir, 'simpleext-0.0.1.data/platlib/simpledll.lib')))
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl_file:
+            whl_file.getinfo('simpleext-0.0.1.data/platlib/simpledll.pdb')
+            whl_file.getinfo('simpleext-0.0.1.data/platlib/simpledll.lib')
 
     def test_filename_special_character(self):
         """RECORD is fixed correctly when filename contains the ',' special
         character."""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0record-cp312-cp312-win_amd64.whl'])
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0record-cp312-cp312-win_amd64.whl') as whl_file:
-                whl_file.extractall(tempdir)
-            with open(os.path.join(tempdir, 'simpleext-0.0.1.dist-info/RECORD')) as file:
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0record-cp312-cp312-win_amd64.whl') as whl_file:
+            with io.TextIOWrapper(whl_file.open('simpleext-0.0.1.dist-info/RECORD')) as file:
                 self.assertTrue(any(line.startswith('"simpleext-0.0.1.data/data/a,b.txt"') for line in file))
 
     def test_source_date_epoch(self):
