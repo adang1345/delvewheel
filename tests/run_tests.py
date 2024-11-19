@@ -1169,22 +1169,16 @@ class RepairTestCase(TestCase):
     def test_source_date_epoch(self):
         """The SOURCE_DATE_EPOCH environment variable can be used to have
         reproducible builds."""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse1', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': None})
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse2', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse3', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203200'})
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', 'wheelhouse4', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': '650203202'})
-        with open('wheelhouse1/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel1, \
-            open('wheelhouse2/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel2, \
-            open('wheelhouse3/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel3, \
-            open('wheelhouse4/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as wheel4:
-            contents1 = wheel1.read()
-            contents2 = wheel2.read()
-            contents3 = wheel3.read()
-            contents4 = wheel4.read()
-            self.assertNotEqual(contents1, contents2)
-            self.assertNotEqual(contents1, contents4)
-            self.assertEqual(contents2, contents3)
-            self.assertNotEqual(contents2, contents4)
+        source_date_epochs = [None, '650203200', '650203200', '650203202']
+        contents = []
+        for i, source_date_epoch in enumerate(source_date_epochs):
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', f'wheelhouse{i}', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': source_date_epoch})
+            with open(f'wheelhouse{i}/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'rb') as whl_file:
+                contents.append(whl_file.read())
+        self.assertNotEqual(contents[0], contents[1])
+        self.assertNotEqual(contents[0], contents[3])
+        self.assertEqual(contents[1], contents[2])
+        self.assertNotEqual(contents[1], contents[3])
 
     def test_dependent_load_flags(self):
         """/DEPENDENTLOADFLAG:0x800 is cleared in vendored DLL when name-
