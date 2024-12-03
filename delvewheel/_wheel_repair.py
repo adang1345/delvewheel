@@ -110,6 +110,21 @@ del _delvewheel_patch_{1}
 pp = pprint.PrettyPrinter(indent=4)
 
 
+def walk(top: str, last: str):
+    """Like os.walk(top) except every folder with the name given by last (case-
+    sensitive) is traversed last."""
+    final = []
+    for root, dirnames, filenames in os.walk(top):
+        for i, dirname in enumerate(dirnames):
+            if dirname == last:
+                del dirnames[i]
+                final.append(os.path.join(root, dirname))
+                break
+        yield root, dirnames, filenames
+    for root in final:
+        yield from os.walk(root)
+
+
 class WheelRepair:
     """An instance represents a wheel that can be repaired."""
 
@@ -1042,7 +1057,7 @@ class WheelRepair:
         os.makedirs(target, exist_ok=True)
         whl_dest_path = os.path.join(target, self._whl_name)
         with zipfile.ZipFile(whl_dest_path, 'w', zipfile.ZIP_DEFLATED) as whl_file:
-            for root, dirs, files in os.walk(self._extract_dir):
+            for root, dirs, files in walk(self._extract_dir, dist_info_foldername):
                 for dir in dirs:
                     dir_path = os.path.join(root, dir)
                     zip_dir_name = os.path.relpath(dir_path, self._extract_dir).replace('\\', '/') + '/'
