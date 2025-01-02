@@ -88,7 +88,8 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install ../dist/delvewheel-*.whl
-          python run_tests.py -v LinuxTestCase
+          pip install setuptools
+          python run_tests.py -v
       - name: deploy
         if: env.VERSION_CHANGED == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'adang1345'
         working-directory: ${{ github.workspace }}

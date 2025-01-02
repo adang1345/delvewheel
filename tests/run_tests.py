@@ -12,6 +12,10 @@ import zipfile
 DEBUG = False
 
 
+def fix_path(path_list: str):
+    return path_list.replace(';', os.pathsep)
+
+
 def check_call(args: list, env: typing.Optional[collections.abc.Mapping] = None):
     base_env = os.environ.copy()
     if env is not None:
@@ -20,9 +24,10 @@ def check_call(args: list, env: typing.Optional[collections.abc.Mapping] = None)
                 base_env.pop(var, None)
             else:
                 base_env[var] = env[var]
-    if DEBUG:
-        return subprocess.check_call(args, env=base_env)
-    return subprocess.check_call(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=base_env)
+    p = subprocess.run(args, capture_output=not DEBUG, text=True, env=base_env)
+    if p.returncode and p.stderr:
+        sys.stderr.write(p.stderr)
+    p.check_returncode()
 
 
 def is_mangled(filename: str) -> bool:
@@ -39,6 +44,8 @@ def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list
 
     If modules is specified, verify that the modules in that list are imported
     successfully."""
+    if sys.version_info[:2] != (3, 12) or sys.platform != 'win32':
+        return True
     if build_tag:
         whl_path = f'wheelhouse/iknowpy-1.5.3-{build_tag}-cp312-cp312-win_amd64.whl'
     else:
@@ -68,6 +75,8 @@ def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[li
 
     If modules is specified, verify that the modules in that list are imported
     successfully."""
+    if sys.version_info[:2] != (3, 12) or sys.platform != 'win32':
+        return True
     if build_tag:
         whl_path = f'wheelhouse/simpleext-0.0.1-{build_tag}-cp312-cp312-win_amd64.whl'
     else:
@@ -141,11 +150,9 @@ class TestCase(unittest.TestCase):
                         self.assertFalse(os.path.exists(os.path.join(tempdir, item)), f'{item} does not exist')
             if sys.platform == 'win32':
                 check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', repaired_whl])
-            if importable:
-                if sys.platform != 'win32':
-                    raise RuntimeError('Cannot test imports on non-Windows system')
-                for item in importable:
-                    check_call([sys.executable, '-c', f'import {item}'])
+                if importable:
+                    for item in importable:
+                        check_call([sys.executable, '-c', f'import {item}'])
         finally:
             if sys.platform == 'win32':
                 try:
@@ -202,7 +209,7 @@ class ShowTestCase(TestCase):
 
     def test_analyze_existing(self):
         """--analyze-existing shows dependencies of existing DLLs"""
-        output = subprocess.check_output(['delvewheel', 'show', '--add-path', 'simpleext/x64;iknowpy', '--analyze-existing', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'], text=True)
+        output = subprocess.check_output(['delvewheel', 'show', '--add-path', fix_path('simpleext/x64;iknowpy'), '--analyze-existing', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'], text=True)
         self.assertIn('icudt74.dll', output)
         self.assertIn('msvcp140.dll', output)
 
@@ -239,7 +246,7 @@ class RepairTestCase(TestCase):
 
     def test_no_mangle_2(self):
         """--no-mangle for 2 DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll;iKnowBase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', fix_path('iKnowEngine.dll;iKnowBase.dll'), 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
                 if path.name in ('.load-order-iknowpy-1.5.3',):
@@ -279,8 +286,8 @@ class RepairTestCase(TestCase):
     def test_strip_1(self):
         """--strip needed for 1 DLL"""
         with self.assertRaises(subprocess.CalledProcessError):
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', fix_path('iknowpy/trailing_data_1;iknowpy'), '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', fix_path('iknowpy/trailing_data_1;iknowpy'), '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
     def test_add_path_2(self):
@@ -293,8 +300,8 @@ class RepairTestCase(TestCase):
     def test_strip_2(self):
         """--strip needed for 2 DLLs"""
         with self.assertRaises(subprocess.CalledProcessError):
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', fix_path('iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy'), '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', fix_path('iknowpy/trailing_data_1;iknowpy/trailing_data_2;iknowpy'), '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
     def test_add_dll(self):
@@ -341,7 +348,7 @@ class RepairTestCase(TestCase):
 
     def test_include_2_repeat(self):
         """--include for 2 DLLs that are the same"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll;kernel32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', fix_path('kernel32.dll;kernel32.dll'), 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             kernel32_found = False
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
@@ -357,7 +364,7 @@ class RepairTestCase(TestCase):
 
     def test_include_2(self):
         """--include for 2 DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll;kernelbase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', fix_path('kernel32.dll;kernelbase.dll'), 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         kernel32_found = False
         kernelbase_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
@@ -409,7 +416,7 @@ class RepairTestCase(TestCase):
 
     def test_exclude_irrelevant_2(self):
         """--exclude for 2 DLLs that are not included anyway"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'nonexistent.dll;nonexistent2.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', fix_path('nonexistent.dll;nonexistent2.dll'), '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
     def test_no_dll_iknowengine(self):
@@ -418,6 +425,8 @@ class RepairTestCase(TestCase):
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
                 self.assertTrue(path.name in ('.load-order-iknowpy-1.5.3', 'msvcp140.dll'))
+        if sys.version_info[:2] != (3, 12) or sys.platform != 'win32':
+            return
         try:
             check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
             with self.assertRaises(subprocess.CalledProcessError):
@@ -436,6 +445,8 @@ class RepairTestCase(TestCase):
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
                 self.assertTrue(path.name in ('.load-order-iknowpy-1.5.3', 'msvcp140.dll'))
+        if sys.version_info[:2] != (3, 12) or sys.platform != 'win32':
+            return
         try:
             check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
             with self.assertRaises(subprocess.CalledProcessError):
@@ -449,7 +460,7 @@ class RepairTestCase(TestCase):
 
     def test_exclude_all(self):
         """--exclude that removes all DLLs"""
-        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
+        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', fix_path('iKnowEngine.dll;msvcp140.dll'), '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
         self.assertIn('no external dependencies are needed', output)
 
     def test_exclude_all_2(self):
@@ -480,7 +491,7 @@ class RepairTestCase(TestCase):
 
     def test_analyze_existing(self):
         """--analyze-existing vendors in dependencies of existing icuuc74.dll"""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64;iknowpy', '--analyze-existing', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', fix_path('simpleext/x64;iknowpy'), '--analyze-existing', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl') as wheel:
             i = 0
             for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir():
@@ -491,7 +502,7 @@ class RepairTestCase(TestCase):
 
     def test_analyze_existing2(self):
         """--analyze-existing with --no-mangle-all"""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64;iknowpy', '--analyze-existing', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', fix_path('simpleext/x64;iknowpy'), '--analyze-existing', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl') as wheel:
             self.assertEqual({'icudt74.dll', 'msvcp140.dll', 'simpledll.dll'}, set(path.name for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir()))
 
@@ -532,7 +543,7 @@ class RepairTestCase(TestCase):
     def test_extract_dir(self):
         """--extract-dir"""
         try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', '--extract-dir', 'temp', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', fix_path('iKnowEngine.dll;msvcp140.dll'), '--no-mangle-all', '--extract-dir', 'temp', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
             self.assertTrue(os.path.exists('temp/iknowpy'))
         finally:
             shutil.rmtree('temp', True)
@@ -660,7 +671,7 @@ class RepairTestCase(TestCase):
 
     def test_skip_wrong_bitness(self):
         """Continue searching if dependency of wrong bitness is found"""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x86;simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', fix_path('simpleext/x86;simpleext/x64'), '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_simpleext_successful())
 
     def test_cross_bitness(self):
@@ -678,6 +689,8 @@ class RepairTestCase(TestCase):
     def test_multiple_versions(self):
         """Repair a wheel targeting multiple Python versions"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp36.cp312-cp36m.cp312-win_amd64.whl'])
+        if sys.version_info[:2] not in {(3, 6), (3, 12)} or sys.platform != 'win32':
+            return
         try:
             check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36.cp312-cp36m.cp312-win_amd64.whl'])
             check_call([sys.executable, '-c', 'import simpleext'])
@@ -690,6 +703,8 @@ class RepairTestCase(TestCase):
     def test_multiple_wheels(self):
         """Repair multiple wheels in a single command"""
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl', 'simpleext/simpleext-0.0.1-cp36.cp312-cp36m.cp312-win_amd64.whl'])
+        if sys.version_info[:2] != (3, 12) or sys.platform != 'win32':
+            return
         try:
             check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
             check_call([sys.executable, '-c', 'import simpleext'])
@@ -723,8 +738,9 @@ class RepairTestCase(TestCase):
                         vcruntime_found = True
                 self.assertTrue(simpledll_found)
                 self.assertFalse(vcruntime_found)
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl'])
-            check_call([sys.executable, '-c', 'import simpleext'])
+            if sys.platform == 'win32':
+                check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl'])
+                check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
@@ -745,8 +761,9 @@ class RepairTestCase(TestCase):
                         vcruntime_found = True
                 self.assertTrue(simpledll_found)
                 self.assertFalse(vcruntime_found)
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp312-abi3-win_amd64.whl'])
-            check_call([sys.executable, '-c', 'import simpleext'])
+            if sys.platform == 'win32':
+                check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp312-abi3-win_amd64.whl'])
+                check_call([sys.executable, '-c', 'import simpleext'])
         finally:
             try:
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
@@ -791,7 +808,8 @@ class RepairTestCase(TestCase):
                                'ns0;ns0;ns1;ns2',  # package specified twice
                                'ns0;ns1;ns2;ns3'):  # nonexistent package
             self.namespace_helper(
-                'simpleext/simpleext-0.0.1-0namespace-cp312-cp312-win_amd64.whl', namespace_pkgs,
+                'simpleext/simpleext-0.0.1-0namespace-cp312-cp312-win_amd64.whl',
+                fix_path(namespace_pkgs),
                 patched=[
                     'ns0/reg/__init__.py',
                     'simpleext-0.0.1.data/platlib/ns1/reg/__init__.py',
@@ -864,7 +882,8 @@ class RepairTestCase(TestCase):
                                'ns;ns.ns',  # redundant, one package is subpackage of another
                                'ns.ns;Reg'):  # case-sensitive, Reg should not match reg
             self.namespace_helper(
-                'simpleext/simpleext-0.0.1-4namespace-cp312-cp312-win_amd64.whl', namespace_pkgs,
+                'simpleext/simpleext-0.0.1-4namespace-cp312-cp312-win_amd64.whl',
+                fix_path(namespace_pkgs),
                 not_patched=[
                     'ns/__init__.py',
                     'ns/ns/__init__.py',
@@ -1063,7 +1082,8 @@ class RepairTestCase(TestCase):
         except ModuleNotFoundError:
             raise ModuleNotFoundError('setuptools needs to be installed to run this test') from None
         self.namespace_helper(
-            'simpleext/simpleext-0.0.1-9namespace-cp312-cp312-win_amd64.whl', 'pkgutil_style;pkg_resources_style',
+            'simpleext/simpleext-0.0.1-9namespace-cp312-cp312-win_amd64.whl',
+            fix_path('pkgutil_style;pkg_resources_style'),
             mangle=False,
             not_patched=[
                 'pkgutil_style/__init__.py',
@@ -1089,7 +1109,8 @@ class RepairTestCase(TestCase):
     def test_namespace10(self):
         """extension modules are split across root, platlib, and purelib"""
         self.namespace_helper(
-            'simpleext/simpleext-0.0.1-10namespace-cp312-cp312-win_amd64.whl', 'ns;ns0',
+            'simpleext/simpleext-0.0.1-10namespace-cp312-cp312-win_amd64.whl',
+            fix_path('ns;ns0'),
             mangle=False,
             not_patched=[
                 'ns/__init__.py',

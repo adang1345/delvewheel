@@ -445,7 +445,7 @@ def get_all_needed(lib_path: str,
                                     vc_redist_linker_version = f'{vc_redist_linker_version[0]}.{vc_redist_linker_version[1]}'
                                     warnings.warn(f'{os.path.basename(lib_path)} was built with a newer platform toolset ({linker_version}) than the discovered {os.path.basename(dll_info[0])} ({vc_redist_linker_version}). This may cause compatibility issues.')
                         elif on_error == 'raise':
-                            raise FileNotFoundError(f'Unable to find library: {dll_name}')
+                            raise FileNotFoundError(f'Unable to find library: {dll_name}; {lib_arch=}, {wheel_dirs=}')
                         else:
                             not_found.add(dll_name)
                     else:
