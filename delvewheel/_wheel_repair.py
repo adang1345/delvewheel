@@ -2,6 +2,7 @@
 
 import ast
 import base64
+from collections import namedtuple
 import csv
 import datetime
 import hashlib
@@ -108,6 +109,9 @@ del _delvewheel_patch_{1}
 """
 
 pp = pprint.PrettyPrinter(indent=4)
+
+
+Dependency = namedtuple('Dependency', ('name', 'name_lower', 'path', 'in_wheel'))
 
 
 class WheelRepair:
@@ -227,18 +231,14 @@ class WheelRepair:
                     break
             self._exclude |= ignore_abi3
 
-        # If ignore_existing is True, save list of all directories in the
-        # wheel. These directories will be used to search for DLLs that are
-        # already in the wheel.
-        if ignore_existing:
-            self._wheel_dirs = [self._extract_dir]
-            for root, dirnames, _ in os.walk(self._extract_dir):
-                for dirname in dirnames:
-                    self._wheel_dirs.append(os.path.join(root, dirname))
-        else:
-            self._wheel_dirs = None
-        self._ignore_existing = ignore_existing
+        # Save list of all directories in the wheel. These directories will be
+        # used to search for DLLs that are already in the wheel.
+        self._wheel_dirs = [self._extract_dir]
+        for root, dirnames, _ in os.walk(self._extract_dir):
+            for dirname in dirnames:
+                self._wheel_dirs.append(os.path.join(root, dirname))
 
+        self._ignore_existing = ignore_existing
         self._analyze_existing = analyze_existing
 
         # determine the CPU architecture of the wheel
@@ -561,21 +561,15 @@ class WheelRepair:
             return '(unknown version)'
         return ''
 
-    def _split_dependency_paths(self, dependency_paths: typing.Iterable) -> typing.Tuple[typing.Set, typing.Set]:
-        """Given an iterable of DLL paths, partition the contents into a tuple
-        of sets
-        (dependency_paths_in_wheel, dependency_paths_outside_wheel).
-        dependency_paths_in_wheel contains the paths to DLLs that are already
-        in the wheel, and dependency_paths_outside_wheel contains the paths to
-        DLLs that are not in the wheel."""
-        dependency_paths_in_wheel = set()
-        dependency_paths_outside_wheel = set()
+    def _process_dependency_paths(self, dependency_paths: typing.Iterable[str]) -> typing.Set[Dependency]:
+        """Given an iterable of DLL paths, return a set of Dependency objects"""
+        dependencies = set()
         for dependency_path in dependency_paths:
-            if pathlib.Path(self._extract_dir) in pathlib.Path(dependency_path).parents:
-                dependency_paths_in_wheel.add(dependency_path)
-            else:
-                dependency_paths_outside_wheel.add(dependency_path)
-        return dependency_paths_in_wheel, dependency_paths_outside_wheel
+            name = os.path.basename(dependency_path)
+            dependencies.add(Dependency(
+                name=name, name_lower=name.lower(), path=dependency_path,
+                in_wheel=pathlib.Path(self._extract_dir) in pathlib.Path(dependency_path).parents))
+        return dependencies
 
     def _get_site_packages_relpath(self, path: str) -> str:
         """Given the path to a file or folder in the extracted wheel contents,
@@ -675,40 +669,33 @@ class WheelRepair:
             else:
                 not_found_dll_names.add(dll_name)
 
-        if self._ignore_existing:
-            dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
-            for path in dependency_paths_in_wheel.copy():
-                if os.path.basename(path).lower() in self._include:
-                    dependency_paths_in_wheel.remove(path)
-            dependency_paths_in_wheel = list(dependency_paths_in_wheel)
-            dependency_paths_in_wheel.sort()
-            dependency_paths_outside_wheel |= extra_dependency_paths
-            dependency_paths_outside_wheel = list(dependency_paths_outside_wheel)
-            dependency_paths_outside_wheel.sort()
-        else:
-            dependency_paths_in_wheel = None
-            dependency_paths_outside_wheel = list(dependency_paths | extra_dependency_paths)
-            dependency_paths_outside_wheel.sort()
+        dependencies = self._process_dependency_paths(dependency_paths)
+        extra_dependencies = self._process_dependency_paths(extra_dependency_paths)
+
         print('The following DLLs will be copied into the wheel.')
-        if dependency_paths_outside_wheel or not_found_dll_names:
-            for dependency_path in dependency_paths_outside_wheel:
-                print(f'    {os.path.basename(dependency_path)} ({dependency_path})')
-            for not_found_dll_name in not_found_dll_names:
-                print(f'    {not_found_dll_name} (Error: Not Found)')
-        else:
+        printed_something = False
+        for d in dependencies:
+            if not self._ignore_existing or not d.in_wheel:
+                print(f'    {d.name} ({d.path})')
+                printed_something = True
+        for not_found_dll_name in not_found_dll_names:
+            print(f'    {not_found_dll_name} (Error: Not Found)')
+            printed_something = True
+        if not printed_something:
             print('    None')
 
         if self._ignore_existing:
             print('\nThe following DLLs are already in the wheel and will not be copied.')
-            if dependency_paths_in_wheel:
-                for dependency_path in dependency_paths_in_wheel:
-                    print(f'    {os.path.basename(dependency_path)} ({os.path.join(self._whl_name, os.path.relpath(dependency_path, self._extract_dir))})')
-            else:
+            printed_something = False
+            for d in dependencies:
+                if d.in_wheel:
+                    print(f'    {d.name} ({os.path.join(self._whl_name, os.path.relpath(d.path, self._extract_dir))})')
+                    printed_something = True
+            if not printed_something:
                 print('    None')
 
-        ignored_dll_names -= {os.path.basename(p).lower() for p in dependency_paths_outside_wheel}
-        ignored_dll_names = list(ignored_dll_names)
-        ignored_dll_names.sort()
+        ignored_dll_names -= {d.name_lower for d in dependencies if not d.in_wheel}
+        ignored_dll_names = sorted(ignored_dll_names)
         print("\nThe following DLLs are assumed to be present in the end user's environment and will not be copied into the wheel.")
         if ignored_dll_names:
             for ignored_dll_name in ignored_dll_names:
@@ -721,6 +708,7 @@ class WheelRepair:
     def repair(
             self,
             target: str,
+            mangle_only: set,
             no_mangles: set,
             no_mangle_all: bool,
             strip: bool,
@@ -729,10 +717,12 @@ class WheelRepair:
             namespace_pkgs: typing.Set[typing.Tuple[str]],
             include_symbols: bool,
             include_imports: bool,
-            custom_patch: bool) -> None:
+            custom_patch: bool,
+            no_patch: bool) -> None:
         """Repair the wheel in a manner similar to auditwheel.
 
         target is the target directory for storing the repaired wheel
+        mangle_only is a set of lowercase DLL names that will be mangled
         no_mangles is a set of lowercase DLL names that will not be mangled
         no_mangle_all is True if no DLL name mangling should happen at all
         strip is True if we should strip DLLs that contain trailing data when
@@ -746,7 +736,9 @@ class WheelRepair:
         include_symbols is True if .pdb symbol files should be included with
             the vendored DLLs
         custom_patch is True to indicate that the DLL patch location is
-            custom"""
+            custom
+        no_patch is True to disable DLL search path patching
+        """
         print(f'repairing {self._whl_path}')
 
         # check whether wheel has already been repaired
@@ -781,22 +773,25 @@ class WheelRepair:
                     associated_paths |= associated
                     ignored_dll_names |= ignored
 
+        dependencies = self._process_dependency_paths(dependency_paths)
+
         # if --ignore-existing is specified, ignore DLLs that were found inside
         # the wheel unless they are specified with --include
         if self._ignore_existing:
-            dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
-            for p in dependency_paths_in_wheel:
-                name_lower = os.path.basename(p).lower()
-                no_mangles.add(name_lower)
-                no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._exclude, no_mangles, self._verbose))
-                if name_lower not in self._include:
-                    ignored_dll_names.add(name_lower)
-            dependency_paths = dependency_paths_outside_wheel
+            dependencies_outside_wheel = set()
+            for d in dependencies:
+                if d.in_wheel:
+                    no_mangles.add(d.name_lower)
+                    no_mangles.update(_dll_utils.get_direct_mangleable_needed(d.path, self._exclude, no_mangles, self._verbose))
+                    if d.name_lower not in self._include:
+                        ignored_dll_names.add(d.name_lower)
+                else:
+                    dependencies_outside_wheel.add(d)
+            dependencies = dependencies_outside_wheel
 
         # find extra dependencies specified with --include that have not yet
         # been found
-        dependency_names = {os.path.basename(p) for p in dependency_paths}  # this is NOT lowercased
-        dependency_names_lower = {name.lower() for name in dependency_names}
+        dependency_names_lower = {d.name_lower for d in dependencies}
         extra_dependency_paths = set()
         for dll_name in self._include:
             if dll_name in dependency_names_lower:
@@ -813,6 +808,8 @@ class WheelRepair:
             print(f'wheel copied to {os.path.abspath(os.path.join(target, self._whl_name))}')
             return
 
+        extra_dependencies = self._process_dependency_paths(extra_dependency_paths)
+
         # Warn if namespace package does not exist
         not_found_namespace_pkgs = set()
         for namespace_pkg in namespace_pkgs:
@@ -826,9 +823,9 @@ class WheelRepair:
                 f'{"as" if len(not_found_namespace_pkgs) == 1 else "ere"} '
                 f'not found')
 
+        to_copy = {d for d in dependencies | extra_dependencies if not d.in_wheel}
         if self._verbose >= 1:
-            to_copy = set(os.path.basename(p) for p in dependency_paths | extra_dependency_paths)
-            ignored_dll_names -= {name.lower() for name in to_copy}
+            ignored_dll_names -= {d.name_lower for d in to_copy}
             print(f'External dependencies to copy into the wheel are\n{pp.pformat(to_copy)}')
             print(f'External dependencies not to copy into the wheel are\n{pp.pformat(ignored_dll_names)}')
         if has_top_level_ext_module:
@@ -842,16 +839,22 @@ class WheelRepair:
         else:
             libs_dir_name = self._distribution_name + lib_sdir
             libs_dir = os.path.join(self._extract_dir, libs_dir_name)
-        os.makedirs(libs_dir, exist_ok=True)
-        print(f'copying DLLs into {os.path.relpath(libs_dir, self._extract_dir)}')
-        for dependency_path in dependency_paths | extra_dependency_paths:
-            if self._verbose >= 1:
-                print(f'copying {dependency_path} -> {os.path.join(libs_dir, os.path.basename(dependency_path))}')
-            shutil.copy2(dependency_path, libs_dir)
-        for associated_path in associated_paths:
-            if self._verbose >= 1:
-                print(f'copying {associated_path} -> {os.path.join(libs_dir, os.path.basename(associated_path))}')
-            shutil.copy2(associated_path, libs_dir)
+
+        path_map = {
+            d.path: d.path if d.in_wheel else os.path.join(libs_dir, d.name)
+            for d in dependencies
+        }
+        if to_copy or associated_paths:
+            os.makedirs(libs_dir, exist_ok=True)
+            print(f'copying DLLs into {os.path.relpath(libs_dir, self._extract_dir)}')
+            for d in to_copy:
+                if self._verbose >= 1:
+                    print(f'copying {d.path} -> {os.path.join(libs_dir, d.name)}')
+                shutil.copy2(d.path, libs_dir)
+            for associated_path in associated_paths:
+                if self._verbose >= 1:
+                    print(f'copying {associated_path} -> {os.path.join(libs_dir, os.path.basename(associated_path))}')
+                shutil.copy2(associated_path, libs_dir)
 
         # mangle library names
         name_mangler = {}  # dict from lowercased old name to new name
@@ -859,40 +862,42 @@ class WheelRepair:
             print('skip mangling DLL names')
         else:
             print('mangling DLL names')
-            for lib_name in dependency_names:
-                # lib_name is NOT lowercased
-                lib_name_lower = lib_name.lower()
-                if not any(r.fullmatch(lib_name_lower) for r in _dll_list.no_mangle_regexes) and \
-                        lib_name_lower not in no_mangles:
-                    root, ext = os.path.splitext(lib_name)
-                    with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
+            if mangle_only:
+                # fold mangle_only into no_mangles
+                no_mangles.update(lib.name_lower for lib in dependencies
+                                  if lib.name_lower not in mangle_only)
+            for lib in dependencies:
+                if any(r.fullmatch(lib.name_lower) for r in _dll_list.no_mangle_regexes):
+                    continue
+                if lib.name_lower not in no_mangles:
+                    root, ext = os.path.splitext(lib.name)
+                    with open(os.path.join(lib.path), 'rb') as lib_file:
                         root = f'{root}-{self._hashfile(lib_file)}'
-                    name_mangler[lib_name.lower()] = root + ext
+                    name_mangler[lib.name_lower] = root + ext
         for extension_module_path in extension_module_paths:
             if no_mangle_all:
                 needed = []
             else:
                 extension_module_name = os.path.basename(extension_module_path)
-                if self._verbose >= 1:
-                    print(f'repairing {extension_module_name} -> {extension_module_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._exclude, no_mangles, self._verbose)
+                if self._verbose >= 1:
+                    print(f'repairing extension {extension_module_name} -> {extension_module_name}: {needed=}')
             _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
-        for lib_name in dependency_names:
-            lib_path = os.path.join(libs_dir, lib_name)
-            lib_name_lower = lib_name.lower()
+        for lib in sorted(dependencies):
+            lib_path = path_map[lib.path]
             if no_mangle_all:
                 needed = []
             else:
                 # lib_name is NOT lowercased
-                if self._verbose >= 1:
-                    if lib_name_lower in name_mangler:
-                        print(f'repairing {lib_name} -> {name_mangler[lib_name_lower]}')
-                    else:
-                        print(f'repairing {lib_name} -> {lib_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(lib_path, self._exclude, no_mangles, self._verbose)
+                if self._verbose >= 1:
+                    if lib.name_lower in name_mangler:
+                        print(f'repairing dependency {lib.name} -> {name_mangler[lib.name_lower]}: {needed=}')
+                    else:
+                        print(f'repairing dependency {lib.name} -> {lib.name}: {needed=}')
             _dll_utils.replace_needed(lib_path, needed, name_mangler, strip, self._verbose, self._test)
-            if lib_name_lower in name_mangler:
-                os.rename(lib_path, os.path.join(libs_dir, name_mangler[lib_name_lower]))
+            if lib.name_lower in name_mangler:
+                os.rename(lib_path, os.path.join(os.path.dirname(lib_path), name_mangler[lib.name_lower]))
 
         if self._min_supported_python is None or self._min_supported_python < (3, 10):
             load_order_filename = f'.load-order-{self._distribution_name}-{self._version}'
@@ -915,7 +920,7 @@ class WheelRepair:
                             custom_patch_occurred |= self._patch_custom(item_path, libs_dir_name, load_order_filename, 0)
             if not custom_patch_occurred:
                 raise RuntimeError("'# delvewheel: patch' comment not found")
-        else:
+        elif not no_patch:
             # Patch each package to load dependent DLLs from correct location
             # at runtime.
             #
@@ -975,18 +980,14 @@ class WheelRepair:
                             shutil.copy2(filepath, dirname)
                         seen_relative.add(dirname_relative)
 
-        if load_order_filename is not None:
+        if not no_patch and load_order_filename is not None:
             # Create .load-order file containing list of DLLs to load during
             # import. Contrary to what the filename suggests, the DLLs are not
             # listed in any particular order. In an older version of
             # delvewheel, the DLLs needed to be listed in a particular order,
             # and the old filename has been kept to maintain backward
             # compatibility with re-bundling tools such as PyInstaller.
-            for dependency_name in dependency_names.copy():
-                # dependency_name is NOT lowercased
-                if (dependency_name_lower := dependency_name.lower()) in name_mangler:
-                    dependency_names.remove(dependency_name)
-                    dependency_names.add(name_mangler[dependency_name_lower])
+            mangled_dependency_names = sorted(name_mangler.get(d.name_lower, d.name) for d in dependencies)
             # If the wheel contains a top-level extension module, then the
             # load-order file will be installed directly into site-packages. To
             # avoid conflicts with load-order files from other distributions,
@@ -995,8 +996,9 @@ class WheelRepair:
             # contains a top-level extension module.
             if os.path.exists(load_order_filepath := os.path.join(libs_dir, load_order_filename)):
                 raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
+            os.makedirs(libs_dir, exist_ok=True)
             with open(os.path.join(libs_dir, load_order_filename), 'w', newline='\n') as file:
-                file.write('\n'.join(dependency_names))
+                file.write('\n'.join(mangled_dependency_names))
                 file.write('\n')
 
         # Create .dist-info/DELVEWHEEL file to log repair information. The
@@ -1032,15 +1034,15 @@ class WheelRepair:
         os.makedirs(target, exist_ok=True)
         whl_dest_path = os.path.join(target, self._whl_name)
         with zipfile.ZipFile(whl_dest_path, 'w', zipfile.ZIP_DEFLATED) as whl_file:
-            for root, dirs, files in os.walk(self._extract_dir):
-                for dir in dirs:
+            for root, dirs, files in sorted(os.walk(self._extract_dir)):
+                for dir in sorted(dirs):
                     dir_path = os.path.join(root, dir)
                     zip_dir_name = os.path.relpath(dir_path, self._extract_dir).replace('\\', '/') + '/'
                     zip_info = zipfile.ZipInfo.from_file(dir_path, zip_dir_name)
                     if date_time is not None:
                         zip_info.date_time = date_time
                     whl_file.writestr(zip_info, b'')
-                for file in files:
+                for file in sorted(files):
                     file_path = os.path.join(root, file)
                     relpath = os.path.relpath(file_path, self._extract_dir)
                     zip_file_name = relpath.replace('\\', '/')
