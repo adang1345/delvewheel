@@ -1,4 +1,5 @@
 import collections.abc
+import glob
 import io
 import os
 import re
@@ -697,6 +698,34 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'simpleext'])
             except subprocess.CalledProcessError:
                 pass
+
+    def test_wildcard_0(self):
+        """Wheel name wildcard has no matches"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-9.9.9-*.whl'])
+
+    def test_wildcard_1(self):
+        """Wheel name wildcard has 1 match"""
+        self.assertEqual(1, len(glob.glob('simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.*whl*')))
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl*'])
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'))
+
+    def test_wildcard_2(self):
+        """Wheel name wildcard has 2 matches"""
+        self.assertEqual(2, len(glob.glob('simpleext/simpleext-0.0.1-cp312-cp312-win*.whl')))
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64;simpleext/x86', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win*.whl'])
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'))
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp312-cp312-win32.whl'))
+
+    def test_wildcard_4(self):
+        """2 wheel name wildcards, each with 2 matches"""
+        self.assertEqual(2, len(glob.glob('simpleext/simpleext-0.0.1-cp312-cp312-win*.whl')))
+        self.assertEqual(2, len(glob.glob('simpleext/simpleext-0.0.1-cp36-*-win_amd64.whl')))
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64;simpleext/x86', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win*.whl', 'simpleext/simpleext-0.0.1-cp36-*-win_amd64.whl'])
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl'))
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp312-cp312-win32.whl'))
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp36-abi3-win_amd64.whl'))
+        self.assertTrue(os.path.exists('wheelhouse/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'))
 
     def test_v(self):
         """-v"""

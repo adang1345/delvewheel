@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 import re
 from ._wheel_repair import WheelRepair
@@ -77,7 +78,15 @@ def main():
         if add_paths:
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
 
+        wheels = []
         for wheel in args.wheel:
+            if '*' in wheel:
+                if not (expanded := glob.glob(wheel)):
+                    raise FileNotFoundError(f'No wheels match the pattern {wheel}')
+                wheels.extend(expanded)
+            else:
+                wheels.append(wheel)
+        for wheel in wheels:
             wr = WheelRepair(wheel, args.extract_dir, include, exclude, args.ignore_existing, args.analyze_existing, args.v, args.test.split(','))
             if args.command == 'show':
                 wr.show()
