@@ -276,7 +276,7 @@ class WheelRepair:
             unknown = False
             python_versions = []
             for python_tag in python_tags:
-                if not (match := re.fullmatch(r'^[A-Za-z]+([0-9])([0-9]*)$', python_tag)):
+                if not (match := re.fullmatch(r'[A-Za-z]+([0-9])([0-9]*)', python_tag)):
                     unknown = True
                     break
                 python_versions.append((int(match[1]), int(match[2]) if match[2] else 0))
