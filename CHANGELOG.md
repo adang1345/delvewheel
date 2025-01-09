@@ -1,3 +1,9 @@
+## 1.9.1 <sub><sup>(_9 January 2025_)</sup></sub>
+- Use https://github.com/pypa/gh-action-pypi-publish to deploy to PyPI.
+- If the wheel is signed, then unsign it when repairing instead of leaving it with an invalid signature.
+- Place `.dist-info` at the end of the archive as recommended by PEP 427.
+- Support the `*` wildcard in the wheel filename.
+
 ## 1.9.0 <sub><sup>(_12 November 2024_)</sup></sub>
 - Introduce the `--custom-patch` option.
 
