@@ -45,14 +45,7 @@ ignore_regexes = {
 
 # DLLs to ignore based on ABI tag and platform tag. For CPython, these are
 # included in their respective Python distributions. For PyPy, these are
-# prerequisites for PyPy to run in the first place. Strictly speaking,
-# vcruntime140.dll and vcruntime140_1.dll shouldn't be included because
-# Microsoft guarantees backward but not forward compatibility across Visual C++
-# runtime redistributable versions since 2015. However, in practice, forward
-# compatibility is strong enough to keep these DLLs in the list. Plus, anyone
-# who builds an extension module against a newer version of MSVC++ than Python
-# itself is already assuming the risks associated with lack of forward
-# compatibility.
+# prerequisites for PyPy to run in the first place.
 #
 # For efficiency, the dict is sorted approximately from most commonly used to
 # least commonly used. The regexes are not compiled here because each is used
@@ -72,9 +65,7 @@ ignore_by_abi_platform = {
 }
 
 # DLLs to ignore based on Python tag and platform tag for a wheel that uses the
-# stable ABI with ABI tag 'abi3'. Strictly speaking, vcruntime140.dll and
-# vcruntime140_1.dll shouldn't be included, but see the above comment for
-# ignore_by_abi_platform.
+# stable ABI with ABI tag 'abi3'.
 ignore_abi3 = {
     # current and future Python versions through 3.99
     'cp3(9|[1-9][0-9])-win_a(md|rm)64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
