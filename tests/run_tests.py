@@ -1286,6 +1286,44 @@ class RepairTestCase(TestCase):
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-2sign-cp312-cp312-win_amd64.whl') as whl_file:
             self.assertRaises(KeyError, whl_file.getinfo, 'simpleext-0.0.1.dist-info/RECORD.p7s')
 
+    def test_with_mangle(self):
+        """--with-mangle"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--with-mangle', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.startswith('iKnowEngine'):
+                    self.fail('iKnowEngine.dll is ignored')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(import_iknowpy_successful('0ignore'))
+
+    def test_with_mangle2(self):
+        """--with-mangle with --no-mangle"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--with-mangle', '--no-mangle', 'msvcp140.dll', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.startswith('iKnowEngine'):
+                    self.fail('iKnowEngine.dll is ignored')
+                elif path.name.startswith('msvcp140'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(import_iknowpy_successful('0ignore'))
+
+    def test_with_mangle3(self):
+        """--with-mangle is specified without --ignore-existing"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--with-mangle', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+
+    def test_with_mangle4(self):
+        """--with-mangle is specified with --no-mangle-all"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--ignore-existing', '--no-mangle-all', '--with-mangle', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""

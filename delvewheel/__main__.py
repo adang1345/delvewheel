@@ -53,7 +53,9 @@ def main():
         subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
     parser_repair.add_argument('--no-mangle', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
-    parser_repair.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
+    group = parser_repair.add_mutually_exclusive_group()
+    group.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
+    group.add_argument('--with-mangle', action='store_true', help='mangle the direct dependencies of DLLs that are already in the wheel (with --ignore-existing)')
     parser_repair.add_argument('--strip', action='store_true', help='strip DLLs that contain trailing data when name-mangling')
     parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_dir_suffix, help='directory suffix to store vendored DLLs (default .libs)')
     group = parser_repair.add_mutually_exclusive_group()
@@ -91,9 +93,11 @@ def main():
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
+                if args.with_mangle and not args.ignore_existing:
+                    parser_repair.error('--with-mangle requires --ignore-existing')
                 no_mangles = set(dll_name.lower() for dll_name in os.pathsep.join(args.no_mangle).split(os.pathsep) if dll_name)
                 namespace_pkgs = set(tuple(namespace_pkg.split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg)
-                wr.repair(args.target, no_mangles, args.no_mangle_all, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports, args.custom_patch)
+                wr.repair(args.target, no_mangles, args.no_mangle_all, args.with_mangle, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports, args.custom_patch)
     else:  # args.command == 'needed'
         for dll_name in sorted(_dll_utils.get_direct_needed(args.file, args.v), key=str.lower):
             print(dll_name)
