@@ -1,3 +1,6 @@
+## 1.10.0 <sub><sup>(_15 January 2025_)</sup></sub>
+- Introduce the `--with-mangle` option.
+
 ## 1.9.1 <sub><sup>(_9 January 2025_)</sup></sub>
 - Use https://github.com/pypa/gh-action-pypi-publish to deploy to PyPI.
 - If the wheel is signed, then unsign it when repairing instead of leaving it with an invalid signature.
