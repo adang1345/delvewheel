@@ -40,33 +40,33 @@ For a summary of additional command-line options, use the `-h` option (`delvewhe
 The path separator to use in the following options is `';'` on Windows and `':'` on Unix-like platforms.
 
 `delvewheel show`
-- `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
-- `--include`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs unless another included DLL depends on them. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
-- `--exclude`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
+- `--add-path PATHS`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
+- `--include DLLS`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for dependencies of these DLLs unless another included DLL depends on them. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
+- `--exclude DLLS`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity
   - `-v`: level 1, some diagnostic information
   - `-vv`: level 2, include warnings from `pefile`
-- `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
+- `--extract-dir DIR`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 
 `delvewheel repair`
-- `--add-path`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
-- `--include`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs unless another included DLL depends on them. We do not mangle the names of these DLLs or their direct dependencies. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
-- `--exclude`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
+- `--add-path PATHS`: additional path(s) to search for DLLs, path-separator-delimited. These paths are searched before those in the `PATH` environment variable.
+- `--include DLLS`: name(s) of additional DLL(s) to vendor into the wheel, path-separator-delimited. We do not automatically search for or vendor in dependencies of these DLLs unless another included DLL depends on them. We do not mangle the names of these DLLs or their direct dependencies. If you use this option, it is your responsibility to ensure that the additional DLL is found at load time.
+- `--exclude DLLS`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. Don't mangle the names of these DLLs. Don't mangle the names of their direct dependencies unless `--with-mangle` is specified. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. These dependencies are name-mangled by default. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity
   - `-v`: level 1, some diagnostic information
   - `-vv`: level 2, include warnings from `pefile`
-- `--extract-dir`: directory to store extracted contents of wheel for debug use (default is a temp directory)
-- `-w`,`--wheel-dir`: directory to write the repaired wheel (default is `wheelhouse` relative to current working directory)
-- `--no-mangle`: name(s) of DLL(s) not to mangle, path-separator-delimited
+- `--extract-dir DIR`: directory to store extracted contents of wheel for debug use (default is a temp directory)
+- `-w TARGET`,`--wheel-dir TARGET`: directory to write the repaired wheel (default is `wheelhouse` relative to current working directory)
+- `--no-mangle DLLS`: name(s) of DLL(s) not to mangle, path-separator-delimited
 - `--no-mangle-all`: don't mangle any DLL names
 - `--with-mangle`: see `--ignore-existing`
 - `--strip`: strip DLLs that contain an overlay when name-mangling. The GNU `strip` utility must be present in `PATH`.
-- `-L`,`--lib-sdir`: directory suffix to store vendored DLLs (default `.libs`). For example, if your wheel is named `mywheel-0.0.1-cp310-cp310-win_amd64.whl`, then the vendored DLLs are stored in the `mywheel.libs` directory at the root of the wheel by default. If your wheel contains a top-level extension module that is not in any package, then this setting is ignored, and vendored DLLs are instead placed directly into `site-packages` when the wheel is installed.
-- `--namespace-pkg`: namespace packages, specified in case-sensitive dot notation and delimited by the path separator. Normally, we patch or create `__init__.py` in each top-level package to add the vendored DLL location to the DLL search path at runtime. If you have a top-level namespace package that requires `__init__.py` to be absent or unmodified, then this technique can cause problems. This option tells `delvewheel` to use an alternate strategy that does not create or modify `__init__.py` at the root of the given namespace package(s). For example,
+- `-L LIB_SDIR`,`--lib-sdir LIB_SDIR`: directory suffix to store vendored DLLs (default `.libs`). For example, if your wheel is named `mywheel-0.0.1-cp310-cp310-win_amd64.whl`, then the vendored DLLs are stored in the `mywheel.libs` directory at the root of the wheel by default. If your wheel contains a top-level extension module that is not in any package, then this setting is ignored, and vendored DLLs are instead placed directly into `site-packages` when the wheel is installed.
+- `--namespace-pkg PKGS`: namespace packages, specified in case-sensitive dot notation and delimited by the path separator. Normally, we patch or create `__init__.py` in each top-level package to add the vendored DLL location to the DLL search path at runtime. If you have a top-level namespace package that requires `__init__.py` to be absent or unmodified, then this technique can cause problems. This option tells `delvewheel` to use an alternate strategy that does not create or modify `__init__.py` at the root of the given namespace package(s). For example,
   - `--namespace-pkg package1` declares `package1` as a namespace package.
   - On Windows, `--namespace-pkg package1.package2;package3` declares `package1`, `package1\package2`, and `package3` as namespace packages.
 - `--include-symbols`: include `.pdb` symbol files with the vendored DLLs. To be included, a symbol file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.pdb`.
