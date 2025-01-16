@@ -14,7 +14,7 @@ env:
 
 jobs:
   build_windows:
-    runs-on: windows-2022
+    runs-on: windows-2025
     outputs:
       DEPLOY: ${{ steps.build-and-install.outputs.DEPLOY }}
     steps:
@@ -79,7 +79,7 @@ jobs:
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
           python run_tests.py -v PyPyTestCase
       - name: set up Ubuntu 24.04
-        uses: Vampire/setup-wsl@v3
+        uses: Vampire/setup-wsl@v4
         with:
           distribution: Ubuntu-24.04
           additional-packages: python-is-python3 python3-pip python3-wheel python3-venv
