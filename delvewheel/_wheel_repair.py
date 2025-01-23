@@ -790,10 +790,10 @@ class WheelRepair:
                         raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} has a CPU architecture that is not compatible with this wheel')
                     if self._get_site_packages_relpath(root) == os.curdir:
                         if self._verbose >= 1:
-                            print(f'analyzing top-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
+                            print(f'analyzing top-level {"extension module" if filename_lower.endswith(".pyd") else "existing DLL"} {os.path.relpath(extension_module_path, self._extract_dir)}')
                         has_top_level_ext_module = True
                     elif self._verbose >= 1:
-                        print(f'analyzing package-level extension module {os.path.relpath(extension_module_path, self._extract_dir)}')
+                        print(f'analyzing package-level {"extension module" if filename_lower.endswith(".pyd") else "existing DLL"} {os.path.relpath(extension_module_path, self._extract_dir)}')
                     extension_module_paths.append(extension_module_path)
                     discovered, associated, ignored = _dll_utils.get_all_needed(extension_module_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports, self._verbose)[:3]
                     dependency_paths |= discovered
