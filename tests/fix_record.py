@@ -7,11 +7,10 @@ import hashlib
 import os
 import sys
 import tempfile
-import typing
 import zipfile
 
 
-def _rehash(file_path: str) -> typing.Tuple[str, int]:
+def _rehash(file_path: str) -> tuple[str, int]:
     """Return (hash, size) for a file with path file_path. The hash and size
     are used by pip to verify the integrity of the contents of a wheel."""
     with open(file_path, 'rb') as file:

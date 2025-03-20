@@ -17,11 +17,11 @@ pip install .
 ```
 
 ## Supported Platforms
-`delvewheel` can be run using Python 3.8+ on any platform.
+`delvewheel` can be run using Python 3.9+ on any platform.
 
 `delvewheel` can repair wheels targeting Python 2.6+ for `win32`, `win_amd64`, or `win_arm64`.
 
-The environment used to run `delvewheel` does _not_ need to match the target environment of the wheel being repaired. For example, you can run `delvewheel` using 32-bit Python 3.8 to repair a wheel for 64-bit Python 2.6. You can even run `delvewheel` with PyPy3.6 on 32-bit x86 Linux to repair a wheel whose target environment is CPython 3.11 on Windows arm64.
+The environment used to run `delvewheel` does _not_ need to match the target environment of the wheel being repaired. For example, you can run `delvewheel` using 32-bit Python 3.9 to repair a wheel for 64-bit Python 2.6. You can even run `delvewheel` with PyPy3.9 on 32-bit x86 Linux to repair a wheel whose target environment is CPython 3.11 on Windows arm64.
 
 ## Usage
 

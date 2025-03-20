@@ -2,6 +2,7 @@
 
 import ast
 import base64
+import collections.abc
 import csv
 import datetime
 import hashlib
@@ -129,7 +130,7 @@ class WheelRepair:
     """An instance represents a wheel that can be repaired."""
 
     _verbose: int  # verbosity level, 0 to 2
-    _test: typing.List[str]  # testing options for internal use
+    _test: list[str]  # testing options for internal use
     _whl_path: str  # path to wheel
     _whl_name: str  # name of wheel
     _distribution_name: str
@@ -139,25 +140,25 @@ class WheelRepair:
     _data_dir: str  # extracted path to .data directory, is set even if directory does not exist
     _purelib_dir: str  # extracted path to .data/purelib directory, is set even if directory does not exist
     _platlib_dir: str  # extracted path to .data/platlib directory, is set even if directory does not exist
-    _include: typing.Set[str]  # additional DLLs to include
-    _exclude: typing.Set[str]  # DLLs to exclude
-    _wheel_dirs: typing.Optional[typing.List[str]]  # extracted directories from inside wheel
+    _include: set[str]  # additional DLLs to include
+    _exclude: set[str]  # DLLs to exclude
+    _wheel_dirs: typing.Optional[list[str]]  # extracted directories from inside wheel
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
     _analyze_existing: bool  # whether to analyze and vendor in dependencies of DLLs that are already in the wheel
     _arch: _dll_list.MachineType  # CPU architecture of wheel
-    _min_supported_python: typing.Optional[typing.Tuple[int, int]]
+    _min_supported_python: typing.Optional[tuple[int, int]]
         # minimum supported Python version based on Python tags (ignoring the
         # Python-Requires metadatum), None if unknown
 
     def __init__(self,
                  whl_path: str,
                  extract_dir: typing.Optional[str],
-                 include: typing.Optional[typing.Set[str]],
-                 exclude: typing.Optional[typing.Set[str]],
+                 include: typing.Optional[set[str]],
+                 exclude: typing.Optional[set[str]],
                  ignore_existing: bool,
                  analyze_existing: bool,
                  verbose: int,
-                 test: typing.List[str]) -> None:
+                 test: list[str]) -> None:
         """Initialize a wheel repair object.
         whl_path: Path to the wheel to repair
         extract_dir: Directory where wheel is extracted. If None, a temporary
@@ -285,7 +286,7 @@ class WheelRepair:
             self._min_supported_python = None
 
     @staticmethod
-    def _rehash(file_path: str) -> typing.Tuple[str, int]:
+    def _rehash(file_path: str) -> tuple[str, int]:
         """Return (hash, size) for a file with path file_path. The hash and
         size can be used to verify the integrity of the contents of a wheel."""
         with open(file_path, 'rb') as file:
@@ -494,7 +495,7 @@ class WheelRepair:
                 return path
         return None
 
-    def _patch_package(self, package_dir: str, namespace_pkgs: typing.Set[typing.Tuple[str]], libs_dir: str, load_order_filename: str, depth: int) -> typing.Set[str]:
+    def _patch_package(self, package_dir: str, namespace_pkgs: set[tuple[str]], libs_dir: str, load_order_filename: str, depth: int) -> set[str]:
         """Patch a package so that vendored DLLs can be found at runtime.
         Return a set containing the absolute extracted paths of all .pyd
         extension modules that are at the root of a namespace package within
@@ -576,7 +577,7 @@ class WheelRepair:
             return '(unknown version)'
         return ''
 
-    def _split_dependency_paths(self, dependency_paths: typing.Iterable) -> typing.Tuple[typing.Set, typing.Set]:
+    def _split_dependency_paths(self, dependency_paths: collections.abc.Iterable) -> tuple[set, set]:
         """Given an iterable of DLL paths, partition the contents into a tuple
         of sets
         (dependency_paths_in_wheel, dependency_paths_outside_wheel).
@@ -606,7 +607,7 @@ class WheelRepair:
         else:
             return os.path.relpath(path, self._extract_dir)
 
-    def _root_level_module_names(self, path: str) -> typing.Set[str]:
+    def _root_level_module_names(self, path: str) -> set[str]:
         """Given the absolute path to the extracted wheel contents or to an
         extracted package, return a set of original-case names of the Python
         modules at the root of the wheel or package. A name does not include
@@ -623,7 +624,7 @@ class WheelRepair:
         return module_names
 
     @staticmethod
-    def _isdir_case(root: str, remainder: typing.Tuple[str]) -> bool:
+    def _isdir_case(root: str, remainder: tuple[str]) -> bool:
         """Return True if remainder is an existing directory relative to root.
         Regardless of the case sensitivity of the file system, treat remainder
         as case-sensitive. Treat root using the file system's case sensitivity.
@@ -736,13 +737,13 @@ class WheelRepair:
     def repair(
             self,
             target: str,
-            no_mangles: set,
+            no_mangles: set[str],
             no_mangle_all: bool,
             with_mangle: bool,
             strip: bool,
             lib_sdir: str,
             log_diagnostics: bool,
-            namespace_pkgs: typing.Set[typing.Tuple[str]],
+            namespace_pkgs: set[tuple[str]],
             include_symbols: bool,
             include_imports: bool,
             custom_patch: bool) -> None:

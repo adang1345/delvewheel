@@ -13,7 +13,7 @@ import zipfile
 DEBUG = False
 
 
-def check_call(args: list, env: typing.Optional[collections.abc.Mapping] = None):
+def check_call(args: list[str], env: typing.Optional[collections.abc.Mapping] = None):
     base_env = os.environ.copy()
     if env is not None:
         for var in env:
@@ -31,7 +31,7 @@ def is_mangled(filename: str) -> bool:
     return re.fullmatch(r'[^-]+-[0-9a-f]{32}\.dll', filename.lower()) is not None
 
 
-def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
+def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list[str]] = None) -> bool:
     """Return True iff wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl
     can be installed successfully, imported, uninstalled, and deleted.
 
@@ -60,7 +60,7 @@ def import_iknowpy_successful(build_tag: str = '', modules: typing.Optional[list
             pass
 
 
-def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[list] = None) -> bool:
+def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[list[str]] = None) -> bool:
     """Return True iff wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl
     can be installed successfully, imported, uninstalled, and deleted.
 
@@ -92,11 +92,11 @@ def import_simpleext_successful(build_tag: str = '', modules: typing.Optional[li
 class TestCase(unittest.TestCase):
     def namespace_helper(self, whl: str, namespace_pkg: str, *,
                          mangle: bool = True,
-                         patched: typing.Optional[typing.List[str]] = None,
-                         not_patched: typing.Optional[typing.List[str]] = None,
-                         exist: typing.Optional[typing.List[str]] = None,
-                         not_exist: typing.Optional[typing.List[str]] = None,
-                         importable: typing.Optional[typing.List[str]] = None):
+                         patched: typing.Optional[list[str]] = None,
+                         not_patched: typing.Optional[list[str]] = None,
+                         exist: typing.Optional[list[str]] = None,
+                         not_exist: typing.Optional[list[str]] = None,
+                         importable: typing.Optional[list[str]] = None):
         """Run a test of namespace package support. All paths must be specified
         using forward slashes.
 
@@ -1360,22 +1360,22 @@ class NeededTestCase(TestCase):
         self.assertFalse(p.stderr)
 
 
-@unittest.skipUnless(sys.version_info[:2] == (3, 8), 'Python version is not 3.8')
-class Python38TestCase(TestCase):
-    """delvewheel can be run on Python 3.8, the oldest supported version"""
+@unittest.skipUnless(sys.version_info[:2] == (3, 9), 'Python version is not 3.9')
+class Python39TestCase(TestCase):
+    """delvewheel can be run on Python 3.9, the oldest supported version"""
 
-    # mock the Conda-Forge distribution of Python 3.8 to test loading with
+    # mock the Conda-Forge distribution of Python 3.9 to test loading with
     # LoadLibraryExW()
-    _patch = "import platform, sys; sys.version = '3.8.20 | packaged by conda-forge | (default, Sep 30 2024, 17:44:03) [MSC v.1929 64 bit (AMD64)]'; platform.python_implementation = lambda: 'CPython'; "
+    _patch = "import platform, sys; sys.version = '3.9.21 | packaged by conda-forge | (default, Sep 30 2024, 17:44:03) [MSC v.1929 64 bit (AMD64)]'; platform.python_implementation = lambda: 'CPython'; "
 
     def test_show(self):
         """Wheel target is older"""
         check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp36-cp36m-win_amd64.whl'])
 
     def test_repair_simpleext(self):
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp38-cp38-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-cp39-cp39-win_amd64.whl'])
         try:
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp38-cp38-win_amd64.whl'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-cp39-cp39-win_amd64.whl'])
             check_call([sys.executable, '-c', self._patch + 'import simpleext'])
         finally:
             try:
@@ -1385,8 +1385,8 @@ class Python38TestCase(TestCase):
 
     def test_repair_iknowpy(self):
         try:
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp38-cp38-win_amd64.whl'])
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.3-cp38-cp38-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp39-cp39-win_amd64.whl'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/iknowpy-1.5.3-cp39-cp39-win_amd64.whl'])
             check_call([sys.executable, '-c', self._patch + 'import iknowpy'])
         finally:
             try:
@@ -1400,9 +1400,9 @@ class Python38TestCase(TestCase):
     def test_fixed_address(self):
         """Vendored DLL loads properly when base address is a multiple of
         2**32. For this test, the address is 0x300000000."""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/FixedAddress', 'simpleext/simpleext-0.0.1-0fixed-cp38-cp38-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64/FixedAddress', 'simpleext/simpleext-0.0.1-0fixed-cp39-cp39-win_amd64.whl'])
         try:
-            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-0fixed-cp38-cp38-win_amd64.whl'])
+            check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'wheelhouse/simpleext-0.0.1-0fixed-cp39-cp39-win_amd64.whl'])
             check_call([sys.executable, '-c', self._patch + 'import simpleext.simpleext'])
         finally:
             try:

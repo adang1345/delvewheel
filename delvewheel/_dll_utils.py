@@ -1,5 +1,6 @@
 """Utilities for analyzing and patching DLL files."""
 
+import collections.abc
 import ctypes
 import ctypes.wintypes
 import errno
@@ -110,7 +111,7 @@ def get_interpreter_arch() -> MachineType:
         raise OSError('Insufficient buffer size 32768 for GetModuleFileNameW()') from None
 
 
-def _translate_directory() -> typing.Callable[[str, MachineType], str]:
+def _translate_directory() -> collections.abc.Callable[[str, MachineType], str]:
     """Closure that computes certain values once only for determining how to
     translate a directory when searching for DLLs on Windows.
 
@@ -244,10 +245,10 @@ _translate_directory = _translate_directory()
 
 def find_library(
         name: str,
-        wheel_dirs: typing.Optional[typing.Iterable],
+        wheel_dirs: typing.Optional[collections.abc.Iterable],
         arch: MachineType,
         include_symbols: bool,
-        include_imports: bool) -> typing.Optional[typing.Tuple[str, typing.List[str]]]:
+        include_imports: bool) -> typing.Optional[tuple[str, list[str]]]:
     """Given the name of a DLL, return a tuple where
     - the 1st element is the path to the DLL
     - the 2nd element is a list that may contain paths to the .pdb symbol file
@@ -306,7 +307,7 @@ def find_library(
     return None
 
 
-def get_direct_needed(lib_path: str, verbose: int) -> set:
+def get_direct_needed(lib_path: str, verbose: int) -> set[str]:
     """Given the path to a shared library, return a set containing the DLL
     names of all its direct dependencies. Regular and delay-load dependencies
     are included. The DLL names are in the original case."""
@@ -324,7 +325,7 @@ def get_direct_needed(lib_path: str, verbose: int) -> set:
     return needed
 
 
-def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, verbose: int) -> list:
+def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, verbose: int) -> list[str]:
     """Given the path to a shared library, return a deterministically-ordered
     list containing the lowercase DLL names of all direct dependencies that
     belong in the wheel and should be name-mangled.
@@ -355,7 +356,7 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, v
     return needed
 
 
-def _toolset_too_old(linker_version: typing.Tuple[int, int], vc_redist_linker_version: typing.Tuple[int, int]) -> bool:
+def _toolset_too_old(linker_version: tuple[int, int], vc_redist_linker_version: tuple[int, int]) -> bool:
     """Given the linker version of a DLL and the linker version of a Visual C++
     runtime redistributable DLL, return True iff the Visual C++ runtime
     redistributable DLL comes from an older platform toolset than that which
@@ -377,12 +378,12 @@ def _toolset_too_old(linker_version: typing.Tuple[int, int], vc_redist_linker_ve
 
 
 def get_all_needed(lib_path: str,
-                   exclude: set,
-                   wheel_dirs: typing.Optional[typing.Iterable],
+                   exclude: set[str],
+                   wheel_dirs: typing.Optional[collections.abc.Iterable],
                    on_error: str,
                    include_symbols: bool,
                    include_imports: bool,
-                   verbose: int) -> typing.Tuple[typing.Set[str], typing.Set[str], typing.Set[str], typing.Set[str]]:
+                   verbose: int) -> tuple[set[str], set[str], set[str], set[str]]:
     """Given the path to a shared library, return a 4-tuple of sets
     (discovered, symbols, ignored, not_found).
     - discovered contains the original-case DLL paths of all direct and
@@ -511,7 +512,7 @@ def _are_characteristics_suitable(section: pefile.SectionStructure) -> bool:
             section.IMAGE_SCN_MEM_READ)
 
 
-def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: typing.Iterable[bytes]) -> typing.Tuple[int, bool]:
+def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: collections.abc.Iterable[bytes]) -> tuple[int, bool]:
     """Determine the size of a PE file (excluding any overlay) and whether the
     file has enough padding for writing the elements of new_dlls.
 
@@ -541,7 +542,7 @@ def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: typing.Iterable[byt
     return pe_size, dlls_i == len(new_dlls)
 
 
-def replace_needed(lib_path: str, old_deps: typing.List[str], name_map: typing.Dict[str, str], strip: bool, verbose: int, test: typing.List[str]) -> None:
+def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str], strip: bool, verbose: int, test: list[str]) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map. Also, if the DLL has a non-0 value for
     DependentLoadFlags, then set the value to 0
