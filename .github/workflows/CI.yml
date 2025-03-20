@@ -77,7 +77,7 @@ jobs:
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
           python run_tests.py -v PyPyTestCase
       - name: set up Ubuntu 24.04
-        uses: Vampire/setup-wsl@v4
+        uses: Vampire/setup-wsl@v5
         with:
           distribution: Ubuntu-24.04
           additional-packages: python-is-python3 python3-pip python3-venv
