@@ -1,3 +1,10 @@
+## 1.10.1 <sub><sup>(_24 April 2025_)</sup></sub>
+- Update GitHub Actions CI pipeline dependencies.
+- Improve documentation.
+- Fix a log message that incorrectly labeled existing DLLs as extension modules when `--analyze-existing -v` was used.
+- Bump the minimum supported Python version to 3.9 for running `delvewheel` itself. Wheels with a target Python version under 3.9 can still be repaired.
+- Clip `SOURCE_DATE_EPOCH` when it is out of the ZIP timestamp range instead of raising an exception.
+
 ## 1.10.0 <sub><sup>(_15 January 2025_)</sup></sub>
 - Introduce the `--with-mangle` option.
 
