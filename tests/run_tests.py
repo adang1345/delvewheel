@@ -1198,7 +1198,17 @@ class RepairTestCase(TestCase):
     def test_source_date_epoch(self):
         """The SOURCE_DATE_EPOCH environment variable can be used to have
         reproducible builds."""
-        source_date_epochs = [None, '650203200', '650203200', '650203202']
+        source_date_epochs = [
+            None,         # 0. none specified
+            '650203200',  # 1. same as next
+            '650203200',  # 2. same as before
+            '650203202',  # 3. different from before
+            '-1',         # 4. negative
+            '315532799',  # 5. less than the minimum allowed
+            '315532800',  # 6. minimum allowed
+            '4354819199', # 7. maximum allowed
+            '4354819200'  # 8. greater than maximum allowed
+        ]
         contents = []
         for i, source_date_epoch in enumerate(source_date_epochs):
             check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '-w', f'wheelhouse{i}', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], {'SOURCE_DATE_EPOCH': source_date_epoch})
@@ -1208,6 +1218,10 @@ class RepairTestCase(TestCase):
         self.assertNotEqual(contents[0], contents[3])
         self.assertEqual(contents[1], contents[2])
         self.assertNotEqual(contents[1], contents[3])
+        self.assertEqual(contents[4], contents[5])
+        self.assertEqual(contents[5], contents[6])
+        self.assertNotEqual(contents[6], contents[7])
+        self.assertEqual(contents[7], contents[8])
 
     def test_dependent_load_flags(self):
         """/DEPENDENTLOADFLAG:0x800 is cleared in vendored DLL when name-

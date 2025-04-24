@@ -1058,7 +1058,17 @@ class WheelRepair:
         # repackage wheel
         print('repackaging wheel')
         if 'SOURCE_DATE_EPOCH' in os.environ:
-            date_time = datetime.datetime.fromtimestamp(int(os.environ['SOURCE_DATE_EPOCH']), tz=datetime.timezone.utc).timetuple()[:6]
+            source_date_epoch = int(os.environ['SOURCE_DATE_EPOCH'])
+            if source_date_epoch < 315532800:
+                warnings.warn('SOURCE_DATE_EPOCH is too small, clipping to 315532800 (1980-01-01 00:00:00)')
+                source_date_epoch = 315532800
+            if source_date_epoch > 4354819199:
+                # ZipInfo.date_time always rounds down to an even number, so
+                # allow 4354819199 even though 4354819198 is the effective
+                # maximum.
+                warnings.warn('SOURCE_DATE_EPOCH is too large, clipping to 4354819198 (2107-12-31 23:59:58)')
+                source_date_epoch = 4354819198
+            date_time = datetime.datetime.fromtimestamp(source_date_epoch, tz=datetime.timezone.utc).timetuple()[:6]
         else:
             date_time = None
         os.makedirs(target, exist_ok=True)
