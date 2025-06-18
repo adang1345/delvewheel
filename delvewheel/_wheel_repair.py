@@ -145,6 +145,7 @@ class WheelRepair:
     _wheel_dirs: typing.Optional[list[str]]  # extracted directories from inside wheel
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
     _analyze_existing: bool  # whether to analyze and vendor in dependencies of DLLs that are already in the wheel
+    _analyze_existing_exes: bool  # whether to analyze and vendor in dependencies of EXEs that are in the wheel
     _arch: _dll_list.MachineType  # CPU architecture of wheel
     _min_supported_python: typing.Optional[tuple[int, int]]
         # minimum supported Python version based on Python tags (ignoring the
@@ -157,6 +158,7 @@ class WheelRepair:
                  exclude: typing.Optional[set[str]],
                  ignore_existing: bool,
                  analyze_existing: bool,
+                 analyze_existing_exes: bool,
                  verbose: int,
                  test: list[str]) -> None:
         """Initialize a wheel repair object.
@@ -169,6 +171,8 @@ class WheelRepair:
         ignore_existing: whether to ignore DLLs that are already in the wheel
         analyze_existing: whether to analyze and vendor in dependencies of DLLs
             that are already in the wheel
+        analyze_existing_exes: whether to analyze and vendor in dependencies of
+            EXEs that are in the wheel
         verbose: verbosity level, 0 to 2
         test: testing options for internal use"""
         if not os.path.isfile(whl_path):
@@ -256,6 +260,7 @@ class WheelRepair:
         self._ignore_existing = ignore_existing
 
         self._analyze_existing = analyze_existing
+        self._analyze_existing_exes = analyze_existing_exes
 
         # determine the CPU architecture of the wheel
         self._arch = _dll_list.MachineType.platform_tag_to_type(platform_tag)
@@ -670,15 +675,13 @@ class WheelRepair:
         dependency_paths = set()
         ignored_dll_names = set()
         not_found_dll_names = set()
-        extension_module_paths = []
         for root, dirnames, filenames in os.walk(self._extract_dir):
             if root == self._data_dir:
                 dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
-                if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
-                    extension_module_path = os.path.join(root, filename)
-                    extension_module_paths.append(extension_module_path)
-                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(extension_module_path, self._exclude, self._wheel_dirs, 'ignore', False, False, self._verbose)
+                if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll') or self._analyze_existing_exes and filename_lower.endswith('.exe'):
+                    executable_path = os.path.join(root, filename)
+                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'ignore', False, False, self._verbose)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -779,24 +782,34 @@ class WheelRepair:
         dependency_paths = set()
         associated_paths = set()
         ignored_dll_names = set()
-        extension_module_paths = []
+        executable_paths = []
         has_top_level_ext_module = False
         for root, dirnames, filenames in os.walk(self._extract_dir):
             if root == self._data_dir:
                 dirnames[:] = set(dirnames) & {'platlib', 'purelib'}
             for filename in filenames:
-                if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll'):
-                    extension_module_path = os.path.join(root, filename)
-                    if _dll_utils.get_arch(extension_module_path) != self._arch:
-                        raise RuntimeError(f'{os.path.relpath(extension_module_path, self._extract_dir)} has a CPU architecture that is not compatible with this wheel')
-                    if self._get_site_packages_relpath(root) == os.curdir:
+                is_extension_module = (filename_lower := filename.lower()).endswith('.pyd')
+                is_existing_dll = self._analyze_existing and filename_lower.endswith('.dll')
+                is_existing_exe = self._analyze_existing_exes and filename_lower.endswith('.exe')
+                if is_extension_module or is_existing_dll or is_existing_exe:
+                    executable_path = os.path.join(root, filename)
+                    if _dll_utils.get_arch(executable_path) != self._arch:
+                        raise RuntimeError(f'{os.path.relpath(executable_path, self._extract_dir)} has a CPU architecture that is not compatible with this wheel')
+                    if is_extension_module and self._get_site_packages_relpath(root) == os.curdir:
                         if self._verbose >= 1:
-                            print(f'analyzing top-level {"extension module" if filename_lower.endswith(".pyd") else "existing DLL"} {os.path.relpath(extension_module_path, self._extract_dir)}')
+                            print(f'analyzing top-level extension module {os.path.relpath(executable_path, self._extract_dir)}')
                         has_top_level_ext_module = True
+                    elif is_extension_module:
+                        if self._verbose >= 1:
+                            print(f'analyzing package-level extension module {os.path.relpath(executable_path, self._extract_dir)}')
+                    elif is_existing_dll:
+                        if self._verbose >= 1:
+                            print(f'analyzing existing DLL {os.path.relpath(executable_path, self._extract_dir)}')
                     elif self._verbose >= 1:
-                        print(f'analyzing package-level {"extension module" if filename_lower.endswith(".pyd") else "existing DLL"} {os.path.relpath(extension_module_path, self._extract_dir)}')
-                    extension_module_paths.append(extension_module_path)
-                    discovered, associated, ignored = _dll_utils.get_all_needed(extension_module_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports, self._verbose)[:3]
+                        # is_existing_exe
+                        print(f'analyzing existing EXE {os.path.relpath(executable_path, self._extract_dir)}')
+                    executable_paths.append(executable_path)
+                    discovered, associated, ignored = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports, self._verbose)[:3]
                     dependency_paths |= discovered
                     associated_paths |= associated
                     ignored_dll_names |= ignored
@@ -890,15 +903,15 @@ class WheelRepair:
                     with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
                         root = f'{root}-{self._hashfile(lib_file)}'
                     name_mangler[lib_name.lower()] = root + ext
-        for extension_module_path in extension_module_paths:
+        for executable_path in executable_paths:
             if no_mangle_all:
                 needed = []
             else:
-                extension_module_name = os.path.basename(extension_module_path)
+                extension_module_name = os.path.basename(executable_path)
                 if self._verbose >= 1:
                     print(f'repairing {extension_module_name} -> {extension_module_name}')
-                needed = _dll_utils.get_direct_mangleable_needed(extension_module_path, self._exclude, no_mangles, self._verbose)
-            _dll_utils.replace_needed(extension_module_path, needed, name_mangler, strip, self._verbose, self._test)
+                needed = _dll_utils.get_direct_mangleable_needed(executable_path, self._exclude, no_mangles, self._verbose)
+            _dll_utils.replace_needed(executable_path, needed, name_mangler, strip, self._verbose, self._test)
         for dependency_path in dependency_paths_outside_wheel_copied | dependency_paths_in_wheel:
             lib_name = os.path.basename(dependency_path)
             lib_name_lower = lib_name.lower()

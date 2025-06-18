@@ -1338,6 +1338,20 @@ class RepairTestCase(TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--ignore-existing', '--no-mangle-all', '--with-mangle', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
 
+    def test_analyze_existing_exes(self):
+        """--analyze-existing-exes"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl') as wheel:
+            self.assertTrue(any(path.name.startswith('msvcp140') for path in zipfile.Path(wheel, 'simpleext.libs/').iterdir()))
+        self.assertTrue(import_simpleext_successful('0analyzeexe'))
+
+    def test_analyze_existing_exes2(self):
+        """--analyze-existing-exes is not specified, causing dependent DLL to
+        be missing"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl') as wheel:
+            self.assertFalse(any(path.name.startswith('msvcp140') for path in zipfile.Path(wheel, 'simpleext.libs/').iterdir()))
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""

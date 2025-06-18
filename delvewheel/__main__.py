@@ -48,6 +48,7 @@ def main():
         subparser.add_argument('--exclude', '--no-dll', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--ignore-existing', '--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('--analyze-existing', action='store_true', help='analyze and vendor in dependencies of DLLs that are already in the wheel')
+        subparser.add_argument('--analyze-existing-exes', action='store_true', help='analyze and vendor in dependencies of EXEs that are in the wheel')
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
         subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
@@ -89,7 +90,7 @@ def main():
             else:
                 wheels.append(wheel)
         for wheel in wheels:
-            wr = WheelRepair(wheel, args.extract_dir, include, exclude, args.ignore_existing, args.analyze_existing, args.v, args.test.split(','))
+            wr = WheelRepair(wheel, args.extract_dir, include, exclude, args.ignore_existing, args.analyze_existing, args.analyze_existing_exes, args.v, args.test.split(','))
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
