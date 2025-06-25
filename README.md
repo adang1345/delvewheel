@@ -45,6 +45,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `--exclude DLLS`: name(s) of DLL(s) to specifically exclude from the wheel, path-separator-delimited. Dependencies of these DLLs are also automatically excluded if no other included DLL depends on them.
 - `--ignore-existing`: don't search for or vendor in DLLs that are already in the wheel. We still search for and vendor in dependencies of these DLLs if they are not in the wheel. This flag is meant for simpler integration with other DLL bundling tools/techniques but is not a catch-all. If you use this flag, it is your responsibility to ensure that the DLLs that are already in the wheel are loaded correctly.
 - `--analyze-existing`: analyze and vendor in dependencies of DLLs that are already in the wheel. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
+- `--analyze-existing-exes`: analyze and vendor in dependencies of EXEs that are in the wheel. If you use this option, it is your responsibility to ensure that these dependencies are found at load time.
 - `-v`: verbosity
   - `-v`: level 1, some diagnostic information
   - `-vv`: level 2, include warnings from `pefile`
