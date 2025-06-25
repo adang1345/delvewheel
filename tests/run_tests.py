@@ -204,6 +204,11 @@ class ShowTestCase(TestCase):
         self.assertIn('icudt74.dll', output)
         self.assertIn('msvcp140.dll', output)
 
+    def test_analyze_existing_exes(self):
+        """--analyze-existing-exes shows dependencies of existing EXEs"""
+        output = subprocess.check_output(['delvewheel', 'show', '--add-path', 'simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('msvcp140.dll', output)
+
 
 class RepairTestCase(TestCase):
     """Tests for delvewheel repair"""
