@@ -907,9 +907,9 @@ class WheelRepair:
             if no_mangle_all:
                 needed = []
             else:
-                extension_module_name = os.path.basename(executable_path)
+                executable_name = os.path.basename(executable_path)
                 if self._verbose >= 1:
-                    print(f'repairing {extension_module_name} -> {extension_module_name}')
+                    print(f'repairing {executable_name} -> {executable_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(executable_path, self._exclude, no_mangles, self._verbose)
             _dll_utils.replace_needed(executable_path, needed, name_mangler, strip, self._verbose, self._test)
         for dependency_path in dependency_paths_outside_wheel_copied | dependency_paths_in_wheel:
