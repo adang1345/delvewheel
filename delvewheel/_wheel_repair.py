@@ -5,6 +5,7 @@ import base64
 import collections.abc
 import csv
 import datetime
+import graphlib
 import hashlib
 import os
 import pathlib
@@ -300,10 +301,14 @@ class WheelRepair:
             size = len(contents)
             return hash, size
 
-    def _hashfile(self, afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32) -> str:
-        """Hash the contents of an open file handle with SHA256. Return the
-        first length characters of the hash."""
-        hasher = hashlib.sha256(self._distribution_name.encode())
+    def _hashfile(self, afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32, start: typing.Optional[typing.Iterable[str]] = None) -> str:
+        """Hash the contents of start along with the contents of an open file
+        handle with SHA256. Return the first length characters of the hash."""
+        hasher = hashlib.sha256()
+        if start:
+            for start_item in start:
+                hasher.update(start_item.encode())
+                hasher.update(b'\x00')
         while buf := afile.read(blocksize):
             hasher.update(buf)
         return hasher.hexdigest()[:length]
@@ -893,16 +898,23 @@ class WheelRepair:
             print('skip mangling DLL names')
         else:
             print('mangling DLL names')
+            name_mangle_graph = {}  # map from lowercase DLL name to list of lowercase DLL dependencies that will be name-mangled
+            lib_name_casemap = {}  # map from lowercase DLL name to original case DLL name
             for dependency_path in dependency_paths:
                 # dependency_path is NOT lowercased
                 lib_name = os.path.basename(dependency_path)
-                lib_name_lower = os.path.basename(dependency_path).lower()
+                lib_name_lower = lib_name.lower()
                 if not any(r.fullmatch(lib_name_lower) for r in _dll_list.no_mangle_regexes) and \
                         lib_name_lower not in no_mangles:
-                    root, ext = os.path.splitext(lib_name)
-                    with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
-                        root = f'{root}-{self._hashfile(lib_file)}'
-                    name_mangler[lib_name.lower()] = root + ext
+                    lib_name_casemap[lib_name_lower] = lib_name
+                    name_mangle_graph[lib_name_lower] = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles, self._verbose)
+            lib_name_lower_hashmap = {}  # map from lowercase DLL name to the hash that will be appended to the name
+            for lib_name_lower in graphlib.TopologicalSorter(name_mangle_graph).static_order():
+                lib_name = lib_name_casemap[lib_name_lower]
+                with open(os.path.join(libs_dir, lib_name), 'rb') as lib_file:
+                    lib_name_lower_hashmap[lib_name_lower] = self._hashfile(lib_file, start=(lib_name_lower_hashmap[x] for x in name_mangle_graph[lib_name_lower]))
+                root, ext = os.path.splitext(lib_name)
+                name_mangler[lib_name_lower] = f'{root}-{lib_name_lower_hashmap[lib_name_lower]}{ext}'
         for executable_path in executable_paths:
             if no_mangle_all:
                 needed = []

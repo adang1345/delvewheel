@@ -85,7 +85,7 @@ This section describes in detail how and why `delvewheel` mangles the vendored D
 
 Suppose you install two Python extension modules `A.pyd` and `B.pyd` into a single Python environment, where the modules come from separate projects. Each module depends on a DLL named `C.dll`, so each project ships its own `C.dll`. Because of how the Windows DLL loader works, if `A.pyd` is loaded before `B.pyd`, then both modules end up using `A.pyd`'s version of `C.dll`. Windows does not allow two DLLs with the same name to be loaded in a single process (unless you have a private SxS assembly, but that's a complicated topic that's best avoided in my opinion). This is a problem if `B.pyd` is not compatible with `A.pyd`'s version of `C.dll`. Maybe `B.pyd` requires a newer version of `C.dll` than `A.pyd`. Or maybe the two `C.dll`s are completely unrelated, and the two project authors by chance chose the same DLL name. This situation is known as DLL hell.
 
-To avoid this issue, `delvewheel` renames the vendored DLLs. For each DLL, `delvewheel` computes a hash based on the DLL contents and the wheel distribution name and appends the hash to the DLL name. For example, if the authors of `A.pyd` and `B.pyd` both decided to use `delvewheel` as part of their projects, then `A.pyd`'s version of `C.dll` could be renamed to `C-a55e90393a19a36b45c623ef23fe3f4a.dll`, while `B.pyd`'s version of `C.dll` could be renamed to `C-b7f2aeead421653280728b792642e14f.dll`. Now that the two DLLs have different names, they can both be loaded into a single Python process. Even if only one of the two projects decided to use `delvewheel`, then the two DLLs would have different names, and DLL hell would be avoided.
+To avoid this issue, `delvewheel` renames the vendored DLLs. For each DLL, `delvewheel` appends a hash based on the DLL contents and the hashes of all its direct dependencies which also need to be renamed. For example, if the authors of `A.pyd` and `B.pyd` both decided to use `delvewheel` as part of their projects, then `A.pyd`'s version of `C.dll` could be renamed to `C-a55e90393a19a36b45c623ef23fe3f4a.dll`, while `B.pyd`'s version of `C.dll` could be renamed to `C-b7f2aeead421653280728b792642e14f.dll`. Now that the two DLLs have different names, they can both be loaded into a single Python process. Even if only one of the two projects decided to use `delvewheel`, then the two DLLs would have different names, and DLL hell would be avoided.
 
 Simply renaming the DLLs is not enough, though because `A.pyd` is still looking for `C.dll`. To fix this, `delvewheel` goes into `A.pyd` and finds its [import directory table](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#import-directory-table), which tells the Windows loader the names of the DLL dependencies. This table contains an entry with a pointer to the string `"C.dll"`, which is embedded somewhere in `A.pyd`. `delvewheel` then finds a suitable location in `A.pyd` to write the string `"C-a55e90393a19a36b45c623ef23fe3f4a.dll"` and edits the import directory table entry to point to this string. Now, when `A.pyd` is loaded, it knows to look for `C-a55e90393a19a36b45c623ef23fe3f4a.dll`.
 
@@ -99,15 +99,20 @@ So far, we have described the simplest possible example where there exists one P
 
 `delvewheel` would execute the following when name-mangling.
 
-- Edit the import directory table of `D.pyd` to point to `F-c070a14b5ebd1ef22dc434b34bcbb0ae.dll` and `G-38752d7e43f7175f4f5e7e906bbeaac7.dll`.
-- Edit the import directory table of `E.pyd` to point to `I-348818deee8c8bfbc462c6ba9c8e1898.dll`.
-- Edit the import directory table of `F.dll` to point to `G-38752d7e43f7175f4f5e7e906bbeaac7.dll` and `H-43c80d2389f603a00e22dd9862246dba.dll`.
-- Edit the import directory table of `I.dll` to point to `H-43c80d2389f603a00e22dd9862246dba.dll` and `J-9f50744ed67c3a6e5b24b39c08b2b207.dll`.
-- Rename `F.dll` to `F-c070a14b5ebd1ef22dc434b34bcbb0ae.dll`.
-- Rename `G.dll` to `G-38752d7e43f7175f4f5e7e906bbeaac7.dll`.
-- Rename `H.dll` to `H-43c80d2389f603a00e22dd9862246dba.dll`.
-- Rename `I.dll` to `I-348818deee8c8bfbc462c6ba9c8e1898.dll`.
-- Rename `J.dll` to `J-9f50744ed67c3a6e5b24b39c08b2b207.dll`.
+1. Compute the hash of `H.dll` from its file contents. Suppose it is `43c80d2389f603a00e22dd9862246dba`.
+1. Compute the hash of `J.dll` from its file contents. Suppose it is `9f50744ed67c3a6e5b24b39c08b2b207`.
+1. Compute the hash of `I.dll` from its file contents and the hashes of `H.dll` and `J.dll`. Suppose it is `348818deee8c8bfbc462c6ba9c8e1898`.
+1. Compute the hash of `G.dll` from its file contents. Suppose it is `38752d7e43f7175f4f5e7e906bbeaac7`.
+1. Compute the hash of `F.dll` from its file contents and the hashes of `G.dll` and `H.dll`. Suppose it is `c070a14b5ebd1ef22dc434b34bcbb0ae`.
+1. Edit the import directory table of `D.pyd` to point to `F-c070a14b5ebd1ef22dc434b34bcbb0ae.dll` and `G-38752d7e43f7175f4f5e7e906bbeaac7.dll`.
+1. Edit the import directory table of `E.pyd` to point to `I-348818deee8c8bfbc462c6ba9c8e1898.dll`.
+1. Edit the import directory table of `F.dll` to point to `G-38752d7e43f7175f4f5e7e906bbeaac7.dll` and `H-43c80d2389f603a00e22dd9862246dba.dll`.
+1. Edit the import directory table of `I.dll` to point to `H-43c80d2389f603a00e22dd9862246dba.dll` and `J-9f50744ed67c3a6e5b24b39c08b2b207.dll`.
+1. Rename `F.dll` to `F-c070a14b5ebd1ef22dc434b34bcbb0ae.dll`.
+1. Rename `G.dll` to `G-38752d7e43f7175f4f5e7e906bbeaac7.dll`.
+1. Rename `H.dll` to `H-43c80d2389f603a00e22dd9862246dba.dll`.
+1. Rename `I.dll` to `I-348818deee8c8bfbc462c6ba9c8e1898.dll`.
+1. Rename `J.dll` to `J-9f50744ed67c3a6e5b24b39c08b2b207.dll`.
 
 ## Limitations
 
