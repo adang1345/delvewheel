@@ -4,6 +4,7 @@ import os
 import re
 from ._wheel_repair import WheelRepair
 from ._version import __version__
+from . import _Config
 from . import _dll_utils
 
 
@@ -69,8 +70,10 @@ def main():
     parser_needed.add_argument('-v', action='count', default=0, help='verbosity')
     args = parser.parse_args()
 
-    # handle command
+    # handle arguments
+    _Config.verbose = args.v
     if args.command in ('show', 'repair'):
+        _Config.test = args.test.split(',')
         add_paths = dict.fromkeys(os.path.abspath(path) for path in os.pathsep.join(args.add_path).split(os.pathsep) if path)
         include = set(dll_name.lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name)
         exclude = set(dll_name.lower() for dll_name in os.pathsep.join(args.exclude).split(os.pathsep) if dll_name)
@@ -90,7 +93,7 @@ def main():
             else:
                 wheels.append(wheel)
         for wheel in wheels:
-            wr = WheelRepair(wheel, args.extract_dir, include, exclude, args.ignore_existing, args.analyze_existing, args.analyze_existing_exes, args.v, args.test.split(','))
+            wr = WheelRepair(wheel, args.extract_dir, include, exclude, args.ignore_existing, args.analyze_existing, args.analyze_existing_exes)
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
@@ -100,7 +103,7 @@ def main():
                 namespace_pkgs = set(tuple(namespace_pkg.split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg)
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.with_mangle, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports, args.custom_patch)
     else:  # args.command == 'needed'
-        for dll_name in sorted(_dll_utils.get_direct_needed(args.file, args.v), key=str.lower):
+        for dll_name in sorted(_dll_utils.get_direct_needed(args.file), key=str.lower):
             print(dll_name)
 
 

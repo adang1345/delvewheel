@@ -17,6 +17,7 @@ import tempfile
 import typing
 import warnings
 import zipfile
+from . import _Config
 from . import _dll_utils
 from . import _dll_list
 from . import _version
@@ -130,8 +131,6 @@ def walk(top: str, last: str):
 class WheelRepair:
     """An instance represents a wheel that can be repaired."""
 
-    _verbose: int  # verbosity level, 0 to 2
-    _test: list[str]  # testing options for internal use
     _whl_path: str  # path to wheel
     _whl_name: str  # name of wheel
     _distribution_name: str
@@ -159,9 +158,7 @@ class WheelRepair:
                  exclude: typing.Optional[set[str]],
                  ignore_existing: bool,
                  analyze_existing: bool,
-                 analyze_existing_exes: bool,
-                 verbose: int,
-                 test: list[str]) -> None:
+                 analyze_existing_exes: bool) -> None:
         """Initialize a wheel repair object.
         whl_path: Path to the wheel to repair
         extract_dir: Directory where wheel is extracted. If None, a temporary
@@ -173,14 +170,10 @@ class WheelRepair:
         analyze_existing: whether to analyze and vendor in dependencies of DLLs
             that are already in the wheel
         analyze_existing_exes: whether to analyze and vendor in dependencies of
-            EXEs that are in the wheel
-        verbose: verbosity level, 0 to 2
-        test: testing options for internal use"""
+            EXEs that are in the wheel"""
         if not os.path.isfile(whl_path):
             raise FileNotFoundError(f'{whl_path} not found')
 
-        self._verbose = verbose
-        self._test = test
         self._whl_path = whl_path
         self._whl_name = os.path.basename(whl_path)
         if not self._whl_name.endswith('.whl'):
@@ -204,7 +197,7 @@ class WheelRepair:
         except FileNotFoundError:
             pass
         os.makedirs(self._extract_dir)
-        if self._verbose >= 1:
+        if _Config.verbose >= 1:
             print(f'extracting {self._whl_name} to {self._extract_dir}')
         with zipfile.ZipFile(self._whl_path) as whl_file:
             whl_file.extractall(self._extract_dir)
@@ -686,7 +679,7 @@ class WheelRepair:
             for filename in filenames:
                 if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll') or self._analyze_existing_exes and filename_lower.endswith('.exe'):
                     executable_path = os.path.join(root, filename)
-                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'ignore', False, False, self._verbose)
+                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'ignore', False, False)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -801,20 +794,20 @@ class WheelRepair:
                     if _dll_utils.get_arch(executable_path) != self._arch:
                         raise RuntimeError(f'{os.path.relpath(executable_path, self._extract_dir)} has a CPU architecture that is not compatible with this wheel')
                     if is_extension_module and self._get_site_packages_relpath(root) == os.curdir:
-                        if self._verbose >= 1:
+                        if _Config.verbose >= 1:
                             print(f'analyzing top-level extension module {os.path.relpath(executable_path, self._extract_dir)}')
                         has_top_level_ext_module = True
                     elif is_extension_module:
-                        if self._verbose >= 1:
+                        if _Config.verbose >= 1:
                             print(f'analyzing package-level extension module {os.path.relpath(executable_path, self._extract_dir)}')
                     elif is_existing_dll:
-                        if self._verbose >= 1:
+                        if _Config.verbose >= 1:
                             print(f'analyzing existing DLL {os.path.relpath(executable_path, self._extract_dir)}')
-                    elif self._verbose >= 1:
+                    elif _Config.verbose >= 1:
                         # is_existing_exe
                         print(f'analyzing existing EXE {os.path.relpath(executable_path, self._extract_dir)}')
                     executable_paths.append(executable_path)
-                    discovered, associated, ignored = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports, self._verbose)[:3]
+                    discovered, associated, ignored = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports)[:3]
                     dependency_paths |= discovered
                     associated_paths |= associated
                     ignored_dll_names |= ignored
@@ -827,7 +820,7 @@ class WheelRepair:
                 name_lower = os.path.basename(p).lower()
                 no_mangles.add(name_lower)
                 if not with_mangle:
-                    no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._exclude, no_mangles, self._verbose))
+                    no_mangles.update(_dll_utils.get_direct_mangleable_needed(p, self._exclude, no_mangles))
                 if name_lower not in self._include:
                     ignored_dll_names.add(name_lower)
 
@@ -864,7 +857,7 @@ class WheelRepair:
                 f'{"as" if len(not_found_namespace_pkgs) == 1 else "ere"} '
                 f'not found')
 
-        if self._verbose >= 1:
+        if _Config.verbose >= 1:
             to_copy = set(os.path.basename(p) for p in dependency_paths_outside_wheel | extra_dependency_paths)
             ignored_dll_names -= {name.lower() for name in to_copy}
             print(f'External dependencies to copy into the wheel are\n{pp.pformat(to_copy)}')
@@ -883,12 +876,12 @@ class WheelRepair:
         os.makedirs(libs_dir, exist_ok=True)
         print(f'copying DLLs into {os.path.relpath(libs_dir, self._extract_dir)}')
         for dependency_path in dependency_paths_outside_wheel | extra_dependency_paths:
-            if self._verbose >= 1:
+            if _Config.verbose >= 1:
                 print(f'copying {dependency_path} -> {os.path.join(libs_dir, os.path.basename(dependency_path))}')
             shutil.copy2(dependency_path, libs_dir)
         dependency_paths_outside_wheel_copied = {os.path.join(libs_dir, os.path.basename(dependency_path)) for dependency_path in dependency_paths_outside_wheel}
         for associated_path in associated_paths:
-            if self._verbose >= 1:
+            if _Config.verbose >= 1:
                 print(f'copying {associated_path} -> {os.path.join(libs_dir, os.path.basename(associated_path))}')
             shutil.copy2(associated_path, libs_dir)
 
@@ -907,7 +900,7 @@ class WheelRepair:
                 if not any(r.fullmatch(lib_name_lower) for r in _dll_list.no_mangle_regexes) and \
                         lib_name_lower not in no_mangles:
                     lib_name_casemap[lib_name_lower] = lib_name
-                    name_mangle_graph[lib_name_lower] = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles, self._verbose)
+                    name_mangle_graph[lib_name_lower] = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles)
             lib_name_lower_hashmap = {}  # map from lowercase DLL name to the hash that will be appended to the name
             for lib_name_lower in graphlib.TopologicalSorter(name_mangle_graph).static_order():
                 lib_name = lib_name_casemap[lib_name_lower]
@@ -920,10 +913,10 @@ class WheelRepair:
                 needed = []
             else:
                 executable_name = os.path.basename(executable_path)
-                if self._verbose >= 1:
+                if _Config.verbose >= 1:
                     print(f'repairing {executable_name} -> {executable_name}')
-                needed = _dll_utils.get_direct_mangleable_needed(executable_path, self._exclude, no_mangles, self._verbose)
-            _dll_utils.replace_needed(executable_path, needed, name_mangler, strip, self._verbose, self._test)
+                needed = _dll_utils.get_direct_mangleable_needed(executable_path, self._exclude, no_mangles)
+            _dll_utils.replace_needed(executable_path, needed, name_mangler, strip)
         for dependency_path in dependency_paths_outside_wheel_copied | dependency_paths_in_wheel:
             lib_name = os.path.basename(dependency_path)
             lib_name_lower = lib_name.lower()
@@ -931,13 +924,13 @@ class WheelRepair:
                 needed = []
             else:
                 # lib_name is NOT lowercased
-                if self._verbose >= 1:
+                if _Config.verbose >= 1:
                     if lib_name_lower in name_mangler:
                         print(f'repairing {lib_name} -> {name_mangler[lib_name_lower]}')
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
-                needed = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles, self._verbose)
-            _dll_utils.replace_needed(dependency_path, needed, name_mangler, strip, self._verbose, self._test)
+                needed = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles)
+            _dll_utils.replace_needed(dependency_path, needed, name_mangler, strip)
             if lib_name_lower in name_mangler:
                 os.rename(dependency_path, os.path.join(libs_dir, name_mangler[lib_name_lower]))
 
@@ -1017,7 +1010,7 @@ class WheelRepair:
                     if (dirname_relative := self._get_site_packages_relpath(dirname)) not in seen_relative:
                         for filename in os.listdir(libs_dir):
                             filepath = os.path.join(libs_dir, filename)
-                            if self._verbose >= 1:
+                            if _Config.verbose >= 1:
                                 print(f'copying {filepath} -> {os.path.join(dirname, filename)}')
                             shutil.copy2(filepath, dirname)
                         seen_relative.add(dirname_relative)
@@ -1068,7 +1061,7 @@ class WheelRepair:
         except FileNotFoundError:
             pass
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
-        if self._verbose >= 1:
+        if _Config.verbose >= 1:
             print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
         with open(record_filepath, 'w', newline='\n') as record_file:
             writer = csv.writer(record_file, lineterminator='\n')
@@ -1115,7 +1108,7 @@ class WheelRepair:
                     zip_info.compress_type = zipfile.ZIP_DEFLATED
                     if date_time is not None:
                         zip_info.date_time = date_time
-                    if self._verbose >= 1:
+                    if _Config.verbose >= 1:
                         print(f'adding {relpath}')
                     with open(file_path, 'rb') as f:
                         whl_file.writestr(zip_info, f.read())

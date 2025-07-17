@@ -16,6 +16,7 @@ import textwrap
 import typing
 import warnings
 import pefile
+from . import _Config
 from . import _dll_list
 from ._dll_list import MachineType
 
@@ -41,12 +42,11 @@ _ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT = 8
 
 class PEContext:
     """Context manager for PE file."""
-    def __init__(self, path: typing.Optional[str], data: typing.Optional[bytes], parse_imports: bool, verbose: int) -> None:
+    def __init__(self, path: typing.Optional[str], data: typing.Optional[bytes], parse_imports: bool) -> None:
         """
         path: path to PE file
         data: byte string containing PE file data
         parse_imports: whether to parse the import table and delay import table
-        verbose: verbosity level
 
         Exactly one of path and data must be non-None.
         """
@@ -59,13 +59,12 @@ class PEContext:
                 pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT'],
             ], import_dllnames_only=True)
         self._name = 'None' if path is None else os.path.basename(path)
-        self._verbose = verbose
 
     def __enter__(self) -> pefile.PE:
         return self._pe
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self._verbose >= 2:
+        if _Config.verbose >= 2:
             for w in self._pe.get_warnings():
                 print(f'{self._name}: {w}')
         self._pe.close()
@@ -307,11 +306,11 @@ def find_library(
     return None
 
 
-def get_direct_needed(lib_path: str, verbose: int) -> set[str]:
+def get_direct_needed(lib_path: str) -> set[str]:
     """Given the path to a shared library, return a set containing the DLL
     names of all its direct dependencies. Regular and delay-load dependencies
     are included. The DLL names are in the original case."""
-    with PEContext(lib_path, None, True, verbose) as pe:
+    with PEContext(lib_path, None, True) as pe:
         imports = []
         for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             if hasattr(pe, attr):
@@ -325,7 +324,7 @@ def get_direct_needed(lib_path: str, verbose: int) -> set[str]:
     return needed
 
 
-def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, verbose: int) -> list[str]:
+def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -> list[str]:
     """Given the path to a shared library, return a deterministically-ordered
     list containing the lowercase DLL names of all direct dependencies that
     belong in the wheel and should be name-mangled.
@@ -334,7 +333,7 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set, v
     the wheel.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
-    with PEContext(lib_path, None, True, verbose) as pe:
+    with PEContext(lib_path, None, True) as pe:
         imports = []
         for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             if hasattr(pe, attr):
@@ -382,8 +381,7 @@ def get_all_needed(lib_path: str,
                    wheel_dirs: typing.Optional[collections.abc.Iterable],
                    on_error: str,
                    include_symbols: bool,
-                   include_imports: bool,
-                   verbose: int) -> tuple[set[str], set[str], set[str], set[str]]:
+                   include_imports: bool) -> tuple[set[str], set[str], set[str], set[str]]:
     """Given the path to a shared library, return a 4-tuple of sets
     (discovered, symbols, ignored, not_found).
     - discovered contains the original-case DLL paths of all direct and
@@ -417,7 +415,7 @@ def get_all_needed(lib_path: str,
     while stack:
         if (lib_path := stack.pop()) not in discovered:
             discovered.add(lib_path)
-            with PEContext(lib_path, None, True, verbose) as pe:
+            with PEContext(lib_path, None, True) as pe:
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
                     if hasattr(pe, attr):
@@ -439,7 +437,7 @@ def get_all_needed(lib_path: str,
                                 # warn if potentially incompatible MSVC++
                                 # library is found
                                 linker_version = pe.OPTIONAL_HEADER.MajorLinkerVersion, pe.OPTIONAL_HEADER.MinorLinkerVersion
-                                with PEContext(dll_info[0], None, False, verbose) as pe2:
+                                with PEContext(dll_info[0], None, False) as pe2:
                                     vc_redist_linker_version = pe2.OPTIONAL_HEADER.MajorLinkerVersion, pe2.OPTIONAL_HEADER.MinorLinkerVersion
                                 if _toolset_too_old(linker_version, vc_redist_linker_version):
                                     linker_version = f'{linker_version[0]}.{linker_version[1]}'
@@ -455,17 +453,17 @@ def get_all_needed(lib_path: str,
     return discovered, associated, ignored, not_found
 
 
-def clear_dependent_load_flags(lib_path: str, verbose: int):
+def clear_dependent_load_flags(lib_path: str):
     """If the DLL given by lib_path has a non-0 value for DependentLoadFlags,
     then set the value to 0, fix the PE checksum, and clear any signatures.
 
     lib_path: path to the DLL
     verbose: verbosity level, 0 to 2"""
-    with PEContext(lib_path, None, False, verbose) as pe:
+    with PEContext(lib_path, None, False) as pe:
         pe.parse_data_directories([pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']])
         if not hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') or not pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:
             return
-        if verbose >= 1:
+        if _Config.verbose >= 1:
             print(f'clearing DependentLoadFlags={pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:#x} for {os.path.basename(lib_path)}')
         pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags = 0
 
@@ -484,7 +482,7 @@ def clear_dependent_load_flags(lib_path: str, verbose: int):
     if truncate:
         lib_data = lib_data[:pe_size]
     if fix_checksum:
-        with PEContext(None, lib_data, False, verbose) as pe:
+        with PEContext(None, lib_data, False) as pe:
             pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
             pe.write(lib_path)
     else:
@@ -542,7 +540,7 @@ def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: collections.abc.Ite
     return pe_size, dlls_i == len(new_dlls)
 
 
-def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str], strip: bool, verbose: int, test: list[str]) -> None:
+def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str], strip: bool) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map. Also, if the DLL has a non-0 value for
     DependentLoadFlags, then set the value to 0
@@ -553,12 +551,10 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
     name_map: a dict that maps an old dependency name to a new name, must
         contain at least all the keys in old_deps
     strip: whether to try to strip DLLs that contain overlays if not enough
-        internal padding exists
-    verbose: verbosity level, 0 to 2
-    test: testing options for internal use"""
+        internal padding exists"""
     if not old_deps:
         # no dependency names to change
-        clear_dependent_load_flags(lib_path, verbose)
+        clear_dependent_load_flags(lib_path)
         return
     name_map = {dep.lower().encode(): name_map[dep].encode() for dep in old_deps}
         # keep only the DLLs that will be mangled
@@ -566,7 +562,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
     # If an attribute certificate table exists and is the only thing in the
     # overlay, remove the table. In this case, we end up removing the entire
     # overlay without needing to run strip.
-    with PEContext(lib_path, None, False, verbose) as pe:
+    with PEContext(lib_path, None, False) as pe:
         pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
         cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
         truncate = cert_table.VirtualAddress == _round_to_next(pe_size, _ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT) and cert_table.VirtualAddress + cert_table.Size == os.path.getsize(lib_path)
@@ -584,9 +580,9 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
     # dependency names are items and the contiguous padding runs are bins. The
     # bin packing problem is NP-hard, so for simplicity, we use the Next Fit
     # algorithm.
-    with PEContext(lib_path, None, False, verbose) as pe:
+    with PEContext(lib_path, None, False) as pe:
         pe_size, enough_padding = _get_pe_size_and_enough_padding(pe, name_map.values())
-    if 'not_enough_padding' in test:
+    if 'not_enough_padding' in _Config.test:
         enough_padding = False
     if not enough_padding and pe_size < os.path.getsize(lib_path) and strip:
         # try to strip the overlay
@@ -594,7 +590,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
             subprocess.check_call(['strip', '-s', lib_path])
         except FileNotFoundError:
             raise FileNotFoundError('GNU strip not found in PATH') from None
-        with PEContext(lib_path, None, False, verbose) as pe:
+        with PEContext(lib_path, None, False) as pe:
             pe_size, enough_padding = _get_pe_size_and_enough_padding(pe, name_map.values())
 
     lib_name = os.path.basename(lib_path)
@@ -644,7 +640,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
             ]
             raise RuntimeError(''.join(error_text))
 
-    with PEContext(lib_path, None, True, verbose) as pe:
+    with PEContext(lib_path, None, True) as pe:
         if enough_padding:
             # overwrite padding with new DLL names
             pe.sections.sort(key=lambda section: section.VirtualAddress)
@@ -697,7 +693,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
             # update PE headers to what they will need to be once the
             # new section header and new section are added
             section_table_end = pe.sections[-1].get_file_offset() + _SECTION_HEADER_SIZE
-            if 'header_space' not in test and pe.OPTIONAL_HEADER.SizeOfHeaders - section_table_end >= _SECTION_HEADER_SIZE:
+            if 'header_space' not in _Config.test and pe.OPTIONAL_HEADER.SizeOfHeaders - section_table_end >= _SECTION_HEADER_SIZE:
                 # there's enough unused space to add new section header
                 new_section_header_space_needed = 0
             else:
@@ -734,7 +730,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
         # clear DependentLoadFlags value
         pe.parse_data_directories([pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']])
         if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') and pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:
-            if verbose >= 1:
+            if _Config.verbose >= 1:
                 print(f'clearing DependentLoadFlags={pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:#x} for {os.path.basename(lib_path)}')
             pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags = 0
 
@@ -770,7 +766,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
                 lib_data = new_lib_data.getvalue()
 
     if fix_checksum:
-        with PEContext(None, lib_data, False, verbose) as pe:
+        with PEContext(None, lib_data, False) as pe:
             pe.OPTIONAL_HEADER.CheckSum = pe.generate_checksum()
             pe.write(lib_path)
     else:
