@@ -1,3 +1,7 @@
+## 1.11.0 <sub><sup>(_18 July 2025_)</sup></sub>
+- Introduce the `--analyze-existing-exes` option.
+- Revise the hashing algorithm for name mangling to permit limited DLL sharing between wheels. DLLs should be safe to share between projects if they are bitwise identical prior to name-mangling and all their direct dependencies that will be name-mangled are also bitwise identical. Change the hashing algorithm to derive the hash from the DLL contents and the hashes of all its direct dependencies which will be name-mangled. This reduces memory usage by allowing only one copy of a DLL to be loaded into a `python.exe` process when it is safe to do so.
+
 ## 1.10.1 <sub><sup>(_24 April 2025_)</sup></sub>
 - Update GitHub Actions CI pipeline dependencies.
 - Improve documentation.
