@@ -116,7 +116,7 @@ So far, we have described the simplest possible example where there exists one P
 
 ## Limitations
 
-- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using [`ctypes`](https://docs.python.org/3/library/ctypes.html)/[`cffi`](https://cffi.readthedocs.io/en/stable/) (from Python) or [`LoadLibrary`](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya) (from C/C++) will be missed. Support for runtime-loaded DLLs is limited; however, the following options are available.
+- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using [`ctypes`](https://docs.python.org/3/library/ctypes.html)/[`cffi`](https://cffi.readthedocs.io/en/stable/) (from Python), [`LoadLibrary`](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya) (from C/C++/Rust), or [`libloading`](https://docs.rs/libloading/latest/libloading/) (from Rust) will be missed. Support for runtime-loaded DLLs is limited; however, the following options are available.
   - Specify additional DLLs to vendor into the wheel using the `--include` option.
   - Include the runtime-loaded DLL into the wheel yourself, and use the `--analyze-existing` option.
 
