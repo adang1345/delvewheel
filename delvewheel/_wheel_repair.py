@@ -128,6 +128,18 @@ def walk(top: str, last: str):
         yield from os.walk(root)
 
 
+def get_line_ending(b: bytes) -> bytes:
+    """Return the first line ending in b. Possible line endings are b'\n',
+    b'\r', and b'\r\n'. If b does not contain any line endings, return
+    b'\r\n'."""
+    for i, byte in enumerate(b):
+        if byte == 10:  # \n
+            return b'\n'
+        if byte == 13:  # \r
+            return b'\r' if i + 1 == len(b) or b[i + 1] != 10 else b'\r\n'
+    return b'\r\n'
+
+
 class WheelRepair:
     """An instance represents a wheel that can be repaired."""
 
@@ -306,8 +318,8 @@ class WheelRepair:
             hasher.update(buf)
         return hasher.hexdigest()[:length]
 
-    def _patch_py_contents(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> str:
-        """Return the contents of the patch to place in a .py file.
+    def _patch_py_contents_str(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> str:
+        """Return the contents of the patch to place in a .py file as a str.
 
         at_start is whether the contents are placed at the beginning of the file
         libs_dir is the name of the directory where DLLs are stored.
@@ -322,6 +334,22 @@ class WheelRepair:
             return _patch_py_template.format('"""""" ' if at_start else '', _version.__version__.replace('.', '_'), 'os.pardir, ' * depth, libs_dir, load_order_filename)
         else:
             return _patch_py_template_v2.format('"""""" ' if at_start else '', _version.__version__.replace('.', '_'), 'os.pardir, ' * depth, libs_dir)
+
+    def _patch_py_contents_bytes(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str], depth: int, newline: bytes) -> bytes:
+        """Return the contents of the patch to place in a .py file as a bytes.
+
+        at_start is whether the contents are placed at the beginning of the file
+        libs_dir is the name of the directory where DLLs are stored.
+        load_order_filename is the name of the .load-order file, or None if the
+            file is not used
+        depth is the number of parent directories to traverse to reach the
+            site-packages directory at runtime starting from the directory
+            containing the .py file
+        newline is the line ending to use"""
+        patch = self._patch_py_contents_str(at_start, libs_dir, load_order_filename, depth).encode()
+        if newline != b'\n':
+            patch = patch.replace(b'\n', newline)
+        return patch
 
     def _patch_py_file(self, py_path: str, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> None:
         """Given the path to a .py file, create or patch the file so that
@@ -348,7 +376,7 @@ class WheelRepair:
                     "__import__('pkg_resources').declare_namespace(__name__)",
                     '__import__("pkg_resources").declare_namespace(__name__)'
                 )
-                with open(py_path) as file:
+                with open(py_path, encoding='utf-8', errors='surrogateescape') as file:
                     for line in file:
                         if line.rstrip().replace(' ', '') in search:
                             warnings.warn(
@@ -363,17 +391,10 @@ class WheelRepair:
                     f'Otherwise, create an empty __init__.py file to silence '
                     f'this warning.')
 
-        open(py_path, 'a+').close()  # create file if it doesn't exist
-        with open(py_path, newline='') as file:
-            line = file.readline()
-        for newline in ('\r\n', '\r', '\n'):
-            if line.endswith(newline):
-                break
-        else:
-            newline = '\r\n'
-
-        with open(py_path) as file:
+        open(py_path, 'ab+').close()  # create file if it doesn't exist
+        with open(py_path, 'rb') as file:
             py_contents = file.read()
+        newline = get_line_ending(py_contents)
         node = ast.parse(py_contents)
         docstring = ast.get_docstring(node, False)
         children = list(ast.iter_child_nodes(node))
@@ -386,102 +407,108 @@ class WheelRepair:
 
         if future_import_lineno > 0:
             # insert patch after the last __future__ import
-            patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
+            patch_py_contents = self._patch_py_contents_bytes(False, libs_dir, load_order_filename, depth, newline)
             py_contents_split = py_contents.splitlines(True)
-            with open(py_path, 'w', newline=newline) as file:
-                file.write(''.join(py_contents_split[:future_import_lineno]).rstrip())
-                file.write('\n\n\n')
+            with open(py_path, 'wb') as file:
+                file.write(b''.join(py_contents_split[:future_import_lineno]).rstrip())
+                file.write(newline * 3)
                 file.write(patch_py_contents)
-                if remainder := ''.join(py_contents_split[future_import_lineno:]).lstrip():
-                    file.write('\n')
+                if remainder := b''.join(py_contents_split[future_import_lineno:]).lstrip():
+                    file.write(newline)
                     file.write(remainder)
         elif docstring is not None:
             # place patch just after docstring
-            patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
+            patch_py_contents = self._patch_py_contents_bytes(False, libs_dir, load_order_filename, depth, newline)
             if len(children) == 0 or not isinstance(children[0], ast.Expr) or ast.literal_eval(children[0].value) != docstring:
                 # verify that the first child node is the docstring
                 raise ValueError(f'Error parsing {py_name}: docstring exists but is not the first element of the parse tree')
             if len(children) == 1:
                 # append patch
-                with open(py_path, 'w', newline=newline) as file:
+                with open(py_path, 'wb') as file:
                     file.write(py_contents.rstrip())
-                    file.write('\n\n\n')
+                    file.write(newline * 3)
                     file.write(patch_py_contents)
             else:
                 # insert patch after docstring
-                py_contents = '\n'.join(py_contents.splitlines())  # normalize line endings
+                py_contents = b'\n'.join(py_contents.splitlines())  # normalize line endings to facilitate search for docstring
                 docstring_search_start_index = 0
                 for line in py_contents.splitlines(True):
-                    if line.lstrip().startswith('#'):
+                    if line.lstrip().startswith(b'#'):
                         # ignore comments at start of file
                         docstring_search_start_index += len(line)
                     else:
                         break
-                pattern = (r'"""([^\\]|\\.)*?"""|'  # 3 double quotes
-                           r"'''([^\\]|\\.)*?'''|"  # 3 single quotes
-                           r'"([^\\\n]|\\.)*?"|'  # 1 double quote
-                           r"'([^\\\n]|\\.)*?'")  # 1 single quote
+                pattern = (rb'"""([^\\]|\\.)*?"""|'  # 3 double quotes
+                           rb"'''([^\\]|\\.)*?'''|"  # 3 single quotes
+                           rb'"([^\\\n]|\\.)*?"|'  # 1 double quote
+                           rb"'([^\\\n]|\\.)*?'")  # 1 single quote
                 if not (match := re.search(pattern, py_contents[docstring_search_start_index:], re.DOTALL)):
                     raise ValueError(f'Error parsing {py_name}: docstring exists but was not found')
                 docstring_end_index = docstring_search_start_index + match.end()
-                docstring_end_line = py_contents.find('\n', docstring_end_index)
+                docstring_end_line = py_contents.find(b'\n', docstring_end_index)
                 if docstring_end_line == -1:
                     docstring_end_line = len(py_contents)
                 if (extra_text := py_contents[docstring_end_index: docstring_end_line]) and not extra_text.isspace():
                     raise ValueError(f'Error parsing {py_name}: extra text {extra_text!r} is on the line where the docstring ends. Move the extra text to a new line and try again.')
-                with open(py_path, 'w', newline=newline) as file:
-                    file.write(py_contents[:docstring_end_index].rstrip())
-                    file.write('\n\n\n')
+                with open(py_path, 'wb') as file:
+                    contents = py_contents[:docstring_end_index].rstrip()
+                    if newline != b'\n':
+                        contents = contents.replace(b'\n', newline)
+                    file.write(contents)
+                    file.write(newline * 3)
                     file.write(patch_py_contents)
-                    file.write('\n')
-                    file.write(py_contents[docstring_end_index:].lstrip())
+                    file.write(newline)
+                    contents = py_contents[docstring_end_index:].lstrip()
+                    if newline != b'\n':
+                        contents = contents.replace(b'\n', newline)
+                    file.write(contents)
         else:
             py_contents_lines = py_contents.splitlines()
             start = 0
-            if py_contents_lines and py_contents_lines[0].startswith('#!'):
+            if py_contents_lines and py_contents_lines[0].startswith(b'#!'):
                 start = 1
-            while start < len(py_contents_lines) and py_contents_lines[start].strip() in ('', '#'):
+            while start < len(py_contents_lines) and py_contents_lines[start].strip() in (b'', b'#'):
                 start += 1
-            if start < len(py_contents_lines) and py_contents_lines[start][:1] == '#':
+            if start < len(py_contents_lines) and py_contents_lines[start][:1] == b'#':
                 # insert patch after header comments
                 end = start + 1
-                while end < len(py_contents_lines) and py_contents_lines[end][:1] == '#':
+                while end < len(py_contents_lines) and py_contents_lines[end][:1] == b'#':
                     end += 1
-                patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
-                with open(py_path, 'w', newline=newline) as file:
-                    file.write('\n'.join(py_contents_lines[:end]).rstrip())
-                    file.write('\n\n\n')
+                patch_py_contents = self._patch_py_contents_bytes(False, libs_dir, load_order_filename, depth, newline)
+                with open(py_path, 'wb') as file:
+                    file.write(newline.join(py_contents_lines[:end]).rstrip())
+                    file.write(newline * 3)
                     file.write(patch_py_contents)
-                    if remainder := '\n'.join(py_contents_lines[end:]).lstrip():
-                        file.write('\n')
+                    if remainder := newline.join(py_contents_lines[end:]).lstrip():
+                        file.write(newline)
                         file.write(remainder)
-                        if not remainder.endswith('\n'):
-                            file.write('\n')
-            elif py_contents_lines and py_contents_lines[0].startswith('#!'):
+                        if not remainder.endswith(newline):
+                            file.write(newline)
+            elif py_contents_lines and py_contents_lines[0].startswith(b'#!'):
                 # insert patch after shebang
-                patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth)
-                with open(py_path, 'w', newline=newline) as file:
+                patch_py_contents = self._patch_py_contents_bytes(False, libs_dir, load_order_filename, depth, newline)
+                with open(py_path, 'wb') as file:
                     file.write(py_contents_lines[0].rstrip())
-                    file.write('\n\n\n')
+                    file.write(newline * 3)
                     file.write(patch_py_contents)
-                    if remainder := '\n'.join(py_contents_lines[1:]).lstrip():
-                        file.write('\n')
+                    if remainder := newline.join(py_contents_lines[1:]).lstrip():
+                        file.write(newline)
                         file.write(remainder)
-                        if not remainder.endswith('\n'):
-                            file.write('\n')
+                        if not remainder.endswith(newline):
+                            file.write(newline)
             else:
                 # prepend patch
-                patch_py_contents = self._patch_py_contents(True, libs_dir, load_order_filename, depth)
-                with open(py_path, 'w', newline=newline) as file:
+                patch_py_contents = self._patch_py_contents_bytes(True, libs_dir, load_order_filename, depth, newline)
+                with open(py_path, 'wb') as file:
                     file.write(patch_py_contents)
                     if remainder := py_contents.lstrip():
-                        file.write('\n')
+                        file.write(newline)
                         file.write(remainder)
-                        if not remainder.endswith('\n'):
-                            file.write('\n')
+                        if not remainder.endswith(newline):
+                            file.write(newline)
 
         # verify that the file can be parsed properly
-        with open(py_path) as file:
+        with open(py_path, 'rb') as file:
             try:
                 ast.parse(file.read())
             except SyntaxError:
@@ -549,21 +576,21 @@ class WheelRepair:
                         os.path.isfile(new_item_path) and item[-3:].lower() == '.py':
                     result |= self._patch_custom(new_item_path, libs_dir, load_order_filename, depth + 1)
             return result
-        with open(item_path) as file:
+        with open(item_path, encoding='utf-8', errors='surrogateescape') as file:
             contents = file.read()
         if not re.search(pattern := '^# *delvewheel *: *patch *$', contents, flags=re.MULTILINE):
             return False
         print(f'patching {os.path.relpath(item_path, self._extract_dir)}', end='')
-        with open(item_path, newline='') as file:
+        with open(item_path, encoding='utf-8', errors='surrogateescape', newline='') as file:
             line = file.readline()
         for newline in ('\r\n', '\r', '\n'):
             if line.endswith(newline):
                 break
         else:
             newline = '\r\n'
-        patch_py_contents = self._patch_py_contents(False, libs_dir, load_order_filename, depth).rstrip()
+        patch_py_contents = self._patch_py_contents_str(False, libs_dir, load_order_filename, depth).rstrip()
         contents, count = re.subn(pattern, patch_py_contents, contents, flags=re.MULTILINE)
-        with open(item_path, 'w', newline=newline) as file:
+        with open(item_path, 'w', encoding='utf-8', errors='surrogateescape', newline=newline) as file:
             file.write(contents)
         print(f' (count {count})' if count > 1 else '')
         return True
