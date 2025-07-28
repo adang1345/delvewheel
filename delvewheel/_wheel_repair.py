@@ -113,7 +113,7 @@ del _delvewheel_patch_{1}
 pp = pprint.PrettyPrinter(indent=4)
 
 
-def walk(top: str, last: str):
+def walk(top: str, last: str) -> collections.abc.Iterator[tuple[str, list[str], list[str]]]:
     """Like os.walk(top) except every folder with the name given by last (case-
     sensitive) is traversed last."""
     final = []
