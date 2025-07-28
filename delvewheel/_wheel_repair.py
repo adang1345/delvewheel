@@ -462,6 +462,8 @@ class WheelRepair:
                     if newline != b'\n':
                         contents = contents.replace(b'\n', newline)
                     file.write(contents)
+                    if not contents.endswith(newline):
+                        file.write(newline)
         else:
             py_contents_lines = py_contents.splitlines()
             start = 0
