@@ -5,6 +5,8 @@
 
 Suppose that you have built a Python wheel for Windows containing an extension module, and the wheel depends on DLLs that are present in the build environment but may not be present on the end user's machine. This tool determines which DLLs a wheel depends on (aside from system libraries) and copies those DLLs into the wheel. This tool also takes extra steps to avoid [DLL hell](https://en.wikipedia.org/wiki/DLL_hell) and to ensure that the DLLs are properly loaded at runtime.
 
+_Note_: Redistributing third-party DLLs may have copyright or licensing implications, so be sure to review and comply with the relevant licenses before including them in your wheel.
+
 ## Installation
 
 `delvewheel` can be installed using pip.
