@@ -1,0 +1,1 @@
+setuptools<81 # for testing pkg_resources-style namespace package

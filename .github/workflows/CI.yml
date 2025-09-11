@@ -54,9 +54,9 @@ jobs:
           path: ${{ github.workspace }}\dist\*
           compression-level: 0
       - name: run tests with Python 3.12
-        working-directory: ${{ github.workspace }}\tests
         run: |
-          pip install setuptools
+          pip install -r requirements-test.txt
+          cd tests
           python run_tests.py -v
       - name: set up Python 3.9
         uses: actions/setup-python@v6
@@ -82,13 +82,14 @@ jobs:
           distribution: Ubuntu-24.04
           additional-packages: python-is-python3 python3-pip python3-venv
       - name: run tests on Ubuntu 24.04
-        working-directory: ${{ github.workspace }}\tests
         shell: wsl-bash {0}
         run: |
           export PIP_CACHE_DIR=$(wslpath '${{ env.PIP_CACHE_DIR }}')
           python -m venv venv
           source venv/bin/activate
-          pip install ../dist/delvewheel-*.whl
+          pip install dist/delvewheel-*.whl
+          pip install -r requirements-test.txt
+          cd tests
           python run_tests.py -v LinuxTestCase
   deploy:
     if: needs.build_windows.outputs.DEPLOY == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'adang1345'
