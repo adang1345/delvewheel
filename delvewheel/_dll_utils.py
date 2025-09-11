@@ -358,22 +358,21 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -
 def _toolset_too_old(linker_version: tuple[int, int], vc_redist_linker_version: tuple[int, int]) -> bool:
     """Given the linker version of a DLL and the linker version of a Visual C++
     runtime redistributable DLL, return True iff the Visual C++ runtime
-    redistributable DLL comes from an older platform toolset than that which
-    was used to build the DLL.
+    redistributable DLL comes from an older platform toolset that is likely to
+    be incompatible with that which was used to build the DLL.
 
-    There are certain linker versions where there is ambiguity. The DLL and the
-    Visual C++ runtime redistributable DLL might be associated with the same
-    platform toolset version. Or the DLL was built against the earliest release
-    of a platform toolset and the Visual C++ runtime redistributable DLL comes
-    from the latest release of the previous version of the platform toolset. In
-    this situation, assume that the toolset is not too old."""
-    # cutoffs obtained from https://github.com/abbodi1406/vcredist/blob/master/source_links/README.md
-    cutoffs = [
-        (14, 30),  # earliest for Visual Studio 2022
-        (14, 20),  # earliest for Visual Studio 2019, latest for 2017
-        (14, 10),  # earliest for Visual Studio 2017, latest for 2015
-    ]
-    return any(vc_redist_linker_version < cutoff <= linker_version for cutoff in cutoffs)
+    Usually, the linker version that a Visual Studio toolset uses matches the
+    linker version of the minimum compatible redistributable. However, Visual
+    Studio 2022 v17.11 is an exception because it uses linker version 14.41 but
+    works with redistributable version 14.40. Thus, a strict check of whether
+    vc_redist_linker_version < linker_version would result in overzealous
+    warnings. Also, in practice, one can often get away with an older
+    redistributable as long as it is not too old. Checking up to the tens digit
+    of the linker minor version seems to work well in practice and offers a
+    good compromise between purity and practicality. Importantly, it covers the
+    case where projects using std::mutex that are built against a 14.4x
+    redistributable cannot use a 14.3x or earlier redistributable."""
+    return (vc_redist_linker_version[0], vc_redist_linker_version[1] // 10) < (linker_version[0], linker_version[1] // 10)
 
 
 def get_all_needed(lib_path: str,

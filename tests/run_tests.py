@@ -1349,7 +1349,8 @@ class RepairTestCase(TestCase):
 
     def test_analyze_existing_exes(self):
         """--analyze-existing-exes"""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'])
+        p = subprocess.run(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'], capture_output=True, text=True, check=True)
+        self.assertNotIn('was built with a newer platform toolset', p.stderr)
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl') as wheel:
             self.assertTrue(any(path.name.startswith('msvcp140') for path in zipfile.Path(wheel, 'simpleext.libs/').iterdir()))
         self.assertTrue(import_simpleext_successful('0analyzeexe'))
@@ -1360,6 +1361,11 @@ class RepairTestCase(TestCase):
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl') as wheel:
             self.assertFalse(any(path.name.startswith('msvcp140') for path in zipfile.Path(wheel, 'simpleext.libs/').iterdir()))
+
+    def test_toolset_too_old(self):
+        """Warning is raised when msvcp140.dll is too old"""
+        p = subprocess.run(['delvewheel', 'repair', '--add-path', 'simpleext/x64/old;simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'], capture_output=True, text=True, check=True)
+        self.assertIn('was built with a newer platform toolset', p.stderr)
 
 
 class NeededTestCase(TestCase):
