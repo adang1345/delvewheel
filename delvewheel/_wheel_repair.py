@@ -301,21 +301,30 @@ class WheelRepair:
         """Return (hash, size) for a file with path file_path. The hash and
         size can be used to verify the integrity of the contents of a wheel."""
         with open(file_path, 'rb') as file:
-            contents = file.read()
-            hash = base64.urlsafe_b64encode(hashlib.sha256(contents).digest()).decode('latin1').rstrip('=')
-            size = len(contents)
-            return hash, size
+            if hasattr(hashlib, 'file_digest'):
+                digest = hashlib.file_digest(file, hashlib.sha256)
+                size = os.path.getsize(file_path)
+            else:
+                contents = file.read()
+                digest = hashlib.sha256(contents)
+                size = len(contents)
+            return base64.urlsafe_b64encode(digest.digest()).decode('latin1').rstrip('='), size
 
-    def _hashfile(self, afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32, start: typing.Optional[typing.Iterable[str]] = None) -> str:
+    @staticmethod
+    def _hashfile(afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32, start: typing.Optional[typing.Iterable[str]] = None) -> str:
         """Hash the contents of start along with the contents of an open file
-        handle with SHA256. Return the first length characters of the hash."""
+        handle with SHA256. Return the first length characters of the hash in
+        hexadecimal form."""
         hasher = hashlib.sha256()
         if start:
             for start_item in start:
                 hasher.update(start_item.encode())
                 hasher.update(b'\x00')
-        while buf := afile.read(blocksize):
-            hasher.update(buf)
+        if hasattr(hashlib, 'file_digest'):
+            hasher = hashlib.file_digest(afile, lambda: hasher)
+        else:
+            while buf := afile.read(blocksize):
+                hasher.update(buf)
         return hasher.hexdigest()[:length]
 
     def _patch_py_contents_str(self, at_start: bool, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> str:
