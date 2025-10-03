@@ -1,3 +1,12 @@
+## 1.11.2 <sub><sup>(_3 October 2025_)</sup></sub>
+- Update GitHub Actions dependencies.
+- Add note to README about licensing implications for vendored DLLs.
+- Add Python 3.14 trove classifier.
+- Improve the MSVC++ redistributable version compatibility check.
+- Modernize the `pyproject.toml` specifications for building the project.
+- Improve file hashing performance when `delvewheel` is run using Python 3.11+. This speeds up DLL name-mangling and writing the `RECORD` metadata file.
+- Create `requirements.txt` and `requirements-dev.txt` to facilitate the development process.
+
 ## 1.11.1 <sub><sup>(_5 August 2025_)</sup></sub>
 - Miscellaneous README improvements.
 - Fix `UnicodeDecodeError` when patching `.py` files containing Unicode characters.
