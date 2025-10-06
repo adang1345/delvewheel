@@ -2,6 +2,7 @@ import argparse
 import glob
 import os
 import re
+import warnings
 from ._wheel_repair import WheelRepair
 from ._version import __version__
 from . import _Config
@@ -71,6 +72,8 @@ def main():
     args = parser.parse_args()
 
     # handle arguments
+    if args.v > 2:
+        warnings.warn(f'Requested verbosity level {args.v} exceeds maximum of 2; using level 2')
     _Config.verbose = args.v
     if args.command in ('show', 'repair'):
         _Config.test = args.test.split(',')
