@@ -35,7 +35,7 @@ def _namespace_pkgs(s: str) -> str:
 def main():
     """Main function"""
     # parse arguments
-    parser = argparse.ArgumentParser(description=f'Delvewheel {__version__}: Create self-contained wheels for Windows')
+    parser = argparse.ArgumentParser(description=f'delvewheel {__version__}: Create self-contained wheels for Windows')
     subparsers = parser.add_subparsers(dest='command', required=True)
     parser_show_description = 'Search a wheel for external DLL dependencies'
     parser_show = subparsers.add_parser('show', help=parser_show_description, description=parser_show_description)

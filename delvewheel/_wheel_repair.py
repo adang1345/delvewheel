@@ -704,7 +704,7 @@ class WheelRepair:
 
         # check whether wheel has already been repaired
         if repair_version := self._get_repair_version():
-            print(f'Delvewheel {repair_version} has already repaired this wheel.')
+            print(f'delvewheel {repair_version} has already repaired this wheel')
             return
 
         # find dependencies
@@ -810,7 +810,7 @@ class WheelRepair:
 
         # check whether wheel has already been repaired
         if repair_version := self._get_repair_version():
-            print(f'Delvewheel {repair_version} has already repaired this wheel.')
+            print(f'delvewheel {repair_version} has already repaired this wheel')
             return
 
         # find dependencies
