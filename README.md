@@ -27,13 +27,15 @@ The environment used to run `delvewheel` does _not_ need to match the target env
 
 ## Usage
 
-`delvewheel show`: show external DLLs that the wheel depends on
+`delvewheel show WHEEL`: show external DLLs that the wheel depends on
 
-`delvewheel repair`: copy external DLL dependencies into the wheel and patch the wheel so that these libraries are loaded at runtime
+`delvewheel repair WHEEL`: copy external DLL dependencies into the wheel and patch the wheel so that these libraries are loaded at runtime
 
-`delvewheel needed`: list the direct DLL dependencies of a single executable
+`delvewheel needed EXECUTABLE`: list the direct DLL dependencies of a single executable
 
 `delvewheel` uses the `PATH` environment variable to search for DLL dependencies. To specify an additional directory to search for DLLs, add the location of the DLL to the `PATH` environment variable or use the `--add-path` option.
+
+`delvewheel show` and `delvewheel repair` support specifying multiple wheels in a single invocation. They also support using the `*` wildcard in the wheel filename.
 
 For a summary of additional command-line options, use the `-h` option (`delvewheel -h`, `delvewheel show -h`, `delvewheel repair -h`, `delvewheel needed -h`).
 
