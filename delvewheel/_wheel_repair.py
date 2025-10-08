@@ -1088,16 +1088,14 @@ class WheelRepair:
                 file.write(f'Arguments: {sys.argv}\n')
 
         # update record file, which tracks wheel contents and their checksums
-        try:
-            # remove JSON web signature
-            os.remove(os.path.join(self._extract_dir, dist_info_foldername, 'RECORD.jws'))
-        except FileNotFoundError:
-            pass
-        try:
-            # remove S/MIME signature
-            os.remove(os.path.join(self._extract_dir, dist_info_foldername, 'RECORD.p7s'))
-        except FileNotFoundError:
-            pass
+        for signature_filename in ('RECORD.jws', 'RECORD.p7s'):
+            # remove JSON web signature or S/MIME signature
+            try:
+                os.remove(os.path.join(self._extract_dir, dist_info_foldername, signature_filename))
+            except FileNotFoundError:
+                pass
+            else:
+                warnings.warn(f'Wheel signature file {signature_filename} removed')
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
         if _Config.verbose >= 1:
             print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
