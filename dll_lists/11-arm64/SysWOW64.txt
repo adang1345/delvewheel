@@ -31,15 +31,11 @@ adsldp.dll
 adsldpc.dll
 adsmsext.dll
 adsnt.dll
-adtschema.dll
 advapi32.dll
-advapi32res.dll
 advpack.dll
-aeevts.dll
 aepic.dll
 agentactivationruntime.dll
 agentactivationruntimewindows.dll
-altspace.dll
 amsi.dll
 amstream.dll
 AnalogCommonProxyStub.dll
@@ -66,7 +62,6 @@ AppXDeploymentClient.dll
 AppxPackaging.dll
 AppxSip.dll
 archiveint.dll
-asferror.dll
 aspnet_counters.dll
 AssignedAccessRuntime.dll
 asycfilt.dll
@@ -80,14 +75,11 @@ AudioSes.dll
 AuditNativeSnapIn.dll
 auditpolcore.dll
 AuditPolicyGPInterop.dll
-auditpolmsg.dll
 AuthBroker.dll
 AuthBrokerUI.dll
 AuthExt.dll
 authfwcfg.dll
 AuthFWGP.dll
-AuthFWSnapin.dll
-AuthFWWizFwk.dll
 authui.dll
 authz.dll
 autoplay.dll
@@ -205,7 +197,6 @@ ComposableShellProxyStub.dll
 CompPkgSup.dll
 compstui.dll
 comrepl.dll
-comres.dll
 comsnap.dll
 comsvcs.dll
 comuid.dll
@@ -221,7 +212,6 @@ ContentDeliveryManager.Utilities.dll
 coreglobconfig.dll
 CoreMas.dll
 CoreMessaging.dll
-CoreMmRes.dll
 CorePrivacySettingsStore.dll
 CoreShellAPI.dll
 CoreUIComponents.dll
@@ -355,7 +345,6 @@ DisplayManager.dll
 dlnashext.dll
 DMAlertListener.ProxyStub.dll
 DmApiSetExtImplDesktop.dll
-DMAppsRes.dll
 dmband.dll
 dmcfgutils.dll
 dmcmnutils.dll
@@ -363,8 +352,6 @@ dmcommandlineutils.dll
 dmcompos.dll
 dmdlgs.dll
 dmdskmgr.dll
-dmdskres.dll
-dmdskres2.dll
 dmenrollengine.dll
 dmime.dll
 dmintf.dll
@@ -489,8 +476,6 @@ EsdSip.dll
 esent.dll
 esentprf.dll
 esevss.dll
-ETWCoreUIComponentsResources.dll
-ETWESEProviderResources.dll
 EtwRundown.dll
 eventcls.dll
 evr.dll
@@ -631,8 +616,6 @@ ifmon.dll
 ifsutil.dll
 ifsutilx.dll
 imagehlp.dll
-imageres.dll
-imagesp1.dll
 imapi.dll
 imapi2.dll
 imapi2fs.dll
@@ -642,7 +625,6 @@ imm32.dll
 IndexedDbLegacy.dll
 inetcomm.dll
 inetmib1.dll
-INETRES.dll
 InkEd.dll
 InkObjCore.dll
 input.dll
@@ -652,7 +634,6 @@ InputSwitch.dll
 inseng.dll
 InstallService.dll
 InstallServiceTasks.dll
-iologmsg.dll
 IPELoggingDictationHelper.dll
 IPHLPAPI.DLL
 IpNatHlpClient.dll
@@ -939,7 +920,6 @@ lz32.dll
 Magnification.dll
 MapConfiguration.dll
 MapControlCore.dll
-MapControlStringsRes.dll
 MapGeocoder.dll
 mapi32.dll
 mapistub.dll
@@ -974,7 +954,6 @@ mfcore.dll
 mfcsubs.dll
 mfds.dll
 mfdvdec.dll
-mferror.dll
 mfh263enc.dll
 mfh264enc.dll
 mfksproxy.dll
@@ -1003,8 +982,6 @@ mibincodec.dll
 Microsoft.Bluetooth.Proxy.dll
 Microsoft.Internal.FrameworkUdk.System.dll
 Microsoft.Management.Infrastructure.Native.Unmanaged.dll
-Microsoft.Windows.Storage.Core.dll
-Microsoft.Windows.Storage.StorageBusCache.dll
 MicrosoftAccountTokenProvider.dll
 MicrosoftAccountWAMExtension.dll
 midimap.dll
@@ -1012,7 +989,6 @@ migisol.dll
 miguiresource.dll
 mimefilt.dll
 mimofcodec.dll
-MinstoreEvents.dll
 MiracastReceiver.dll
 MiracastReceiverExt.dll
 MirrorDrvCompat.dll
@@ -1026,10 +1002,8 @@ mmcshext.dll
 MMDevAPI.dll
 mmgaclient.dll
 mmgaproxystub.dll
-mmres.dll
 mobilenetworking.dll
 modemui.dll
-moricons.dll
 MosHostClient.dll
 MosStorage.dll
 MP3DMOD.DLL
@@ -1051,6 +1025,7 @@ ms3dthumbnailprovider.dll
 msaatext.dll
 MSAC3ENC.DLL
 msacm32.dll
+msacm32.drv
 msafd.dll
 MSAJApi.dll
 MSAlacDecoder.dll
@@ -1061,16 +1036,13 @@ MSAMRNBSink.dll
 MSAMRNBSource.dll
 msasn1.dll
 MSAudDecMFT.dll
-msaudite.dll
 msauserext.dll
 mscandui.dll
 mscat32.dll
 msclmd.dll
 mscms.dll
 mscoree.dll
-mscorier.dll
 mscories.dll
-mscpx32r.dLL
 mscpxl32.dLL
 msctf.dll
 MsCtfMonitor.dll
@@ -1085,7 +1057,6 @@ msdrm.dll
 msdtcprx.dll
 msdtcspoffln.dll
 msdtcuiu.dll
-msdtcVSp1res.dll
 msexch40.dll
 msexcl40.dll
 msfeeds.dll
@@ -1097,17 +1068,14 @@ MSHEIF.dll
 mshtml.dll
 MshtmlDac.dll
 mshtmled.dll
-mshtmler.dll
 msi.dll
 msidcrl40.dll
 msident.dll
 msidle.dll
-msidntld.dll
 msieftp.dll
 msihnd.dll
 msiltcfg.dll
 msimg32.dll
-msimsg.dll
 msimtf.dll
 msisip.dll
 msIso.dll
@@ -1124,10 +1092,8 @@ msltus40.dll
 msmpeg2adec.dll
 MSMPEG2ENC.DLL
 msmpeg2vdec.dll
-msobjs.dll
 msoert2.dll
 MSOpusDecoder.dll
-msorc32r.dll
 msorcl32.dll
 mspatcha.dll
 mspatchc.dll
@@ -1163,7 +1129,6 @@ msvcp120_clr0400.dll
 msvcp140_clr0400.dll
 msvcp60.dll
 msvcp_win.dll
-msvcr100_clr0400.dll
 msvcr120_clr0400.dll
 msvcrt.dll
 msvcrt20.dll
@@ -1183,9 +1148,7 @@ mswsock.dll
 mswstr10.dll
 msxbde40.dll
 msxml3.dll
-msxml3r.dll
 msxml6.dll
-msxml6r.dll
 msyuv.dll
 MTF.dll
 mtxclu.dll
@@ -1220,14 +1183,11 @@ netcfgx.dll
 netcorehc.dll
 netdiagfx.dll
 NetDriverInstall.dll
-netevent.dll
 netfxperf.dll
-neth.dll
 netid.dll
 netiohlp.dll
 netjoin.dll
 netlogon.dll
-netmsg.dll
 netplwiz.dll
 netprofm.dll
 netprovfw.dll
@@ -1255,7 +1215,6 @@ nlhtml.dll
 nlmgp.dll
 nlmproxy.dll
 nlmsprep.dll
-nlsbres.dll
 NlsData0000.dll
 NlsData0009.dll
 NmaDirect.dll
@@ -1286,7 +1245,6 @@ odbcconf.dll
 odbccp32.dll
 odbccr32.dll
 odbccu32.dll
-odbcint.dll
 odbcji32.dll
 odbcjt32.dll
 odbctrac.dll
@@ -1303,7 +1261,6 @@ offreg.dll
 ole32.dll
 oleacc.dll
 oleacchooks.dll
-oleaccrc.dll
 oleaut32.dll
 olecli32.dll
 oledlg.dll
@@ -1356,13 +1313,11 @@ PhoneCallHistoryApis.dll
 PhoneOm.dll
 PhonePlatformAbstraction.dll
 Phoneutil.dll
-PhoneutilRes.dll
 PhotoMetadataHandler.dll
 photowiz.dll
 PickerPlatform.dll
 pid.dll
 pidgenx.dll
-pifmgr.dll
 PimIndexMaintenanceClient.dll
 Pimstore.dll
 pku2u.dll
@@ -1389,7 +1344,6 @@ pots.dll
 powercpl.dll
 powrprof.dll
 PresentationHostProxy.dll
-prflbmsg.dll
 Print.PrintSupport.Source.dll
 Print.Workflow.Source.dll
 PrintPlatformConfig.dll
@@ -1426,7 +1380,6 @@ qcap.dll
 qdv.dll
 qdvd.dll
 qedit.dll
-qedwipes.dll
 quartz.dll
 Query.dll
 qwave.dll
@@ -1471,7 +1424,6 @@ ResourcePolicyClient.dll
 resutils.dll
 rgb9rast.dll
 riched20.dll
-riched32.dll
 rmclient.dll
 rnr20.dll
 rometadata.dll
@@ -1497,7 +1449,6 @@ samlib.dll
 sas.dll
 sbe.dll
 sbeio.dll
-sberes.dll
 scansetting.dll
 SCardDlg.dll
 scecli.dll
@@ -1527,7 +1478,6 @@ SEMgrPS.dll
 sendmail.dll
 SensApi.dll
 SensorsApi.dll
-SensorsCpl.dll
 SensorsNativeApi.dll
 SensorsNativeApi.V2.dll
 SensorsUtilsV2.dll
@@ -1548,7 +1498,6 @@ SHCore.dll
 shdocvw.dll
 shell32.dll
 ShellCommonCommonProxyStub.dll
-shellstyle.dll
 shfolder.dll
 shgina.dll
 shimeng.dll
@@ -1604,7 +1553,6 @@ srchadmin.dll
 srclient.dll
 srm.dll
 srmclient.dll
-srmlib.dll
 srmscan.dll
 srmshell.dll
 srmstormod.dll
@@ -1644,7 +1592,6 @@ SyncInfrastructure.dll
 SyncInfrastructureps.dll
 SyncProxy.dll
 Syncreg.dll
-SyncRes.dll
 SyncSettings.dll
 syncutil.dll
 syssetup.dll
@@ -1653,14 +1600,12 @@ SystemEventsBrokerClient.dll
 SystemSettings.DataModel.dll
 SystemSupportInfo.dll
 t2embed.dll
-tapi.dll
 tapi3.dll
 tapi32.dll
 TapiMigPlugin.dll
 tapiperf.dll
 tapisrv.dll
 TapiSysprep.dll
-tapiui.dll
 TaskApis.dll
 taskcomp.dll
 taskschd.dll
@@ -1688,7 +1633,6 @@ tlscsp.dll
 tokenbinding.dll
 TokenBroker.dll
 TokenBrokerUI.dll
-TpmCertResources.dll
 tpmcompc.dll
 TpmCoreProvisioning.dll
 tquery.dll
@@ -1711,7 +1655,6 @@ twinui.dll
 txflog.dll
 txfw32.dll
 tzautoupdate.dll
-tzres.dll
 ucmhc.dll
 ucrtbase.dll
 ucrtbase_clr0400.dll
@@ -1747,7 +1690,6 @@ user32.dll
 UserAccountControlSettings.dll
 useractivitybroker.dll
 usercpl.dll
-UserDataAccessRes.dll
 UserDataAccountApis.dll
 UserDataLanguageUtil.dll
 UserDataPlatformHelperUtil.dll
@@ -1768,7 +1710,6 @@ utildll.dll
 uudf.dll
 UXInit.dll
 uxlib.dll
-uxlibres.dll
 uxtheme.dll
 VAN.dll
 Vault.dll
@@ -1803,6 +1744,7 @@ wcnwiz.dll
 wdc.dll
 wdi.dll
 wdigest.dll
+wdmaud.drv
 wdscore.dll
 webauthn.dll
 WebcamUi.dll
@@ -2022,12 +1964,10 @@ winmm.dll
 winmmbase.dll
 winmsipc.dll
 WinMsoIrmProtector.dll
-winnlsres.dll
 winnsi.dll
 WinOpcIrmProtector.dll
 winrnr.dll
 winrscmd.dll
-winrsmgr.dll
 winrssrv.dll
 WinRtTracing.dll
 WinSATAPI.dll
@@ -2035,6 +1975,7 @@ WinSCard.dll
 winshfhc.dll
 winsku.dll
 winsockhc.dll
+winspool.drv
 winsqlite3.dll
 WINSRPC.DLL
 winsta.dll
@@ -2066,7 +2007,6 @@ wlidcredprov.dll
 wlidfdp.dll
 wlidnsp.dll
 wlidprov.dll
-wlidres.dll
 WMADMOD.DLL
 WMADMOE.DLL
 WMASF.DLL
@@ -2074,7 +2014,6 @@ wmcodecdspps.dll
 wmdmlog.dll
 wmdmps.dll
 wmdrmsdk.dll
-wmerror.dll
 wmi.dll
 wmiclnt.dll
 wmidcom.dll
@@ -2086,7 +2025,6 @@ wmp.dll
 wmpdxm.dll
 wmpeffects.dll
 WMPhoto.dll
-wmploc.DLL
 wmpps.dll
 wmpshell.dll
 wmsgapi.dll
@@ -2101,7 +2039,6 @@ WMVSENCD.DLL
 WMVXENCD.DLL
 WofUtil.dll
 WordBreakers.dll
-WorkFoldersRes.dll
 wpbcreds.dll
 Wpc.dll
 WpcWebFilter.dll
@@ -2136,7 +2073,6 @@ WsmAgent.dll
 WSManMigrationPlugin.dll
 WsmAuto.dll
 wsmplpxy.dll
-WsmRes.dll
 WsmSvc.dll
 WsmWmiPl.dll
 wsnmp32.dll
@@ -2185,6 +2121,3 @@ xwtpw32.dll
 zipcontainer.dll
 zipfldr.dll
 ztrace_maps.dll
-msacm32.drv
-wdmaud.drv
-winspool.drv
