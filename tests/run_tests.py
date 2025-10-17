@@ -405,6 +405,12 @@ class RepairTestCase(TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll', '--exclude', 'Kernel32.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
 
+    def test_include_exclude_overlap_wildcard(self):
+        """overlap between --include and --exclude for a wildcard pattern
+        generates an error"""
+        with self.assertRaises(subprocess.CalledProcessError):
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll', '--exclude', 'kernel*', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+
     def test_exclude_irrelevant(self):
         """--exclude for DLL that's not included anyway"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'nonexistent.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
@@ -449,6 +455,11 @@ class RepairTestCase(TestCase):
                 check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'iknowpy'])
             except subprocess.CalledProcessError:
                 pass
+
+    def test_exclude_wildcard(self):
+        """--exclude with * wildcard"""
+        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iknow*;*vcp*.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
+        self.assertIn('no external dependencies are needed', output)
 
     def test_exclude_all(self):
         """--exclude that removes all DLLs"""

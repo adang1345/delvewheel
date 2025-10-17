@@ -1,4 +1,5 @@
 import argparse
+import fnmatch
 import glob
 import os
 import re
@@ -25,6 +26,14 @@ def _dll_names(s: str) -> str:
     return s
 
 
+def _dll_patterns(s: str) -> str:
+    """Helper for argument parser for validating a list of DLL patterns"""
+    for dll_pattern in filter(None, map(str.strip, s.split(os.pathsep))):
+        if any(c in r'<>:"/\|?' or ord(c) < 32 for c in dll_pattern):
+            raise argparse.ArgumentTypeError(f'Invalid DLL {"pattern" if "*" in dll_pattern else "name"} {dll_pattern!r}')
+    return s
+
+
 def _namespace_pkgs(s: str) -> str:
     for namespace_pkg in filter(None, s.split(os.pathsep)):
         if any(c in r'<>:"/\|?*' or ord(c) < 32 for c in namespace_pkg) or not re.fullmatch(r'[^.]+(\.[^.]+)*', namespace_pkg):
@@ -47,7 +56,7 @@ def main():
         subparser.add_argument('wheel', nargs='+', help='wheel(s) to show or repair')
         subparser.add_argument('--add-path', action='append', default=[], metavar='PATHS', help=f'additional path(s) to search for DLLs, {os.pathsep!r}-delimited')
         subparser.add_argument('--include', '--add-dll', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'force inclusion of DLL name(s), {os.pathsep!r}-delimited')
-        subparser.add_argument('--exclude', '--no-dll', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
+        subparser.add_argument('--exclude', '--no-dll', action='append', default=[], metavar='DLLS', type=_dll_patterns, help=f'force exclusion of DLL name(s), {os.pathsep!r}-delimited')
         subparser.add_argument('--ignore-existing', '--ignore-in-wheel', action='store_true', help="don't search for or vendor in DLLs that are already in the wheel")
         subparser.add_argument('--analyze-existing', action='store_true', help='analyze and vendor in dependencies of DLLs that are already in the wheel')
         subparser.add_argument('--analyze-existing-exes', action='store_true', help='analyze and vendor in dependencies of EXEs that are in the wheel')
@@ -83,6 +92,11 @@ def main():
 
         if intersection := include & exclude:
             raise ValueError(f'Cannot force both inclusion and exclusion of {intersection}')
+        for exclude_item in exclude:
+            if '*' in exclude_item:
+                for include_item in include:
+                    if fnmatch.fnmatch(include_item, exclude_item):
+                        raise ValueError(f'Cannot force inclusion of {include_item} if {exclude_item} is excluded')
 
         if add_paths:
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'

@@ -152,8 +152,8 @@ class WheelRepair:
     _data_dir: str  # extracted path to .data directory, is set even if directory does not exist
     _purelib_dir: str  # extracted path to .data/purelib directory, is set even if directory does not exist
     _platlib_dir: str  # extracted path to .data/platlib directory, is set even if directory does not exist
-    _include: set[str]  # additional DLLs to include
-    _exclude: set[str]  # DLLs to exclude
+    _include: set[str]  # additional DLLs to include, lowercase
+    _exclude: set[str]  # DLLs to exclude, lowercase (allows * wildcard)
     _wheel_dirs: typing.Optional[list[str]]  # extracted directories from inside wheel
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
     _analyze_existing: bool  # whether to analyze and vendor in dependencies of DLLs that are already in the wheel
@@ -177,7 +177,7 @@ class WheelRepair:
             directory is created.
         include: Set of lowercase DLL names to force inclusion into the wheel
         exclude: Set of lowercase DLL names to force exclusion from wheel
-            (cannot overlap with include)
+            (cannot overlap with include, allows * wildcard)
         ignore_existing: whether to ignore DLLs that are already in the wheel
         analyze_existing: whether to analyze and vendor in dependencies of DLLs
             that are already in the wheel

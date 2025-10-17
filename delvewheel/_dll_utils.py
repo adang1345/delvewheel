@@ -4,6 +4,7 @@ import collections.abc
 import ctypes
 import ctypes.wintypes
 import errno
+import fnmatch
 import io
 import itertools
 import os
@@ -16,8 +17,7 @@ import textwrap
 import typing
 import warnings
 import pefile
-from . import _Config
-from . import _dll_list
+from . import _Config, _dll_list
 from ._dll_list import MachineType
 
 
@@ -324,13 +324,27 @@ def get_direct_needed(lib_path: str) -> set[str]:
     return needed
 
 
+def _wildcard_contains(item: str, patterns: set[str]) -> bool:
+    """Determine whether item is in patterns. An element of patterns can be a
+    normal string, or it can contain the * wildcard for matching any number of
+    characters."""
+    for pattern in patterns:
+        if '*' in pattern:
+            if fnmatch.fnmatch(item, pattern):
+                return True
+        else:
+            if item == pattern:
+                return True
+    return False
+
+
 def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -> list[str]:
     """Given the path to a shared library, return a deterministically-ordered
     list containing the lowercase DLL names of all direct dependencies that
     belong in the wheel and should be name-mangled.
 
     exclude is a set of lowercase additional DLL names that do not belong in
-    the wheel.
+    the wheel. The `*` wildcard is supported.
 
     no_mangles is a set of lowercase additional DLL names not to mangle."""
     with PEContext(lib_path, None, True) as pe:
@@ -346,7 +360,7 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -
         for entry in imports:
             dll_name = entry.dll.decode().lower()
             if dll_name not in ignore_names and \
-                    dll_name not in exclude and \
+                    not _wildcard_contains(dll_name, exclude) and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                     dll_name not in no_mangles and \
                     (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]) and \
@@ -395,8 +409,8 @@ def get_all_needed(lib_path: str,
       library cannot be found. If on_error is 'ignore', not_found contains the
       lowercased DLL names of all dependent DLLs that cannot be found.
 
-    exclude is a set of DLL names to force exclusion from the wheel. We do not
-    search for dependencies of these DLLs.
+    exclude is a set of DLL names to force exclusion from the wheel. The `*`
+    wildcard is supported. We do not search for dependencies of these DLLs.
 
     If wheel_dirs is not None, it is an iterable of directories in the wheel
     where dependencies are searched first.
@@ -427,7 +441,7 @@ def get_all_needed(lib_path: str,
                     dll_name = entry.dll.decode().lower()
                     if dll_name not in ignore_names and \
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
-                            dll_name not in exclude and \
+                            not _wildcard_contains(dll_name, exclude) and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
                         if dll_info := find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports):
                             stack.append(dll_info[0])
