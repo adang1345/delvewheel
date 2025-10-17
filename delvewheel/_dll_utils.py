@@ -324,7 +324,7 @@ def get_direct_needed(lib_path: str) -> set[str]:
     return needed
 
 
-def _wildcard_contains(item: str, patterns: set[str]) -> bool:
+def wildcard_contains(item: str, patterns: set[str]) -> bool:
     """Determine whether item is in patterns. An element of patterns can be a
     normal string, or it can contain the * wildcard for matching any number of
     characters."""
@@ -346,7 +346,8 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -
     exclude is a set of lowercase additional DLL names that do not belong in
     the wheel. The `*` wildcard is supported.
 
-    no_mangles is a set of lowercase additional DLL names not to mangle."""
+    no_mangles is a set of lowercase additional DLL names not to mangle. The
+    `*` wildcard is supported."""
     with PEContext(lib_path, None, True) as pe:
         imports = []
         for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
@@ -360,9 +361,9 @@ def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -
         for entry in imports:
             dll_name = entry.dll.decode().lower()
             if dll_name not in ignore_names and \
-                    not _wildcard_contains(dll_name, exclude) and \
+                    not wildcard_contains(dll_name, exclude) and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
-                    dll_name not in no_mangles and \
+                    not wildcard_contains(dll_name, no_mangles) and \
                     (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]) and \
                     not any(r.fullmatch(dll_name) for r in _dll_list.no_mangle_regexes):
                 needed.append(dll_name)
@@ -441,7 +442,7 @@ def get_all_needed(lib_path: str,
                     dll_name = entry.dll.decode().lower()
                     if dll_name not in ignore_names and \
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
-                            not _wildcard_contains(dll_name, exclude) and \
+                            not wildcard_contains(dll_name, exclude) and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
                         if dll_info := find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports):
                             stack.append(dll_info[0])

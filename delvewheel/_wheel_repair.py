@@ -789,7 +789,8 @@ class WheelRepair:
         """Repair the wheel in a manner similar to auditwheel.
 
         target is the target directory for storing the repaired wheel
-        no_mangles is a set of lowercase DLL names that will not be mangled
+        no_mangles is a set of lowercase DLL names that will not be mangled,
+            where the * wildcard is supported
         no_mangle_all is True if no DLL name mangling should happen at all
         with_mangle is True if the direct dependencies of the DLLs that are
             already in the wheel should be name-mangled. Requires
@@ -936,7 +937,7 @@ class WheelRepair:
                 lib_name = os.path.basename(dependency_path)
                 lib_name_lower = lib_name.lower()
                 if not any(r.fullmatch(lib_name_lower) for r in _dll_list.no_mangle_regexes) and \
-                        lib_name_lower not in no_mangles:
+                        not _dll_utils.wildcard_contains(lib_name_lower, no_mangles):
                     lib_name_casemap[lib_name_lower] = lib_name
                     name_mangle_graph[lib_name_lower] = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles)
             lib_name_lower_hashmap = {}  # map from lowercase DLL name to the hash that will be appended to the name

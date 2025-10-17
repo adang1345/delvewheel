@@ -67,7 +67,7 @@ The path separator to use in the following options is `';'` on Windows and `':'`
   - `-vv`: level 2, include warnings from `pefile`
 - `--extract-dir DIR`: directory to store extracted contents of wheel for debug use (default is a temp directory)
 - `-w TARGET`,`--wheel-dir TARGET`: directory to write the repaired wheel (default is `wheelhouse` relative to current working directory)
-- `--no-mangle DLLS`: name(s) of DLL(s) not to mangle, path-separator-delimited
+- `--no-mangle DLLS`: name(s) of DLL(s) not to mangle, path-separator-delimited. The `*` wildcard is supported.
 - `--no-mangle-all`: don't mangle any DLL names
 - `--with-mangle`: see `--ignore-existing`
 - `--strip`: strip DLLs that contain an overlay when name-mangling. The GNU `strip` utility must be present in `PATH`.

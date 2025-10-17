@@ -266,6 +266,19 @@ class RepairTestCase(TestCase):
                     self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         self.assertTrue(import_iknowpy_successful())
 
+    def test_no_mangle_wildcard(self):
+        """--no-mangle with * wildcard"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnow*', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.startswith('iKnow'):
+                    self.assertFalse(is_mangled(path.name), f'{path.name} is not mangled')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        self.assertTrue(import_iknowpy_successful())
+
     def test_no_mangle_all(self):
         """--no-mangle for all DLLs"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])

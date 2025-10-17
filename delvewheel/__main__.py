@@ -64,7 +64,7 @@ def main():
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
         subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
-    parser_repair.add_argument('--no-mangle', action='append', default=[], metavar='DLLS', type=_dll_names, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
+    parser_repair.add_argument('--no-mangle', action='append', default=[], metavar='DLLS', type=_dll_patterns, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     group = parser_repair.add_mutually_exclusive_group()
     group.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     group.add_argument('--with-mangle', action='store_true', help='mangle the direct dependencies of DLLs that are already in the wheel (with --ignore-existing)')
