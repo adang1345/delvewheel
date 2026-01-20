@@ -1,3 +1,11 @@
+## 1.12.0 <sub><sup>(_20 January 2026_)</sup></sub>
+- Warn if requested verbosity level exceeds the maximum supported level.
+- Warn if wheel signature is removed.
+- Remove DLLs with no exports from the list of Windows system DLLs.
+- Make `delvewheel` lowercase in output.
+- Support `*` wildcard with `--no-mangle` and `--exclude`.
+- Update GitHub Actions.
+
 ## 1.11.2 <sub><sup>(_3 October 2025_)</sup></sub>
 - Update GitHub Actions dependencies.
 - Add note to README about licensing implications for vendored DLLs.
