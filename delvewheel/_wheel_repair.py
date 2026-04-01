@@ -223,7 +223,7 @@ class WheelRepair:
 
         # Modify self._exclude to include those that are already part of every
         # Python distribution the wheel targets.
-        abi_tags = whl_name_split[-2].split('.')
+        abi_tags = set(whl_name_split[-2].split('.'))
         platform_tag = whl_name_split[-1]
         if '.' in platform_tag:
             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
@@ -240,7 +240,7 @@ class WheelRepair:
         self._exclude |= ignore_by_abi_platform
 
         python_tags = whl_name_split[-3].split('.')
-        if abi_tags == ['abi3']:
+        if abi_tags <= {'abi3', 'abi3t'}:
             ignore_abi3 = set().union(*_dll_list.ignore_abi3.values())
             for python_tag in python_tags:
                 python_platform = f'{python_tag}-{platform_tag}'

@@ -65,7 +65,7 @@ ignore_by_abi_platform = {
 }
 
 # DLLs to ignore based on Python tag and platform tag for a wheel that uses the
-# stable ABI with ABI tag 'abi3'.
+# stable ABI with ABI tag 'abi3', 'abi3t', or a combination of the two.
 ignore_abi3 = {
     # current and future Python versions through 3.99
     'cp3(9|[1-9][0-9])-win_a(md|rm)64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
