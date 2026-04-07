@@ -73,6 +73,7 @@ ignore_abi3 = {
 
     # older versions of Python
     'cp3[5-8]-win(32|_amd64)': {'vcruntime140.dll'},
+    'cp3[3-4]m-win(32|_amd64)': {'msvcr100.dll'},
 }
 
 # Dependency relationships to ignore.
