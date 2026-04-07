@@ -120,14 +120,40 @@ So far, we have described the simplest possible example where there exists one P
 
 ## Limitations
 
-- `delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using [`ctypes`](https://docs.python.org/3/library/ctypes.html)/[`cffi`](https://cffi.readthedocs.io/en/stable/) (from Python), [`LoadLibrary`](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya) (from C/C++/Rust), or [`libloading`](https://docs.rs/libloading/latest/libloading/) (from Rust) will be missed. Support for runtime-loaded DLLs is limited; however, the following options are available.
+### Runtime-Loaded DLLs
+
+`delvewheel` reads DLL file headers to determine which libraries a wheel depends on. DLLs that are loaded at runtime using [`ctypes`](https://docs.python.org/3/library/ctypes.html)/[`cffi`](https://cffi.readthedocs.io/en/stable/) (from Python), [`LoadLibrary`](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya) (from C/C++/Rust), or [`libloading`](https://docs.rs/libloading/latest/libloading/) (from Rust) will be missed. Support for runtime-loaded DLLs is limited, and the following options are available.
   - Specify additional DLLs to vendor into the wheel using the `--include` option.
   - Include the runtime-loaded DLL into the wheel yourself, and use the `--analyze-existing` option.
 
   If you use any of these options, it is your responsibility to ensure that the runtime-loaded DLLs are found at load time.
-- Wheels created using `delvewheel` are not guaranteed to work on systems older than Windows 7 SP1 because we avoid vendoring system libraries that are provided by Windows 7 SP1 or later. If you intend to create a wheel for an older Windows system that requires an extra DLL, use the `--include` flag to vendor additional DLLs into the wheel.
-- Due to a limitation in how name-mangling is performed, `delvewheel` is unable to name-mangle DLLs whose dependents contain insufficient internal padding to fit the mangled names and contain an overlay at the end of the binary. An exception will be raised if such a DLL is encountered. Commonly, the overlay consists of symbols that can be safely removed using the GNU `strip` utility, although there exist situations where the data must be present for the DLL to function properly. To remove the overlay, execute `strip -s EXAMPLE.dll` or use the `--strip` flag. To keep the overlay and skip name mangling, use the `--no-mangle` or `--no-mangle-all` flag.
-- Any DLL containing an Authenticode signature will have its signature cleared if its dependencies are name-mangled or if it was built with a non-`0` value for the [`/DEPENDENTLOADFLAG`](https://learn.microsoft.com/en-us/cpp/build/reference/dependentloadflag?view=msvc-170) linker flag.
-- `delvewheel` cannot repair a wheel that includes multiple extension modules targeting different CPU architectures. For example, a wheel containing one extension module targeting `win32` and another targeting `win_amd64` is not allowed. You should create a separate wheel for each CPU architecture and repair each individually.
-- If your project has a [delay-load DLL dependency](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls), you must use a custom delay-load import hook when building the DLL that has the delay-load dependency. This ensures that the directory containing the vendored DLLs is included in the DLL search path when delay-loading. For convenience, we provide a suitable hook for Microsoft Visual C/C++ at [delayload/delayhook.c](delayload/delayhook.c). Add the file to your C/C++ project when building your DLL.
-- An `__init__.py` file in a top-level package or a `.py` file at the root of a namespace package must be parsable by the version of Python that runs `delvewheel`. For instance, you cannot run `delvewheel` using Python 3.9 to repair a wheel containing a top-level package with an `__init__.py` file that uses syntax features introduced in Python 3.10. Aside from this rule, there are no other requirements regarding the relationship between the version of Python that runs `delvewheel` and the version(s) of Python that the wheel supports.
+
+### Windows Version Compatibility
+
+Wheels may not work on systems older than Windows 7 SP1 because `delvewheel` excludes system libraries present in Windows 7 SP1+. To create a wheel for an older Windows system that requires an extra system DLL, use the `--include` flag.
+
+### Name-Mangling with Overlays
+
+`delvewheel` is unable to name-mangle a DLL when both of these conditions hold for a dependent of this DLL.
+1. The dependent contains an overlay (extra data at the end of the binary).
+1. The dependent contains insufficient internal padding to fit the mangled names.
+
+If this occurs, an exception will be raised with instructions. You have two options.
+1. **Remove the overlay** (recommended): The overlay often consists of debug symbols that can be safely stripped via the GNU `strip` utility. To remove the overlay, execute `strip -s EXAMPLE.dll` or use the `--strip` flag with `delvewheel repair`.
+1. **Skip mangling**: To keep the overlay and skip name mangling, use the `--no-mangle` or `--no-mangle-all` flag. This may be necessary if the overlay must be present for the DLL to function or if `strip` is unable to remove it.
+
+### Digital Signatures
+
+Any DLL containing an [Authenticode](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/authenticode) signature will have its signature cleared if its dependencies are name-mangled or if it was built with a non-`0` value for the [`/DEPENDENTLOADFLAG`](https://learn.microsoft.com/en-us/cpp/build/reference/dependentloadflag?view=msvc-170) linker flag.
+
+### Multiple Architectures
+
+`delvewheel` cannot repair a wheel that includes multiple extension modules targeting different CPU architectures. For example, a wheel containing one extension module targeting `win32` and another targeting `win_amd64` is not allowed. You should create a separate wheel for each CPU architecture and repair each individually.
+
+### Delay-Load DLLs
+
+If your project has a [delay-load DLL dependency](https://learn.microsoft.com/en-us/cpp/build/reference/linker-support-for-delay-loaded-dlls), you may need to use a custom delay-load import hook when building the DLL that has the delay-load dependency. This ensures that the directory containing the vendored DLLs is included in the DLL search path when delay-loading. For convenience, we provide a suitable hook for Microsoft Visual C/C++ at [delayload/delayhook.c](delayload/delayhook.c). Add the file to your C/C++ project when building your DLL.
+
+### Python Version Compatibility
+
+An `__init__.py` file in a top-level package or a `.py` file at the root of a namespace package must be parsable by the version of Python that runs `delvewheel`. For instance, you cannot run `delvewheel` using Python 3.9 to repair a wheel containing a top-level package with an `__init__.py` file that uses syntax features introduced in Python 3.10. Aside from this rule, there are no other requirements regarding the relationship between the version of Python that runs `delvewheel` and the version(s) of Python that the wheel supports.
