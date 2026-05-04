@@ -13,6 +13,8 @@ wheelhouse/
 /tests/simpleext/build/simpledll/simpledll
 /tests/simpleext/build/simpleexe/x64
 /tests/simpleext/build/simpleexe/simpleexe
+/tests/simpleext/build/combase_dependent/combase_.*
+/tests/simpleext/build/combase_dependent/x64
 /tests/simpleext/build/build
 /tests/simpleext/build/simpleext.egg-info
 /tests/simpleext/build/dist

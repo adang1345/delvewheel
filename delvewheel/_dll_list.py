@@ -41,6 +41,7 @@ ignore_regexes = {
     re.compile(r'python[0-9]+t?(_d)?\.dll'),  # included in CPython distribution
     re.compile(r'libpypy([0-9]+\.)*[0-9]+-c\.dll'),  # included in PyPy distribution
     re.compile('api-.*'),  # let Windows handle API sets
+    re.compile(r'combase\.dll')  # present on Windows 8+ and does not function on Windows 7, so no sense in vendoring
 }
 
 # DLLs to ignore based on ABI tag and platform tag. For CPython, these are

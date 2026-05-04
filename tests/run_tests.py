@@ -1386,6 +1386,12 @@ class RepairTestCase(TestCase):
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl') as wheel:
             self.assertFalse(any(path.name.startswith('msvcp140') for path in zipfile.Path(wheel, 'simpleext.libs/').iterdir()))
 
+    def test_combase(self):
+        """combase.dll is excluded"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0combase-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0combase-cp312-cp312-win_amd64.whl') as wheel:
+            self.assertFalse(any(path.name.startswith('combase') for path in zipfile.Path(wheel, 'simpleext.libs/').iterdir()))
+
     def test_toolset_too_old(self):
         """Warning is raised when msvcp140.dll is too old"""
         p = subprocess.run(['delvewheel', 'repair', '--add-path', 'simpleext/x64/old;simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'], capture_output=True, text=True, check=True)
