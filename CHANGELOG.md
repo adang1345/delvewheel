@@ -1,3 +1,11 @@
+## 1.12.1 <sub><sup>(_6 May 2026_)</sup></sub>
+- Support the `abi3t` tag defined in [PEP 803](https://peps.python.org/pep-0803/).
+- Improve the Limitations section of the README.
+- Improve support for `abi3` wheels targeting the very old Python 3.3 and 3.4.
+- Add `combase.dll` to DLL exclusion list.
+- Update GitHub Actions.
+- Exclude DLLs needed for GraalPy runtime when repairing GraalPy wheels.
+
 ## 1.12.0 <sub><sup>(_20 January 2026_)</sup></sub>
 - Warn if requested verbosity level exceeds the maximum supported level.
 - Warn if wheel signature is removed.
