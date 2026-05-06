@@ -1397,6 +1397,14 @@ class RepairTestCase(TestCase):
         p = subprocess.run(['delvewheel', 'repair', '--add-path', 'simpleext/x64/old;simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'], capture_output=True, text=True, check=True)
         self.assertIn('was built with a newer platform toolset', p.stderr)
 
+    def test_graalpy(self):
+        """GraalPy wheel can be repaired"""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-graalpy312-graalpy250_312_native-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-graalpy312-graalpy250_312_native-win_amd64.whl') as wheel:
+            vendored = list(zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir())
+            self.assertEqual(len(vendored), 1)
+            self.assertTrue(vendored[0].name.startswith('simpledll'))
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""

@@ -40,13 +40,14 @@ class MachineType(enum.Enum):
 ignore_regexes = {
     re.compile(r'python[0-9]+t?(_d)?\.dll'),  # included in CPython distribution
     re.compile(r'libpypy([0-9]+\.)*[0-9]+-c\.dll'),  # included in PyPy distribution
+    re.compile(r'python-native\.dll'),  # included in GraalPy distribution
     re.compile('api-.*'),  # let Windows handle API sets
     re.compile(r'combase\.dll')  # present on Windows 8+ and does not function on Windows 7, so no sense in vendoring
 }
 
 # DLLs to ignore based on ABI tag and platform tag. For CPython, these are
-# included in their respective Python distributions. For PyPy, these are
-# prerequisites for PyPy to run in the first place.
+# included in their respective Python distributions. For PyPy and GraalPy,
+# these are prerequisites for the interpreter to run in the first place.
 #
 # For efficiency, the dict is sorted approximately from most commonly used to
 # least commonly used. The regexes are not compiled here because each is used
@@ -57,6 +58,7 @@ ignore_by_abi_platform = {
     'cp3(9|1[0-2]|(1[3-9]|[2-9][0-9])t?)-win32': {'vcruntime140.dll'},
     'cp3((9|1[0-2])d|(1[3-9]|[2-9][0-9])t?d)-win(32|_a(md|rm)64)': {'vcruntime140d.dll', 'ucrtbased.dll'},
     'pypy3([7-9]|1[0-9]|[2-9][0-9])_pp73-win_amd64': {'vcruntime140.dll'},
+    r'graalpy\d+_3[1-9][0-9]_native-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 
     # older versions of Python
     'cp3([5-7]m|8)-win(32|_amd64)|pypy3[6-7]_pp73-win32|pypy_73-win(32|_amd64)': {'vcruntime140.dll'},

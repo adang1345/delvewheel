@@ -21,3 +21,4 @@ wheelhouse/
 /dll_lists/ignore_names_*
 /sandbox.py
 /venv
+/.venv*

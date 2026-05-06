@@ -1,3 +1,4 @@
+import struct
 import sys
 from setuptools import setup, Extension
 
@@ -7,7 +8,7 @@ dependent_load_flags = '0'  # change to set a different /DEPENDENTLOADFLAG linke
 checksum = False  # change to True to set the PE checksum
 free_threaded = False  # change to True to support free-threading
 
-if sys.maxsize > 2**32:
+if struct.calcsize('P') == 8:
     library_dirs = ['simpledll/x64/Release']
 else:
     library_dirs = ['simpledll/Release']
