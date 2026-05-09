@@ -1405,6 +1405,20 @@ class RepairTestCase(TestCase):
             self.assertEqual(len(vendored), 1)
             self.assertTrue(vendored[0].name.startswith('simpledll'))
 
+    def test_nonexistent_path(self):
+        """no error when --add-path has nonexistent directory"""
+        check_call(['delvewheel', 'repair', '--add-path', 'nonexistent_directory;simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+
+    def test_nonpermitted_path(self):
+        """no error when --add-path has directory for which user does not have permissions to access"""
+        nonpermitted_path = r'C:\System Volume Information'
+        try:
+            os.listdir(nonpermitted_path)
+        except PermissionError:
+            check_call(['delvewheel', 'repair', '--add-path', f'{nonpermitted_path};simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        else:
+            self.skipTest(f'User has permission to access {nonpermitted_path}')
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""

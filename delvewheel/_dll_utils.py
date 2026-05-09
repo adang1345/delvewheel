@@ -244,7 +244,7 @@ _translate_directory = _translate_directory()
 
 def find_library(
         name: str,
-        wheel_dirs: typing.Optional[collections.abc.Iterable],
+        wheel_dirs: typing.Optional[collections.abc.Iterable[str]],
         arch: MachineType,
         include_symbols: bool,
         include_imports: bool) -> typing.Optional[tuple[str, list[str]]]:
@@ -271,17 +271,14 @@ def find_library(
     name = name.lower()
     if wheel_dirs is not None:
         for wheel_dir in wheel_dirs:
-            try:
-                contents = os.listdir(wheel_dir)
-            except FileNotFoundError:
-                continue
-            for item in contents:
+            for item in os.listdir(wheel_dir):
                 if name == item.lower() and os.path.isfile(path := os.path.join(wheel_dir, item)) and get_arch(path) == arch:
                     return path, []
     for directory in os.environ['PATH'].split(os.pathsep):
+        directory = _translate_directory(directory, arch)
         try:
-            contents = os.listdir(directory := _translate_directory(directory, arch))
-        except FileNotFoundError:
+            contents = os.listdir(directory)
+        except (FileNotFoundError, PermissionError):
             continue
         dll_path = None
         for item in contents:
