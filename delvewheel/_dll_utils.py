@@ -551,18 +551,20 @@ def _get_pe_size_and_enough_padding(pe: pefile.PE, new_dlls: collections.abc.Ite
     return pe_size, dlls_i == len(new_dlls)
 
 
-def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str], strip: bool) -> None:
+def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str], strip: bool, direct: bool) -> None:
     """For the DLL at lib_path, replace its declared dependencies on old_deps
     with those in name_map. Also, if the DLL has a non-0 value for
     DependentLoadFlags, then set the value to 0
 
-    old_deps: a subset of the dependencies that lib_path has, in list form. Can
-        be empty, in which case the only thing we do is clear the
-        DependentLoadFlags value if it's non-0.
+    old_deps: a case-insensitive subset of the dependencies that lib_path has,
+        in list form. Can be empty, in which case the only thing we do is clear
+        the DependentLoadFlags value if it's non-0.
     name_map: a dict that maps an old dependency name to a new name, must
         contain at least all the keys in old_deps
     strip: whether to try to strip DLLs that contain overlays if not enough
-        internal padding exists"""
+        internal padding exists
+    direct: whether this function is called directly via
+        delvewheel replace-needed"""
     if not old_deps:
         # no dependency names to change
         clear_dependent_load_flags(lib_path)
@@ -608,7 +610,7 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
     if not enough_padding and pe_size < os.path.getsize(lib_path):
         # cannot rename dependencies due to overlay
         if strip:
-            raise RuntimeError(textwrap.fill(
+            msg = (
                 f'Unable to rename the dependencies of {lib_name} because '
                 'this DLL does not contain enough internal padding to fit the '
                 'new dependency names, and it contains an overlay. The GNU '
@@ -616,9 +618,14 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
                 'overlay but failed to remove all of it. Unless you have '
                 'knowledge to the contrary, you should assume that the '
                 'overlay exists for an important reason and is not safe to '
-                f'remove. Include {os.pathsep.join(old_deps)} in the '
-                '--no-mangle flag to fix this error.',
-                initial_indent=' ' * len('RuntimeError: ')).lstrip())
+                'remove.'
+            )
+            if not direct:
+                msg += (
+                    f' Include {os.pathsep.join(old_deps)} in the --no-mangle '
+                    'flag to fix this error.'
+                )
+            raise RuntimeError(textwrap.fill(msg, initial_indent=' ' * len('RuntimeError: ')).lstrip())
         else:
             error_text = [
                 textwrap.fill(
@@ -642,13 +649,16 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
                     'strip automatically when an overlay is detected.',
                     subsequent_indent='  '
                 ),
-                '\n',
-                textwrap.fill(
-                    f'- Include {os.pathsep.join(old_deps)} in the '
-                    '--no-mangle flag.',
-                    subsequent_indent='  '
-                )
             ]
+            if not direct:
+                error_text.extend([
+                    '\n',
+                    textwrap.fill(
+                        f'- Include {os.pathsep.join(old_deps)} in the '
+                        '--no-mangle flag.',
+                        subsequent_indent='  '
+                    )
+                ])
             raise RuntimeError(''.join(error_text))
 
     with PEContext(lib_path, None, True) as pe:

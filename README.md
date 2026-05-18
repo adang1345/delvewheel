@@ -33,6 +33,8 @@ The environment used to run `delvewheel` does _not_ need to match the target env
 
 `delvewheel needed EXECUTABLE`: list the direct DLL dependencies of a single executable
 
+`delvewheel replace-needed EXECUTABLE`: change the DLL dependency names of a single executable
+
 `delvewheel` uses the `PATH` environment variable to search for DLL dependencies. To specify an additional directory to search for DLLs, add the location of the DLL to the `PATH` environment variable or use the `--add-path` option.
 
 `delvewheel show` and `delvewheel repair` support specifying multiple wheels in a single invocation. They also support using the `*` wildcard in the wheel filename.
@@ -78,6 +80,13 @@ The path separator to use in the following options is `';'` on Windows and `':'`
 - `--include-symbols`: include `.pdb` symbol files with the vendored DLLs. To be included, a symbol file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.pdb`.
 - `--include-imports`: include `.lib` import library files with the vendored DLLs. To be included, an import library file must be in the same directory as the DLL and have the same filename before the extension, e.g. `example.dll` and `example.lib`.
 - `--custom-patch`: Normally, we inject a patch into `__init__.py` in each top-level package to add the vendored DLL location to the DLL search path at runtime. To precisely control where the DLL search path is modified, use this option to instead specify the exact location(s) to place the patch. When this option is enabled, every line in a `.py` file consisting of the unindented comment `# delvewheel: patch` is replaced with the patch.
+
+`delvewheel replace-needed`
+- `-change OLD NEW`: change a DLL dependency name from `OLD` to `NEW` (can be specified multiple times)
+- `-v`: verbosity
+  - `-v`: level 1, some diagnostic information
+  - `-vv`: level 2, include warnings from `pefile`
+- `--strip`: strip overlay if executable has insufficient internal padding. The GNU `strip` utility must be present in `PATH`.
 
 ## Version Scheme
 

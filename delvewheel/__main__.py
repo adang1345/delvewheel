@@ -52,6 +52,8 @@ def main():
     parser_repair = subparsers.add_parser('repair', help=parser_repair_description, description=parser_repair_description)
     parser_needed_description = 'List the direct DLL dependencies of a single executable'
     parser_needed = subparsers.add_parser('needed', help=parser_needed_description, description=parser_needed_description)
+    parser_replace_needed_description = 'Change the DLL dependencies of a single executable'
+    parser_replace_needed = subparsers.add_parser('replace-needed', help=parser_replace_needed_description, description=parser_replace_needed_description)
     for subparser in (parser_show, parser_repair):
         subparser.add_argument('wheel', nargs='+', help='wheel(s) to show or repair')
         subparser.add_argument('--add-path', action='append', default=[], metavar='PATHS', help=f'additional path(s) to search for DLLs, {os.pathsep!r}-delimited')
@@ -68,7 +70,7 @@ def main():
     group = parser_repair.add_mutually_exclusive_group()
     group.add_argument('--no-mangle-all', action='store_true', help="don't mangle any DLL names")
     group.add_argument('--with-mangle', action='store_true', help='mangle the direct dependencies of DLLs that are already in the wheel (with --ignore-existing)')
-    parser_repair.add_argument('--strip', action='store_true', help='strip DLLs that contain trailing data when name-mangling')
+    parser_repair.add_argument('--strip', action='store_true', help='strip DLLs that contain overlays and insufficient internal padding when name-mangling')
     parser_repair.add_argument('-L', '--lib-sdir', default='.libs', type=_dir_suffix, help='directory suffix to store vendored DLLs (default .libs)')
     group = parser_repair.add_mutually_exclusive_group()
     group.add_argument('--namespace-pkg', default='', metavar='PKGS', type=_namespace_pkgs, help=f'namespace package(s), {os.pathsep!r}-delimited')
@@ -78,14 +80,20 @@ def main():
     parser_repair.add_argument('--include-imports', action='store_true', help='include .lib import library files with the vendored DLLs')
     parser_needed.add_argument('file', help='path to a DLL or PYD file')
     parser_needed.add_argument('-v', action='count', default=0, help='verbosity')
+    parser_replace_needed.add_argument('-change', nargs=2, metavar=('OLD', 'NEW'), action='append', required=True, help='change a DLL dependency name (can be specified multiple times)')
+    parser_replace_needed.add_argument('file', help='path to an executable file')
+    parser_replace_needed.add_argument('--strip', action='store_true', help='strip overlay if internal padding is insufficient')
+    parser_replace_needed.add_argument('-v', action='count', default=0, help='verbosity')
+    parser_replace_needed.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     args = parser.parse_args()
 
     # handle arguments
     if args.v > 2:
         warnings.warn(f'Requested verbosity level {args.v} exceeds maximum of 2; using level 2')
     _Config.verbose = args.v
-    if args.command in ('show', 'repair'):
+    if args.command != 'needed':
         _Config.test = args.test.split(',')
+    if args.command in ('show', 'repair'):
         add_paths = dict.fromkeys(os.path.abspath(path) for path in os.pathsep.join(args.add_path).split(os.pathsep) if path)
         include = set(dll_name.lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name)
         exclude = set(dll_name.lower() for dll_name in os.pathsep.join(args.exclude).split(os.pathsep) if dll_name)
@@ -119,9 +127,27 @@ def main():
                 no_mangles = set(dll_name.lower() for dll_name in os.pathsep.join(args.no_mangle).split(os.pathsep) if dll_name)
                 namespace_pkgs = set(tuple(namespace_pkg.split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg)
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.with_mangle, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports, args.custom_patch)
-    else:  # args.command == 'needed'
+    elif args.command == 'needed':
         for dll_name in sorted(_dll_utils.get_direct_needed(args.file), key=str.lower):
             print(dll_name)
+    else:  # args.command == 'replace-needed'
+        needed = {x.lower() for x in _dll_utils.get_direct_needed(args.file)}
+        name_map = {}
+        new_names = set()
+        for old, new in args.change:
+            old_lower = old.lower()
+            new_lower = new.lower()
+            if old_lower not in needed:
+                raise ValueError(f'Dependency {old} is not needed')
+            if old_lower in name_map:
+                raise ValueError(f'Dependency {old} cannot be specified more than once')
+            if old_lower == new_lower:
+                raise ValueError(f'Dependency {old} must be changed')
+            if new_lower in new_names:
+                raise ValueError(f'New dependency {new} cannot be specified more than once')
+            name_map[old] = new
+            new_names.add(new_lower)
+        _dll_utils.replace_needed(args.file, list(name_map.keys()), name_map, args.strip, True)
 
 
 if __name__ == '__main__':

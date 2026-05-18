@@ -955,7 +955,7 @@ class WheelRepair:
                 if _Config.verbose >= 1:
                     print(f'repairing {executable_name} -> {executable_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(executable_path, self._exclude, no_mangles)
-            _dll_utils.replace_needed(executable_path, needed, name_mangler, strip)
+            _dll_utils.replace_needed(executable_path, needed, name_mangler, strip, False)
         for dependency_path in dependency_paths_outside_wheel_copied | dependency_paths_in_wheel:
             lib_name = os.path.basename(dependency_path)
             lib_name_lower = lib_name.lower()
@@ -969,7 +969,7 @@ class WheelRepair:
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles)
-            _dll_utils.replace_needed(dependency_path, needed, name_mangler, strip)
+            _dll_utils.replace_needed(dependency_path, needed, name_mangler, strip, False)
             if lib_name_lower in name_mangler:
                 os.rename(dependency_path, os.path.join(libs_dir, name_mangler[lib_name_lower]))
 
