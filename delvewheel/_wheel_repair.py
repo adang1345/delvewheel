@@ -1133,7 +1133,7 @@ class WheelRepair:
                 for dir in dirs:
                     dir_path = os.path.join(root, dir)
                     zip_dir_name = os.path.relpath(dir_path, self._extract_dir).replace('\\', '/') + '/'
-                    zip_info = zipfile.ZipInfo.from_file(dir_path, zip_dir_name)
+                    zip_info = zipfile.ZipInfo.from_file(dir_path, zip_dir_name, strict_timestamps=False)
                     if date_time is not None:
                         zip_info.date_time = date_time
                     whl_file.writestr(zip_info, b'')
@@ -1141,7 +1141,7 @@ class WheelRepair:
                     file_path = os.path.join(root, file)
                     relpath = os.path.relpath(file_path, self._extract_dir)
                     zip_file_name = relpath.replace('\\', '/')
-                    zip_info = zipfile.ZipInfo.from_file(file_path, zip_file_name)
+                    zip_info = zipfile.ZipInfo.from_file(file_path, zip_file_name, strict_timestamps=False)
                     zip_info.compress_type = zipfile.ZIP_DEFLATED
                     if date_time is not None:
                         zip_info.date_time = date_time

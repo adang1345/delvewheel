@@ -1424,6 +1424,16 @@ class RepairTestCase(TestCase):
         """no error when --add-path has invalid directory path"""
         check_call(['delvewheel', 'repair', '--add-path', '<invalid>;simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
 
+    def test_timestamp_out_of_range(self):
+        """Timestamp of vendored DLL is too old or new for the ZIP format."""
+        for timestamp in (0, 4386441600):
+            # old: 1970-01-01 00:00:00 UTC
+            # new: 2109-01-01 00:00:00 UTC
+            with tempfile.TemporaryDirectory() as tempdir:
+                shutil.copy2('simpleext/x64/simpledll.dll', tempdir)
+                os.utime(os.path.join(tempdir, 'simpledll.dll'), (timestamp, timestamp))
+                check_call(['delvewheel', 'repair', '--add-path', tempdir, '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""
