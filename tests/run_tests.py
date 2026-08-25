@@ -243,7 +243,7 @@ class RepairTestCase(TestCase):
 
     def test_no_mangle_2(self):
         """--no-mangle for 2 DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll;iKnowBase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--no-mangle', 'iKnowEngine.dll; iKnowBase.dll;; ;', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
             for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
                 if path.name in ('.load-order-iknowpy-1.5.3',):
@@ -296,7 +296,7 @@ class RepairTestCase(TestCase):
     def test_strip_1(self):
         """--strip needed for 1 DLL"""
         with self.assertRaises(subprocess.CalledProcessError):
-            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+            check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1 ;  iknowpy; ;; ', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy/trailing_data_1;iknowpy', '--strip', '--test', 'not_enough_padding', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         self.assertTrue(import_iknowpy_successful())
 
@@ -374,7 +374,7 @@ class RepairTestCase(TestCase):
 
     def test_include_2(self):
         """--include for 2 DLLs"""
-        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', 'kernel32.dll;kernelbase.dll', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--include', ' ; ;;kernel32.dll; kernelbase.dll;', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'])
         kernel32_found = False
         kernelbase_found = False
         with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-cp312-cp312-win_amd64.whl') as wheel:
@@ -477,7 +477,7 @@ class RepairTestCase(TestCase):
 
     def test_exclude_all(self):
         """--exclude that removes all DLLs"""
-        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', 'iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
+        output = subprocess.check_output(['delvewheel', 'repair', '--add-path', 'iknowpy', '--exclude', ';; iKnowEngine.dll;msvcp140.dll', '--no-mangle-all', 'iknowpy/iknowpy-1.5.3-cp312-cp312-win_amd64.whl'], text=True)
         self.assertIn('no external dependencies are needed', output)
 
     def test_exclude_all_2(self):
@@ -848,7 +848,7 @@ class RepairTestCase(TestCase):
 
     def test_namespace0(self):
         """basic test for namespace packages"""
-        for namespace_pkgs in ('ns0;ns1;ns2',
+        for namespace_pkgs in ('ns0;ns1; ns2; ;;  ',  # whitespace and blank
                                'ns0;ns0;ns1;ns2',  # package specified twice
                                'ns0;ns1;ns2;ns3'):  # nonexistent package
             self.namespace_helper(

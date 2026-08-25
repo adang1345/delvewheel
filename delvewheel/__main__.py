@@ -35,7 +35,7 @@ def _dll_patterns(s: str) -> str:
 
 
 def _namespace_pkgs(s: str) -> str:
-    for namespace_pkg in filter(None, s.split(os.pathsep)):
+    for namespace_pkg in filter(None, map(str.strip, s.split(os.pathsep))):
         if any(c in r'<>:"/\|?*' or ord(c) < 32 for c in namespace_pkg) or not re.fullmatch(r'[^.]+(\.[^.]+)*', namespace_pkg):
             raise argparse.ArgumentTypeError(f'Invalid namespace package {namespace_pkg!r}')
     return s
@@ -94,9 +94,9 @@ def main():
     if args.command != 'needed':
         _Config.test = args.test.split(',')
     if args.command in ('show', 'repair'):
-        add_paths = dict.fromkeys(os.path.abspath(path) for path in os.pathsep.join(args.add_path).split(os.pathsep) if path)
-        include = set(dll_name.lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name)
-        exclude = set(dll_name.lower() for dll_name in os.pathsep.join(args.exclude).split(os.pathsep) if dll_name)
+        add_paths = dict.fromkeys(os.path.abspath(path.strip()) for path in os.pathsep.join(args.add_path).split(os.pathsep) if path.strip())
+        include = set(dll_name.strip().lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name.strip())
+        exclude = set(dll_name.strip().lower() for dll_name in os.pathsep.join(args.exclude).split(os.pathsep) if dll_name.strip())
 
         if intersection := include & exclude:
             raise ValueError(f'Cannot force both inclusion and exclusion of {intersection}')
@@ -124,8 +124,8 @@ def main():
             else:  # args.command == 'repair'
                 if args.with_mangle and not args.ignore_existing:
                     parser_repair.error('--with-mangle requires --ignore-existing')
-                no_mangles = set(dll_name.lower() for dll_name in os.pathsep.join(args.no_mangle).split(os.pathsep) if dll_name)
-                namespace_pkgs = set(tuple(namespace_pkg.split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg)
+                no_mangles = set(dll_name.strip().lower() for dll_name in os.pathsep.join(args.no_mangle).split(os.pathsep) if dll_name.strip())
+                namespace_pkgs = set(tuple(namespace_pkg.strip().split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg.strip())
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.with_mangle, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports, args.custom_patch)
     elif args.command == 'needed':
         for dll_name in sorted(_dll_utils.get_direct_needed(args.file), key=str.lower):
