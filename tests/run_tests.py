@@ -1709,6 +1709,11 @@ class LinuxTestCase(TestCase):
     def test_needed(self):
         check_call(['delvewheel', 'needed', 'simpleext/x64/simpledll.dll'])
 
+    def test_show_extract_dir_uppercase(self):
+        """Path of extracted extension module contains uppercase letter."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            check_call(['delvewheel', 'show', '--add-path', 'simpleext/x64', '--extract-dir', os.path.join(tmpdir, 'U'), 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+
     def test_namespace6(self):
         """namespace support where filename of __init__.py is case-
         insensitive"""

@@ -422,15 +422,21 @@ def get_all_needed(lib_path: str,
 
     include_imports specifies whether to search for .lib import library
     files"""
-    first_lib_path = lib_path.lower()
+    first_lib_path = lib_path
     stack = [first_lib_path]
     discovered = set()
+    discovered_lower = set()  # lowercased paths, for case-insensitive deduplication
     associated = set()
     ignored = set()
     not_found = set()
     while stack:
-        if (lib_path := stack.pop()) not in discovered:
+        lib_path = stack.pop()
+        # DLL names are case-insensitive, but we must open the file using its
+        # original-case path so that discovery works on a case-sensitive file
+        # system (e.g. when running on Linux).
+        if (lib_path_lower := lib_path.lower()) not in discovered_lower:
             discovered.add(lib_path)
+            discovered_lower.add(lib_path_lower)
             with PEContext(lib_path, None, True) as pe:
                 imports = []
                 for attr in ('DIRECTORY_ENTRY_IMPORT', 'DIRECTORY_ENTRY_DELAY_IMPORT'):
