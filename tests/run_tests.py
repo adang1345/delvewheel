@@ -1506,7 +1506,7 @@ class ReplaceNeededTestCase(TestCase):
     def test_invalid_multiple_old(self):
         """old DLL name is specified multiple times, differing by case only"""
         self.set_up()
-        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'vcruntime140.dll', 'a.dll', '-change', 'Vcruntime140.dll', 'b.dll', self._simpledll_path])
+        self.assertRaises(subprocess.CalledProcessError, check_call, ['delvewheel', 'replace-needed', '-change', 'vCruntime140.dll', 'a.dll', '-change', 'Vcruntime140.dll', 'b.dll', self._simpledll_path])
 
     def test_invalid_multiple_new(self):
         """new DLL name is specified multiple times, differing by case only"""

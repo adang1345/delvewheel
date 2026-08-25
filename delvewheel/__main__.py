@@ -145,7 +145,7 @@ def main():
                 raise ValueError(f'Dependency {old} must be changed')
             if new_lower in new_names:
                 raise ValueError(f'New dependency {new} cannot be specified more than once')
-            name_map[old] = new
+            name_map[old_lower] = new
             new_names.add(new_lower)
         _dll_utils.replace_needed(args.file, list(name_map.keys()), name_map, args.strip, True)
 
