@@ -281,6 +281,7 @@ class WheelRepair:
                         elif self._arch and self._arch is not arch:
                             raise NotImplementedError('Wheels targeting multiple CPU architectures are not supported')
                         self._arch = arch
+        if not self._arch:
             self._arch = _dll_list.MachineType.AMD64  # set default value for safety; this shouldn't be used
 
         # get minimum supported Python version

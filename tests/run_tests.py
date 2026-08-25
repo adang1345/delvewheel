@@ -1435,6 +1435,10 @@ class RepairTestCase(TestCase):
                 os.utime(os.path.join(tempdir, 'simpledll.dll'), (timestamp, timestamp))
                 check_call(['delvewheel', 'repair', '--add-path', tempdir, '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
 
+    def test_platform_tag_any(self):
+        """Platform tag is any and wheel contains x86 extension module."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x86', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-any.whl'])
+
 
 class NeededTestCase(TestCase):
     """Tests for delvewheel needed"""
