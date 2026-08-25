@@ -105,6 +105,8 @@ def main():
                 for include_item in include:
                     if fnmatch.fnmatch(include_item, exclude_item):
                         raise ValueError(f'Cannot force inclusion of {include_item} if {exclude_item} is excluded')
+        if args.command == 'repair' and args.with_mangle and not args.ignore_existing:
+            parser_repair.error('--with-mangle requires --ignore-existing')
 
         if add_paths:
             os.environ['PATH'] = f'{os.pathsep.join(add_paths)}{os.pathsep}{os.environ["PATH"]}'
@@ -122,8 +124,6 @@ def main():
             if args.command == 'show':
                 wr.show()
             else:  # args.command == 'repair'
-                if args.with_mangle and not args.ignore_existing:
-                    parser_repair.error('--with-mangle requires --ignore-existing')
                 no_mangles = set(dll_name.strip().lower() for dll_name in os.pathsep.join(args.no_mangle).split(os.pathsep) if dll_name.strip())
                 namespace_pkgs = set(tuple(namespace_pkg.strip().split('.')) for namespace_pkg in args.namespace_pkg.split(os.pathsep) if namespace_pkg.strip())
                 wr.repair(args.target, no_mangles, args.no_mangle_all, args.with_mangle, args.strip, args.lib_sdir, not args.no_diagnostic and 'SOURCE_DATE_EPOCH' not in os.environ, namespace_pkgs, args.include_symbols, args.include_imports, args.custom_patch)
