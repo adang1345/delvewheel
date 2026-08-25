@@ -659,9 +659,9 @@ class RepairTestCase(TestCase):
         2. docstring with whitespace preceding the quotes
         3. docstring with surrounding whitespace within quotes
         4. 3 single-quotes
-        5. 1 future import
-        6. multiple future imports
-        7. docstring and multiple future imports
+        5. 1 __future__ import
+        6. multiple __future__ imports
+        7. docstring and multiple __future__ imports
         8. escaped quotes at docstring end
         9. comment before docstring
         10. comment without docstring
@@ -679,7 +679,8 @@ class RepairTestCase(TestCase):
         22: Unicode characters in UTF-8 encoding
         23: Unicode characters in Windows-1252 encoding
         24: Unix-style line endings
-        25: classic macOS line endings"""
+        25: classic macOS line endings
+        26: __future__ import split across multiple lines"""
         with zipfile.ZipFile('simpleext/simpleext-0.0.1-0init-cp312-cp312-win_amd64.whl') as wheel:
             cases = 1 + max(int(re.fullmatch(r'simpleext(\d+)', x.name)[1]) for x in zipfile.Path(wheel).iterdir() if re.fullmatch(r'simpleext(\d+)', x.name))
         check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-0init-cp312-cp312-win_amd64.whl'])

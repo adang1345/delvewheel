@@ -409,7 +409,7 @@ class WheelRepair:
         children = list(ast.iter_child_nodes(node))
         for child in reversed(children):
             if isinstance(child, ast.ImportFrom) and child.module == '__future__':
-                future_import_lineno = child.lineno
+                future_import_lineno = child.end_lineno
                 break
         else:
             future_import_lineno = 0  # no "from __future__ import" statement found
