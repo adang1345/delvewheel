@@ -280,6 +280,11 @@ def find_library(
             contents = os.listdir(directory)
         except (FileNotFoundError, PermissionError):
             continue
+        except OSError as e:
+            # If the directory is an invalid path, ignore it.
+            if e.errno == errno.EINVAL:
+                continue
+            raise
         dll_path = None
         for item in contents:
             if name == item.lower() and os.path.isfile(path := os.path.join(directory, item)) and get_arch(path) == arch:
