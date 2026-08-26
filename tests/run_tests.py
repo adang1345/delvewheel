@@ -1420,7 +1420,7 @@ class RepairTestCase(TestCase):
         else:
             self.skipTest(f'User has permission to access {nonpermitted_path}')
 
-    def test_nonexistent_path(self):
+    def test_invalid_path_entry(self):
         """no error when --add-path has invalid directory path"""
         check_call(['delvewheel', 'repair', '--add-path', '<invalid>;simpleext/x64', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
 
