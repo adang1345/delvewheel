@@ -8,4 +8,6 @@ class _Config:
     #   internal padding to write mangled names
     # header_space: assume that each PE file has insufficient space in the
     #   section table to add a new section header
+    # no_compress: write the output wheel with no compression, to speed up
+    #   the test suite
     test: list[str] = []

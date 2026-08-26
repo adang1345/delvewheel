@@ -1129,7 +1129,8 @@ class WheelRepair:
             date_time = None
         os.makedirs(target, exist_ok=True)
         whl_dest_path = os.path.join(target, self._whl_name)
-        with zipfile.ZipFile(whl_dest_path, 'w', zipfile.ZIP_DEFLATED) as whl_file:
+        compress_type = zipfile.ZIP_STORED if 'no_compress' in _Config.test else zipfile.ZIP_DEFLATED
+        with zipfile.ZipFile(whl_dest_path, 'w', compress_type) as whl_file:
             for root, dirs, files in walk(self._extract_dir, dist_info_foldername):
                 for dir in dirs:
                     dir_path = os.path.join(root, dir)
@@ -1143,7 +1144,7 @@ class WheelRepair:
                     relpath = os.path.relpath(file_path, self._extract_dir)
                     zip_file_name = relpath.replace('\\', '/')
                     zip_info = zipfile.ZipInfo.from_file(file_path, zip_file_name, strict_timestamps=False)
-                    zip_info.compress_type = zipfile.ZIP_DEFLATED
+                    zip_info.compress_type = compress_type
                     if date_time is not None:
                         zip_info.date_time = date_time
                     if _Config.verbose >= 1:

@@ -14,7 +14,12 @@ import zipfile
 DEBUG = False
 
 
-def check_call(args: list[str], env: typing.Optional[collections.abc.Mapping] = None):
+def check_call(args: list[str], env: typing.Optional[collections.abc.Mapping] = None, compress: bool = False):
+    """Run a subprocess command. For `delvewheel repair` invocations, if
+    compress is False, then inject the no_compress test option to speed up
+    repair time."""
+    if not compress and len(args) >= 2 and args[0] == 'delvewheel' and args[1] == 'repair':
+        args = [*args, '--test', 'no_compress']
     base_env = os.environ.copy()
     if env is not None:
         for var in env:
@@ -631,7 +636,7 @@ class RepairTestCase(TestCase):
         """Top-level extension module in root directory
 
         Also check that the contents are compressed"""
-        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'])
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', '--no-mangle-all', 'simpleext/simpleext-0.0.1-cp312-cp312-win_amd64.whl'], compress=True)
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-cp312-cp312-win_amd64.whl') as whl:
             zip_info = whl.getinfo('simpleext.cp312-win_amd64.pyd')
             self.assertGreater(zip_info.file_size, zip_info.compress_size)

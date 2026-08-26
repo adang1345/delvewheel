@@ -64,7 +64,7 @@ def main():
         subparser.add_argument('--analyze-existing-exes', action='store_true', help='analyze and vendor in dependencies of EXEs that are in the wheel')
         subparser.add_argument('-v', action='count', default=0, help='verbosity')
         subparser.add_argument('--extract-dir', help=argparse.SUPPRESS)
-        subparser.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
+        subparser.add_argument('--test', action='append', default=[], help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     parser_repair.add_argument('-w', '--wheel-dir', dest='target', default='wheelhouse', help='directory to write repaired wheel')
     parser_repair.add_argument('--no-mangle', action='append', default=[], metavar='DLLS', type=_dll_patterns, help=f'DLL names(s) not to mangle, {os.pathsep!r}-delimited')
     group = parser_repair.add_mutually_exclusive_group()
@@ -84,7 +84,7 @@ def main():
     parser_replace_needed.add_argument('file', help='path to an executable file')
     parser_replace_needed.add_argument('--strip', action='store_true', help='strip overlay if internal padding is insufficient')
     parser_replace_needed.add_argument('-v', action='count', default=0, help='verbosity')
-    parser_replace_needed.add_argument('--test', default='', help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
+    parser_replace_needed.add_argument('--test', action='append', default=[], help=argparse.SUPPRESS)  # comma-separated testing options, internal use only
     args = parser.parse_args()
 
     # handle arguments
@@ -92,7 +92,7 @@ def main():
         warnings.warn(f'Requested verbosity level {args.v} exceeds maximum of 2; using level 2')
     _Config.verbose = args.v
     if args.command != 'needed':
-        _Config.test = args.test.split(',')
+        _Config.test = [t.strip() for t in ','.join(args.test).split(',') if t.strip()]
     if args.command in ('show', 'repair'):
         add_paths = dict.fromkeys(os.path.abspath(path.strip()) for path in os.pathsep.join(args.add_path).split(os.pathsep) if path.strip())
         include = set(dll_name.strip().lower() for dll_name in os.pathsep.join(args.include).split(os.pathsep) if dll_name.strip())
