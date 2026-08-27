@@ -5,6 +5,7 @@ import ctypes
 import ctypes.wintypes
 import errno
 import fnmatch
+import functools
 import io
 import itertools
 import os
@@ -242,15 +243,80 @@ def _translate_directory() -> collections.abc.Callable[[str, MachineType], str]:
 _translate_directory = _translate_directory()
 
 
+@functools.lru_cache(maxsize=None)
+def _listdir_casemap(directory: str) -> typing.Optional[dict[str, list[str]]]:
+    """Given a directory to search for a DLL, return a dict that maps the
+    lowercase name of each item in the directory to the list of original-case
+    names of the items whose lowercase name is that name. If the directory
+    cannot be listed, return None.
+
+    Each list typically contains 1 element. It contains >1 element only if we
+    are on a case-sensitive file system and the directory contains items whose
+    names differ by case only.
+
+    The result is cached because each directory is often searched more than
+    once."""
+    try:
+        contents = os.listdir(directory)
+    except (FileNotFoundError, PermissionError):
+        return None
+    except OSError as e:
+        # If the directory is an invalid path, ignore it.
+        if e.errno == errno.EINVAL:
+            return None
+        raise
+    casemap = {}
+    for item in contents:
+        casemap.setdefault(item.lower(), []).append(item)
+    return casemap
+
+
+@functools.lru_cache(maxsize=None)
+def _find_library_in_path(
+        name: str,
+        arch: MachineType,
+        include_symbols: bool,
+        include_imports: bool) -> typing.Optional[tuple[str, tuple[str, ...]]]:
+    """Helper for find_library() that searches the PATH environment variable,
+    with any applicable adjustments due to the Windows file system redirector.
+    Return None if the DLL cannot be found. An associated .pdb symbol file or
+    .lib import library file is searched for in the directory containing the
+    DLL only.
+
+    name must be lowercase.
+
+    The result is cached because a given DLL can be searched multiple times, as
+    when a wheel contains >1 extension module with a shared dependency."""
+    for directory in os.environ['PATH'].split(os.pathsep):
+        directory = _translate_directory(directory, arch)
+        if (casemap := _listdir_casemap(directory)) is None:
+            continue
+        for item in casemap.get(name, ()):
+            if os.path.isfile(dll_path := os.path.join(directory, item)) and get_arch(dll_path) == arch:
+                break
+        else:
+            continue
+        associated_paths = []
+        for search, ext in ((include_symbols, '.pdb'), (include_imports, '.lib')):
+            if not search:
+                continue
+            for item in casemap.get(os.path.splitext(name)[0] + ext, ()):
+                if os.path.isfile(path := os.path.join(directory, item)):
+                    associated_paths.append(path)
+                    break
+        return dll_path, tuple(associated_paths)
+    return None
+
+
 def find_library(
         name: str,
         wheel_dirs: typing.Optional[collections.abc.Iterable[str]],
         arch: MachineType,
         include_symbols: bool,
-        include_imports: bool) -> typing.Optional[tuple[str, list[str]]]:
+        include_imports: bool) -> typing.Optional[tuple[str, tuple[str, ...]]]:
     """Given the name of a DLL, return a tuple where
     - the 1st element is the path to the DLL
-    - the 2nd element is a list that may contain paths to the .pdb symbol file
+    - the 2nd element is a tuple that may contain paths to the .pdb symbol file
       and/or the .lib import library file associated with the DLL. If
       include_symbols is True, then search for the .pdb symbol file. If
       include_imports is True, then search for the .lib import library file.
@@ -273,39 +339,8 @@ def find_library(
         for wheel_dir in wheel_dirs:
             for item in os.listdir(wheel_dir):
                 if name == item.lower() and os.path.isfile(path := os.path.join(wheel_dir, item)) and get_arch(path) == arch:
-                    return path, []
-    for directory in os.environ['PATH'].split(os.pathsep):
-        directory = _translate_directory(directory, arch)
-        try:
-            contents = os.listdir(directory)
-        except (FileNotFoundError, PermissionError):
-            continue
-        except OSError as e:
-            # If the directory is an invalid path, ignore it.
-            if e.errno == errno.EINVAL:
-                continue
-            raise
-        dll_path = None
-        for item in contents:
-            if name == item.lower() and os.path.isfile(path := os.path.join(directory, item)) and get_arch(path) == arch:
-                dll_path = path
-                break
-        associated_paths = []
-        if include_symbols:
-            symbol_name = os.path.splitext(name)[0] + '.pdb'
-            for item in contents:
-                if symbol_name == item.lower() and os.path.isfile(path := os.path.join(directory, item)):
-                    associated_paths.append(path)
-                    break
-        if include_imports:
-            imports_name = os.path.splitext(name)[0] + '.lib'
-            for item in contents:
-                if imports_name == item.lower() and os.path.isfile(path := os.path.join(directory, item)):
-                    associated_paths.append(path)
-                    break
-        if dll_path:
-            return dll_path, associated_paths
-    return None
+                    return path, ()
+    return _find_library_in_path(name, arch, include_symbols, include_imports)
 
 
 def get_direct_needed(lib_path: str) -> set[str]:
@@ -429,6 +464,10 @@ def get_all_needed(lib_path: str,
     associated = set()
     ignored = set()
     not_found = set()
+    # Map from (lowercase DLL name, architecture) to find_library() result.
+    # Used to avoid redundant find_library() calls when a DLL shows up more
+    # than once in dependency graph.
+    resolved = {}
     while stack:
         lib_path = stack.pop()
         # DLL names are case-insensitive, but we must open the file using its
@@ -452,7 +491,9 @@ def get_all_needed(lib_path: str,
                             not any(r.fullmatch(dll_name) for r in _dll_list.ignore_regexes) and \
                             not wildcard_contains(dll_name, exclude) and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
-                        if dll_info := find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports):
+                        if (search_key := (dll_name, lib_arch)) not in resolved:
+                            resolved[search_key] = find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports)
+                        if dll_info := resolved[search_key]:
                             stack.append(dll_info[0])
                             associated.update(dll_info[1])
                             if re.fullmatch(_dll_list.vc_redist, dll_name):
