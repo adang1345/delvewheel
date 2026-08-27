@@ -35,6 +35,8 @@ def _dll_patterns(s: str) -> str:
 
 
 def _namespace_pkgs(s: str) -> str:
+    """Helper for argument parser for validating a list of namespace
+    packages"""
     for namespace_pkg in filter(None, map(str.strip, s.split(os.pathsep))):
         if any(c in r'<>:"/\|?*' or ord(c) < 32 for c in namespace_pkg) or not re.fullmatch(r'[^.]+(\.[^.]+)*', namespace_pkg):
             raise argparse.ArgumentTypeError(f'Invalid namespace package {namespace_pkg!r}')

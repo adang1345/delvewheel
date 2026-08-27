@@ -314,7 +314,7 @@ class WheelRepair:
             return base64.urlsafe_b64encode(digest.digest()).decode('latin1').rstrip('='), size
 
     @staticmethod
-    def _hashfile(afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32, start: typing.Optional[typing.Iterable[str]] = None) -> str:
+    def _hashfile(afile: typing.BinaryIO, blocksize: int = 65536, length: int = 32, start: typing.Optional[collections.abc.Iterable[str]] = None) -> str:
         """Hash the contents of start along with the contents of an open file
         handle with SHA256. Return the first length characters of the hash in
         hexadecimal form."""
@@ -539,7 +539,7 @@ class WheelRepair:
                 return path
         return None
 
-    def _patch_package(self, package_dir: str, namespace_pkgs: set[tuple[str]], libs_dir: str, load_order_filename: str, depth: int) -> set[str]:
+    def _patch_package(self, package_dir: str, namespace_pkgs: set[tuple[str, ...]], libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> set[str]:
         """Patch a package so that vendored DLLs can be found at runtime.
         Return a set containing the absolute extracted paths of all .pyd
         extension modules that are at the root of a namespace package within
@@ -571,7 +571,7 @@ class WheelRepair:
             self._patch_py_file(self._get_init(package_dir) or os.path.join(package_dir, '__init__.py'), libs_dir, load_order_filename, depth)
         return namespace_root_ext_modules
 
-    def _patch_custom(self, item_path: str, libs_dir: str, load_order_filename: str, depth: int) -> bool:
+    def _patch_custom(self, item_path: str, libs_dir: str, load_order_filename: typing.Optional[str], depth: int) -> bool:
         """Patch a package or .py file so that vendored DLLs can be found at
         runtime. The patch is placed at every line consisting of the comment
         '# delvewheel: patch'. Return True iff the patch was applied at least
@@ -621,7 +621,7 @@ class WheelRepair:
             return '(unknown version)'
         return ''
 
-    def _split_dependency_paths(self, dependency_paths: collections.abc.Iterable) -> tuple[set, set]:
+    def _split_dependency_paths(self, dependency_paths: collections.abc.Iterable[str]) -> tuple[set[str], set[str]]:
         """Given an iterable of DLL paths, partition the contents into a tuple
         of sets
         (dependency_paths_in_wheel, dependency_paths_outside_wheel).
@@ -668,7 +668,7 @@ class WheelRepair:
         return module_names
 
     @staticmethod
-    def _isdir_case(root: str, remainder: tuple[str]) -> bool:
+    def _isdir_case(root: str, remainder: tuple[str, ...]) -> bool:
         """Return True if remainder is an existing directory relative to root.
         Regardless of the case sensitivity of the file system, treat remainder
         as case-sensitive. Treat root using the file system's case sensitivity.
@@ -785,7 +785,7 @@ class WheelRepair:
             strip: bool,
             lib_sdir: str,
             log_diagnostics: bool,
-            namespace_pkgs: set[tuple[str]],
+            namespace_pkgs: set[tuple[str, ...]],
             include_symbols: bool,
             include_imports: bool,
             custom_patch: bool) -> None:
@@ -808,6 +808,8 @@ class WheelRepair:
             as a tuple of path components
         include_symbols is True if .pdb symbol files should be included with
             the vendored DLLs
+        include_imports is True if .lib import library files should be included
+            with the vendored DLLs
         custom_patch is True to indicate that the DLL patch location is
             custom"""
         print(f'repairing {self._whl_path}')

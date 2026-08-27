@@ -375,7 +375,7 @@ def wildcard_contains(item: str, patterns: set[str]) -> bool:
     return False
 
 
-def get_direct_mangleable_needed(lib_path: str, exclude: set, no_mangles: set) -> list[str]:
+def get_direct_mangleable_needed(lib_path: str, exclude: set[str], no_mangles: set[str]) -> list[str]:
     """Given the path to a shared library, return a deterministically-ordered
     list containing the lowercase DLL names of all direct dependencies that
     belong in the wheel and should be name-mangled.
@@ -429,12 +429,12 @@ def _toolset_too_old(linker_version: tuple[int, int], vc_redist_linker_version: 
 
 def get_all_needed(lib_path: str,
                    exclude: set[str],
-                   wheel_dirs: typing.Optional[collections.abc.Iterable],
+                   wheel_dirs: typing.Optional[collections.abc.Iterable[str]],
                    on_error: str,
                    include_symbols: bool,
                    include_imports: bool) -> tuple[set[str], set[str], set[str], set[str]]:
     """Given the path to a shared library, return a 4-tuple of sets
-    (discovered, symbols, ignored, not_found).
+    (discovered, associated, ignored, not_found).
     - discovered contains the original-case DLL paths of all direct and
       indirect dependencies of that shared library that should be bundled into
       the wheel.
@@ -520,8 +520,7 @@ def clear_dependent_load_flags(lib_path: str):
     """If the DLL given by lib_path has a non-0 value for DependentLoadFlags,
     then set the value to 0, fix the PE checksum, and clear any signatures.
 
-    lib_path: path to the DLL
-    verbose: verbosity level, 0 to 2"""
+    lib_path: path to the DLL"""
     with PEContext(lib_path, None, False) as pe:
         pe.parse_data_directories([pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']])
         if not hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG') or not pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct.DependentLoadFlags:
