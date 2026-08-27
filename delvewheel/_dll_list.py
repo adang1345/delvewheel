@@ -90,7 +90,7 @@ ignore_dependency = {
 }
 
 # Set of regular expressions of DLLs whose names should not be mangled.
-no_mangle_regexes = {}
+no_mangle_regexes = set()
 
 # Regular expression that matches Microsoft Visual C++ runtime redistributable
 # files
