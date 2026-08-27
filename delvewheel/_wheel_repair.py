@@ -306,9 +306,11 @@ class WheelRepair:
                 digest = hashlib.file_digest(file, hashlib.sha256)
                 size = os.path.getsize(file_path)
             else:
-                contents = file.read()
-                digest = hashlib.sha256(contents)
-                size = len(contents)
+                digest = hashlib.sha256()
+                size = 0
+                while buf := file.read(65536):
+                    digest.update(buf)
+                    size += len(buf)
             return base64.urlsafe_b64encode(digest.digest()).decode('latin1').rstrip('='), size
 
     @staticmethod
@@ -1150,6 +1152,6 @@ class WheelRepair:
                         zip_info.date_time = date_time
                     if _Config.verbose >= 1:
                         print(f'adding {relpath}')
-                    with open(file_path, 'rb') as f:
-                        whl_file.writestr(zip_info, f.read())
+                    with open(file_path, 'rb') as f, whl_file.open(zip_info, 'w') as dest:
+                        shutil.copyfileobj(f, dest)
         print(f'fixed wheel written to {os.path.abspath(whl_dest_path)}')
