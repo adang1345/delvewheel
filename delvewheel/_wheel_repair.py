@@ -218,8 +218,8 @@ class WheelRepair:
         self._purelib_dir = os.path.join(self._data_dir, 'purelib')
         self._platlib_dir = os.path.join(self._data_dir, 'platlib')
 
-        self._include = set() if include is None else include
-        self._exclude = set() if exclude is None else exclude
+        self._include = set() if include is None else include.copy()
+        self._exclude = set() if exclude is None else exclude.copy()
 
         # Modify self._exclude to include those that are already part of every
         # Python distribution the wheel targets.
@@ -855,6 +855,7 @@ class WheelRepair:
         # if --ignore-existing is specified, ignore DLLs that were found inside
         # the wheel unless they are specified with --include
         dependency_paths_in_wheel, dependency_paths_outside_wheel = self._split_dependency_paths(dependency_paths)
+        no_mangles = no_mangles.copy()
         if self._ignore_existing:
             for p in dependency_paths_in_wheel:
                 name_lower = os.path.basename(p).lower()
