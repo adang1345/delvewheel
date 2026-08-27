@@ -932,11 +932,11 @@ class WheelRepair:
 
         # mangle library names
         name_mangler = {}  # dict from lowercased old name to new name
+        name_mangle_graph = {}  # map from lowercase DLL name to list of lowercase DLL dependencies that will be name-mangled
         if no_mangle_all:
             print('skip mangling DLL names')
         else:
             print('mangling DLL names')
-            name_mangle_graph = {}  # map from lowercase DLL name to list of lowercase DLL dependencies that will be name-mangled
             lib_name_casemap = {}  # map from lowercase DLL name to original case DLL name
             for dependency_path in dependency_paths:
                 # dependency_path is NOT lowercased
@@ -974,7 +974,8 @@ class WheelRepair:
                         print(f'repairing {lib_name} -> {name_mangler[lib_name_lower]}')
                     else:
                         print(f'repairing {lib_name} -> {lib_name}')
-                needed = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles)
+                if (needed := name_mangle_graph.get(lib_name_lower)) is None:
+                    needed = _dll_utils.get_direct_mangleable_needed(dependency_path, self._exclude, no_mangles)
             _dll_utils.replace_needed(dependency_path, needed, name_mangler, strip, False)
             if lib_name_lower in name_mangler:
                 os.rename(dependency_path, os.path.join(libs_dir, name_mangler[lib_name_lower]))
