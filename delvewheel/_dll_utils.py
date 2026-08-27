@@ -516,7 +516,18 @@ def get_all_needed(lib_path: str,
     return discovered, associated, ignored, not_found
 
 
-def clear_dependent_load_flags(lib_path: str):
+def _is_cert_table_only_overlay(pe: pefile.PE, lib_path: str, pe_size: int) -> bool:
+    """Return True iff an attribute certificate table exists and is the only
+    thing in the overlay of the PE file.
+
+    pe: the parsed PE file
+    lib_path: path to the PE file
+    pe_size: size of the PE file excluding any overlay"""
+    cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+    return cert_table.VirtualAddress == _round_to_next(pe_size, _ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT) and cert_table.VirtualAddress + cert_table.Size == os.path.getsize(lib_path)
+
+
+def _clear_dependent_load_flags(lib_path: str):
     """If the DLL given by lib_path has a non-0 value for DependentLoadFlags,
     then set the value to 0, fix the PE checksum, and clear any signatures.
 
@@ -531,10 +542,10 @@ def clear_dependent_load_flags(lib_path: str):
 
         # determine whether to remove signatures from overlay
         pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
-        cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-        truncate = cert_table.VirtualAddress == _round_to_next(pe_size, _ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT) and cert_table.VirtualAddress + cert_table.Size == os.path.getsize(lib_path)
+        truncate = _is_cert_table_only_overlay(pe, lib_path, pe_size)
 
         # clear reference to attribute certificate table if it exists
+        cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
         cert_table.VirtualAddress = 0
         cert_table.Size = 0
 
@@ -619,21 +630,10 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
         delvewheel replace-needed"""
     if not old_deps:
         # no dependency names to change
-        clear_dependent_load_flags(lib_path)
+        _clear_dependent_load_flags(lib_path)
         return
     name_map = {dep.lower().encode(): name_map[dep].encode() for dep in old_deps}
         # keep only the DLLs that will be mangled
-
-    # If an attribute certificate table exists and is the only thing in the
-    # overlay, remove the table. In this case, we end up removing the entire
-    # overlay without needing to run strip.
-    with PEContext(lib_path, None, False) as pe:
-        pe_size = max(section.PointerToRawData + section.SizeOfRawData for section in pe.sections)
-        cert_table = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-        truncate = cert_table.VirtualAddress == _round_to_next(pe_size, _ATTRIBUTE_CERTIFICATE_TABLE_ALIGNMENT) and cert_table.VirtualAddress + cert_table.Size == os.path.getsize(lib_path)
-    if truncate:
-        with open(lib_path, 'rb+') as f:
-            f.truncate(pe_size)
 
     # New dependency names are longer than the old ones, so we cannot simply
     # overwrite the bytes of the old dependency names. Determine whether the PE
@@ -645,8 +645,16 @@ def replace_needed(lib_path: str, old_deps: list[str], name_map: dict[str, str],
     # dependency names are items and the contiguous padding runs are bins. The
     # bin packing problem is NP-hard, so for simplicity, we use the Next Fit
     # algorithm.
+    #
+    # In addition, if an attribute certificate table exists and is the only
+    # thing in the overlay, remove the table. In this case, we end up removing
+    # the entire overlay without needing to run strip.
     with PEContext(lib_path, None, False) as pe:
         pe_size, enough_padding = _get_pe_size_and_enough_padding(pe, name_map.values())
+        truncate = _is_cert_table_only_overlay(pe, lib_path, pe_size)
+    if truncate:
+        with open(lib_path, 'rb+') as f:
+            f.truncate(pe_size)
     if 'not_enough_padding' in _Config.test:
         enough_padding = False
     if not enough_padding and pe_size < os.path.getsize(lib_path) and strip:
