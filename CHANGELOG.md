@@ -1,3 +1,18 @@
+## 1.13.1 <sub><sup>(_28 August 2026_)</sup></sub>
+- Improve GitHub Actions security.
+- Ignore invalid `PATH` entries instead of raising `OSError`.
+- Fix `ValueError` when a vendored DLL has a timestamp outside what's supported by the ZIP format.
+- Fix `FileNotFoundError` on a case-sensitive file system when the wheel extraction directory has a capital letter or when an extension module resides in a package with a capital letter.
+- Fix `.py` patch when `__future__` import is split across multiple lines.
+- Fix argument validation for `replace-needed` when `-change` specifies the old DLL name more than once but with different case. Previously, the last `-change` argument overrode the previous value. Now, an exception is raised.
+- Fix error when repairing a non-x64 wheel with an unrecognized platform tag.
+- Allow surrounding whitespace and empty components within the values specified with `--include`, `--exclude`, `--no-mangle`, `--add-path`, and `--namespace-pkg`.
+- Fail fast when `--with-mangle` is incorrectly specified without `--ignore-existing`. Previously, the wheel was extracted before an exception was raised. Now, the exception is raised at the beginning during argument validation.
+- Speed up test suite by disabling ZIP compression when testing and by extracting a wheel directly instead of using `pip`. This halves the runtime for each GitHub Actions CI run.
+- When repairing multiple wheels with a single command, prevent the internal state from repairing one wheel from polluting the state for repairing subsequent wheels. Previously, DLLs excluded based on the targeted Python version for the first wheel were also excluded when repairing subsequent wheels, regardless of the targeted Python versions for the subsequent wheels.
+- Improve performance by reducing redundant calls when searching for DLL dependencies or parsing DLL files.
+- Reduce memory usage by reading files in chunks.
+
 ## 1.13.0 <sub><sup>(_28 May 2026_)</sup></sub>
 - Ignore `PermissionError` when searching `PATH` for DLLs if the user has insufficient permissions to view a path entry.
 - Introduce `replace-needed` subcommand.
