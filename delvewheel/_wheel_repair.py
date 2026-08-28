@@ -154,7 +154,10 @@ class WheelRepair:
     _platlib_dir: str  # extracted path to .data/platlib directory, is set even if directory does not exist
     _include: set[str]  # additional DLLs to include, lowercase
     _exclude: set[str]  # DLLs to exclude, lowercase (allows * wildcard)
-    _wheel_dirs: typing.Optional[list[str]]  # extracted directories from inside wheel
+    _wheel_dirs_casemap: typing.Optional[dict[str, list[str]]]
+        # map from the lowercase name of each extracted file from inside the
+        # wheel to the list of extracted paths of the files whose lowercase
+        # name is that name
     _ignore_existing: bool  # whether to ignore DLLs that are already inside wheel
     _analyze_existing: bool  # whether to analyze and vendor in dependencies of DLLs that are already in the wheel
     _analyze_existing_exes: bool  # whether to analyze and vendor in dependencies of EXEs that are in the wheel
@@ -253,16 +256,16 @@ class WheelRepair:
                     break
             self._exclude |= ignore_abi3
 
-        # If ignore_existing is True, save list of all directories in the
-        # wheel. These directories will be used to search for DLLs that are
+        # If ignore_existing is True, save a case-insensitive map of all files
+        # in the wheel. This map will be used to search for DLLs that are
         # already in the wheel.
         if ignore_existing:
-            self._wheel_dirs = [self._extract_dir]
-            for root, dirnames, _ in os.walk(self._extract_dir):
-                for dirname in dirnames:
-                    self._wheel_dirs.append(os.path.join(root, dirname))
+            self._wheel_dirs_casemap = {}
+            for root, _, filenames in os.walk(self._extract_dir):
+                for filename in filenames:
+                    self._wheel_dirs_casemap.setdefault(filename.lower(), []).append(os.path.join(root, filename))
         else:
-            self._wheel_dirs = None
+            self._wheel_dirs_casemap = None
         self._ignore_existing = ignore_existing
 
         self._analyze_existing = analyze_existing
@@ -720,7 +723,7 @@ class WheelRepair:
             for filename in filenames:
                 if (filename_lower := filename.lower()).endswith('.pyd') or self._analyze_existing and filename_lower.endswith('.dll') or self._analyze_existing_exes and filename_lower.endswith('.exe'):
                     executable_path = os.path.join(root, filename)
-                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'ignore', False, False)
+                    discovered, _, ignored, not_found = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs_casemap, 'ignore', False, False)
                     dependency_paths |= discovered
                     ignored_dll_names |= ignored
                     not_found_dll_names |= not_found
@@ -851,7 +854,7 @@ class WheelRepair:
                         # is_existing_exe
                         print(f'analyzing existing EXE {os.path.relpath(executable_path, self._extract_dir)}')
                     executable_paths.append(executable_path)
-                    discovered, associated, ignored = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs, 'raise', include_symbols, include_imports)[:3]
+                    discovered, associated, ignored = _dll_utils.get_all_needed(executable_path, self._exclude, self._wheel_dirs_casemap, 'raise', include_symbols, include_imports)[:3]
                     dependency_paths |= discovered
                     associated_paths |= associated
                     ignored_dll_names |= ignored

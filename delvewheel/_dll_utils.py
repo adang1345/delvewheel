@@ -310,7 +310,7 @@ def _find_library_in_path(
 
 def find_library(
         name: str,
-        wheel_dirs: typing.Optional[collections.abc.Iterable[str]],
+        wheel_dirs_casemap: typing.Optional[dict[str, list[str]]],
         arch: MachineType,
         include_symbols: bool,
         include_imports: bool) -> typing.Optional[tuple[str, tuple[str, ...]]]:
@@ -330,16 +330,17 @@ def find_library(
     arbitrarily. The search goes in the following order and considers only the
     DLLs with the architecture arch.
 
-    1. If not None, the directories in wheel_dirs. We never search for symbol
-       files or import library files in wheel_dirs.
+    1. If not None, the files in the wheel, as given by wheel_dirs_casemap,
+       which maps the lowercase name of each file in the wheel to the list of
+       original-case paths of the files whose lowercase name is that name. We
+       never search for symbol files or import library files in the wheel.
     2. The PATH environment variable, with any applicable adjustments due to
        the Windows file system redirector."""
     name = name.lower()
-    if wheel_dirs is not None:
-        for wheel_dir in wheel_dirs:
-            for item in os.listdir(wheel_dir):
-                if name == item.lower() and os.path.isfile(path := os.path.join(wheel_dir, item)) and get_arch(path) == arch:
-                    return path, ()
+    if wheel_dirs_casemap is not None:
+        for path in wheel_dirs_casemap.get(name, ()):
+            if os.path.isfile(path) and get_arch(path) == arch:
+                return path, ()
     return _find_library_in_path(name, arch, include_symbols, include_imports)
 
 
@@ -429,7 +430,7 @@ def _toolset_too_old(linker_version: tuple[int, int], vc_redist_linker_version: 
 
 def get_all_needed(lib_path: str,
                    exclude: set[str],
-                   wheel_dirs: typing.Optional[collections.abc.Iterable[str]],
+                   wheel_dirs_casemap: typing.Optional[dict[str, list[str]]],
                    on_error: str,
                    include_symbols: bool,
                    include_imports: bool) -> tuple[set[str], set[str], set[str], set[str]]:
@@ -450,8 +451,9 @@ def get_all_needed(lib_path: str,
     exclude is a set of DLL names to force exclusion from the wheel. The `*`
     wildcard is supported. We do not search for dependencies of these DLLs.
 
-    If wheel_dirs is not None, it is an iterable of directories in the wheel
-    where dependencies are searched first.
+    If wheel_dirs_casemap is not None, it maps the lowercase name of each file
+    in the wheel to the list of original-case paths of the files whose
+    lowercase name is that name. Dependencies are searched in the wheel first.
 
     include_symbols specifies whether to search for .pdb symbol files
 
@@ -492,7 +494,7 @@ def get_all_needed(lib_path: str,
                             not wildcard_contains(dll_name, exclude) and \
                             (lib_name_lower not in _dll_list.ignore_dependency or dll_name not in _dll_list.ignore_dependency[lib_name_lower]):
                         if (search_key := (dll_name, lib_arch)) not in resolved:
-                            resolved[search_key] = find_library(dll_name, wheel_dirs, lib_arch, include_symbols, include_imports)
+                            resolved[search_key] = find_library(dll_name, wheel_dirs_casemap, lib_arch, include_symbols, include_imports)
                         if dll_info := resolved[search_key]:
                             stack.append(dll_info[0])
                             associated.update(dll_info[1])
