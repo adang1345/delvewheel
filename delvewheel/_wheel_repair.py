@@ -618,7 +618,7 @@ class WheelRepair:
         could not be determined. Return the empty string if the wheel has not
         been repaired."""
         if os.path.isfile(filename := os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')):
-            with open(filename) as file:
+            with open(filename, encoding='utf-8') as file:
                 if (line := file.readline()).startswith('Version: '):
                     return line[len('Version: '):].rstrip()
             return '(unknown version)'
@@ -1093,7 +1093,7 @@ class WheelRepair:
         # version. Further lines are for information purposes only and are
         # subject to change without notice between delvewheel versions.
         filename = os.path.join(self._extract_dir, dist_info_foldername, 'DELVEWHEEL')
-        with open(filename, 'w', newline='\n') as file:
+        with open(filename, 'w', newline='\n', encoding='utf-8') as file:
             file.write(f'Version: {_version.__version__}\n')
             if log_diagnostics:
                 file.write(f'Arguments: {sys.argv}\n')
@@ -1110,7 +1110,7 @@ class WheelRepair:
         record_filepath = os.path.join(self._extract_dir, dist_info_foldername, 'RECORD')
         if _Config.verbose >= 1:
             print(f'updating {os.path.join(dist_info_foldername, "RECORD")}')
-        with open(record_filepath, 'w', newline='\n') as record_file:
+        with open(record_filepath, 'w', newline='\n', encoding='utf-8') as record_file:
             writer = csv.writer(record_file, lineterminator='\n')
             for root, _, files in os.walk(self._extract_dir):
                 for file in files:

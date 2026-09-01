@@ -35,7 +35,7 @@ filepath_list = []
 for root, _, files in os.walk(extract_dir):
     for file in files:
         filepath_list.append(os.path.join(root, file))
-with open(record_filepath, 'w', newline='\n') as record_file:
+with open(record_filepath, 'w', newline='\n', encoding='utf-8') as record_file:
     writer = csv.writer(record_file, lineterminator='\n')
     for file_path in filepath_list:
         if file_path == record_filepath:

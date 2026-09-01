@@ -526,6 +526,16 @@ class RepairTestCase(TestCase):
         with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0analyze-cp312-cp312-win_amd64.whl') as wheel:
             self.assertEqual({'icudt74.dll', 'msvcp140.dll', 'simpledll.dll'}, set(path.name for path in zipfile.Path(wheel, 'simpleext-0.0.1.data/platlib/').iterdir()))
 
+    def test_unicode_record(self):
+        """RECORD is valid UTF-8 after repairing a wheel that contains a file
+        with non-ASCII characters in its name, even when UTF-8 mode is
+        disabled and the legacy locale encoding is not UTF-8."""
+        check_call(['delvewheel', 'repair', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-0unicode-cp312-cp312-win_amd64.whl'], env={'PYTHONUTF8': '0'})
+        with zipfile.ZipFile('wheelhouse/simpleext-0.0.1-0unicode-cp312-cp312-win_amd64.whl') as wheel:
+            record = wheel.read('simpleext-0.0.1.dist-info/RECORD')
+        record_text = record.decode('utf-8')
+        self.assertIn('pag\u00e8s.txt', record_text)
+
     def test_ignore_in_wheel(self):
         """--ignore-in-wheel is an alias for --ignore-existing"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-in-wheel', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
