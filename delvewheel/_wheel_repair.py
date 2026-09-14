@@ -69,7 +69,7 @@ def _delvewheel_patch_{1}():
         load_order_filepath = os.path.join(libs_dir, {4!r})
         if os.path.isfile(load_order_filepath):
             import ctypes.wintypes
-            with open(os.path.join(libs_dir, {4!r})) as file:
+            with open(os.path.join(libs_dir, {4!r}), encoding='utf-8') as file:
                 load_order = file.read().split()
             kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
             kernel32.LoadLibraryExW.restype = ctypes.wintypes.HMODULE
@@ -618,7 +618,7 @@ class WheelRepair:
         could not be determined. Return the empty string if the wheel has not
         been repaired."""
         if os.path.isfile(filename := os.path.join(self._extract_dir, f'{self._distribution_name}-{self._version}.dist-info', 'DELVEWHEEL')):
-            with open(filename, encoding='utf-8') as file:
+            with open(filename, encoding='utf-8', errors='surrogateescape') as file:
                 if (line := file.readline()).startswith('Version: '):
                     return line[len('Version: '):].rstrip()
             return '(unknown version)'
@@ -1084,7 +1084,7 @@ class WheelRepair:
             # contains a top-level extension module.
             if os.path.exists(load_order_filepath := os.path.join(libs_dir, load_order_filename)):
                 raise FileExistsError(f'{os.path.relpath(load_order_filepath, self._extract_dir)} already exists')
-            with open(os.path.join(libs_dir, load_order_filename), 'w', newline='\n') as file:
+            with open(os.path.join(libs_dir, load_order_filename), 'w', encoding='utf-8', newline='\n') as file:
                 file.write('\n'.join(dependency_names_outside_wheel))
                 file.write('\n')
 
@@ -1093,7 +1093,7 @@ class WheelRepair:
         # version. Further lines are for information purposes only and are
         # subject to change without notice between delvewheel versions.
         filename = os.path.join(self._extract_dir, dist_info_foldername, 'DELVEWHEEL')
-        with open(filename, 'w', newline='\n', encoding='utf-8') as file:
+        with open(filename, 'w', encoding='utf-8', newline='\n') as file:
             file.write(f'Version: {_version.__version__}\n')
             if log_diagnostics:
                 file.write(f'Arguments: {sys.argv}\n')
