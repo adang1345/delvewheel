@@ -1,3 +1,8 @@
+## 1.13.2 <sub><sup>(_9 October 2026_)</sup></sub>
+- Write wheel metadata files in UTF-8 regardless of locale.
+- Add Python 3.15 to trove classifiers.
+- Update GitHub Actions.
+
 ## 1.13.1 <sub><sup>(_28 August 2026_)</sup></sub>
 - Improve GitHub Actions security.
 - Ignore invalid `PATH` entries instead of raising `OSError`.
