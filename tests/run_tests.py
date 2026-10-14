@@ -225,6 +225,14 @@ class ShowTestCase(TestCase):
         output = subprocess.check_output(['delvewheel', 'show', '--add-path', 'simpleext/x64', '--analyze-existing-exes', 'simpleext/simpleext-0.0.1-0analyzeexe-cp312-cp312-win_amd64.whl'], text=True)
         self.assertIn('msvcp140.dll', output)
 
+    def test_pypy312_pp80(self):
+        """vcruntime140.dll is not vendored for PyPy3.12 v8"""
+        output = subprocess.check_output(['delvewheel', 'show', '--add-path', 'simpleext/x64', 'simpleext/simpleext-0.0.1-pp312-pypy312_pp80-win_amd64.whl'], text=True)
+        copied, _, not_copied = output.partition('assumed to be present')
+        self.assertIn('simpledll.dll', copied)
+        self.assertNotIn('vcruntime140.dll', copied)
+        self.assertIn('vcruntime140.dll', not_copied)
+
 
 class RepairTestCase(TestCase):
     """Tests for delvewheel repair"""

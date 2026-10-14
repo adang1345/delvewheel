@@ -57,11 +57,12 @@ ignore_by_abi_platform = {
     'cp3(9|1[0-2]|(1[3-9]|[2-9][0-9])t?)-win_a(md|rm)64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
     'cp3(9|1[0-2]|(1[3-9]|[2-9][0-9])t?)-win32': {'vcruntime140.dll'},
     'cp3((9|1[0-2])d|(1[3-9]|[2-9][0-9])t?d)-win(32|_a(md|rm)64)': {'vcruntime140d.dll', 'ucrtbased.dll'},
-    'pypy3([7-9]|1[0-9]|[2-9][0-9])_pp73-win_amd64': {'vcruntime140.dll'},
+    'pypy3(1[1-9]|[2-9][0-9])_pp80-win_amd64': {'vcruntime140.dll'},
+    'pypy_80-win_amd64': {'vcruntime140.dll'},
     r'graalpy\d+_3[1-9][0-9]_native-win_amd64': {'vcruntime140.dll', 'vcruntime140_1.dll'},
 
     # older versions of Python
-    'cp3([5-7]m|8)-win(32|_amd64)|pypy3[6-7]_pp73-win32|pypy_73-win(32|_amd64)': {'vcruntime140.dll'},
+    'cp3([5-7]m|8)-win(32|_amd64)|pypy3([7-9]|1[0-1])_pp73-win_amd64|pypy3[6-7]_pp73-win32|pypy_73-win(32|_amd64)': {'vcruntime140.dll'},
     'cp3([5-7]dm|8d)-win(32|_amd64)': {'vcruntime140d.dll', 'ucrtbased.dll'},
     'cp3[3-4]m-win(32|_amd64)': {'msvcr100.dll'},
     'cp(26|27|32)m-win(32|_amd64)|pypy_41-win32': {'msvcr90.dll'},
