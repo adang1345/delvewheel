@@ -30,7 +30,7 @@ jobs:
           restore-keys: pipcache-run-
           path: ${{ env.PIP_CACHE_DIR }}
       - name: set up Python 3.12
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
 #      - name: find instances of msvcp140.dll
@@ -69,7 +69,7 @@ jobs:
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
           python run_tests.py -v Python39TestCase
       - name: set up PyPy3.10
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: 'pypy3.10'
       - name: run tests with PyPy3.10
@@ -77,12 +77,12 @@ jobs:
         run: |
           pip install $(Get-ChildItem ..\dist\delvewheel-*.whl)
           python run_tests.py -v PyPyTestCase
-      - name: set up Ubuntu 24.04
-        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364
+      - name: set up Ubuntu 26.04
+        uses: Vampire/setup-wsl@4c48163d9f981914dd8caa0fc335fe19cca5bff4
         with:
-          distribution: Ubuntu-24.04
+          distribution: Ubuntu-26.04
           additional-packages: python-is-python3 python3-pip python3-venv
-      - name: run tests on Ubuntu 24.04
+      - name: run tests on Ubuntu 26.04
         shell: wsl-bash {0}
         run: |
           export PIP_CACHE_DIR=$(wslpath '${{ env.PIP_CACHE_DIR }}')
@@ -96,7 +96,7 @@ jobs:
     if: needs.build_windows.outputs.DEPLOY == '1' && github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'adang1345'
     needs: build_windows
     name: deploy
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       id-token: write
     steps:
@@ -106,4 +106,4 @@ jobs:
           name: delvewheel
           path: dist
       - name: deploy
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
