@@ -1,3 +1,7 @@
+## 1.13.3 <sub><sup>(_24 November 2026_)</sup></sub>
+- Don't vendor `vcruntime140.dll` for wheels targeting PyPy v8.
+- Update GitHub Actions.
+
 ## 1.13.2 <sub><sup>(_9 October 2026_)</sup></sub>
 - Write wheel metadata files in UTF-8 regardless of locale.
 - Add Python 3.15 to trove classifiers.
