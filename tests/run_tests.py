@@ -1340,6 +1340,20 @@ class RepairTestCase(TestCase):
                     self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
         import_iknowpy('0ignore')
 
+    def test_with_mangle_analyze_existing(self):
+        """--with-mangle and --analyze-existing when an existing DLL is
+        imported by an extension module in the wheel"""
+        check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--analyze-existing', '--with-mangle', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])
+        with zipfile.ZipFile('wheelhouse/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl') as wheel:
+            for path in zipfile.Path(wheel, 'iknowpy.libs/').iterdir():
+                if path.name in ('.load-order-iknowpy-1.5.3',):
+                    continue
+                if path.name.startswith('iKnowEngine'):
+                    self.fail('iKnowEngine.dll is ignored')
+                else:
+                    self.assertTrue(is_mangled(path.name), f'{path.name} is mangled')
+        import_iknowpy('0ignore')
+
     def test_with_mangle2(self):
         """--with-mangle with --no-mangle"""
         check_call(['delvewheel', 'repair', '--add-path', 'iknowpy', '--ignore-existing', '--with-mangle', '--no-mangle', 'msvcp140.dll', 'iknowpy/iknowpy-1.5.3-0ignore-cp312-cp312-win_amd64.whl'])

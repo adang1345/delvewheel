@@ -965,7 +965,7 @@ class WheelRepair:
                     print(f'repairing {executable_name} -> {executable_name}')
                 needed = _dll_utils.get_direct_mangleable_needed(executable_path, self._exclude, no_mangles)
             _dll_utils.replace_needed(executable_path, needed, name_mangler, strip, False)
-        for dependency_path in dependency_paths_outside_wheel_copied | dependency_paths_in_wheel:
+        for dependency_path in (dependency_paths_outside_wheel_copied | dependency_paths_in_wheel).difference(executable_paths):
             lib_name = os.path.basename(dependency_path)
             lib_name_lower = lib_name.lower()
             if no_mangle_all:
